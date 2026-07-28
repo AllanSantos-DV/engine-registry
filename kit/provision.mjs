@@ -8,9 +8,10 @@
 //   • shutdown-first (Windows: DLL/EXE em uso impede sobrescrever o diretório).
 // NUNCA lança: devolve { ok:false, reason }.
 import { mkdirSync, existsSync, renameSync, rmSync, openSync, closeSync, readFileSync, writeFileSync, unlinkSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { verifyBlob, DEFAULT_ALGORITHM } from "./signature.mjs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -89,11 +90,111 @@ function installedVersion(binDir) {
 }
 
 /**
+ * AUTENTICIDADE do artefato (Ed25519 hash-then-sign) — o passo que o SHA256 não cobre.
+ *
+ * O sidecar `.sha256` só prova que o download não corrompeu: quem publica o artefato publica o
+ * hash junto, então um artefato TROCADO vem com o hash certo do artefato trocado. A assinatura é
+ * o que amarra o artefato a quem detém a chave privada (que nunca sai da máquina do dono).
+ *
+ * Política, deliberadamente fail-closed e sem meio-termo silencioso:
+ *   • `publicKey` declarada no registry  → assinatura é OBRIGATÓRIA (declarar = exigir);
+ *   • `signatureRequired:true` sem `publicKey` → manifesto INCONSISTENTE, aborta (não "passa");
+ *   • nenhum dos dois → motor ainda não migrado: instala, mas o log SINALIZA (nunca calado).
+ *
+ * @returns {Promise<{ok:true, signed:boolean} | {ok:false, reason:string}>} nunca lança.
+ */
+async function verifyAuthenticity(engine, blob, { log, fetcher }) {
+  const publicKey = engine.install?.publicKey;
+  const required = engine.install?.signatureRequired === true;
+  const algorithm = engine.install?.signatureAlgorithm ?? DEFAULT_ALGORITHM;
+
+  if (!publicKey) {
+    if (required) {
+      return { ok: false, reason: `${engine.name}: registry pede assinatura (signatureRequired) mas não declara publicKey → ABORT (manifesto inconsistente)` };
+    }
+    log(`[engine-kit] ${engine.name}: SEM assinatura no registry — integridade (sha256) verificada, AUTENTICIDADE não`);
+    return { ok: true, signed: false };
+  }
+
+  let sig;
+  try {
+    sig = await fetcher(engine.signatureUrl, 15000);
+  } catch (e) {
+    return { ok: false, reason: `${engine.name}: sidecar .sig inacessível (${e.status || e.message}) mas o registry declara publicKey → ABORT (fail-closed)` };
+  }
+
+  const v = verifyBlob(blob, sig, publicKey, { algorithm });
+  if (!v.ok) { return { ok: false, reason: `${engine.name}: ${v.reason}` }; }
+
+  log(`[engine-kit] ${engine.name}: assinatura Ed25519 CONFERE (${algorithm})`);
+  return { ok: true, signed: true };
+}
+
+/**
+ * Baixa e VERIFICA um artefato sem instalar — o caminho dos motores `self-managed`.
+ *
+ * Existe para fechar o ovo-e-galinha do primeiro install: um motor que traz o próprio
+ * instalador (o `vox-engine` é um app Python com `install.ps1`) não pode se instalar sozinho
+ * numa máquina onde ainda não está. Alguém tem de buscar o instalador — e esse alguém estava
+ * sendo CADA consumidor, cada um com sua cópia de resolução de release, SHA256 e Ed25519.
+ *
+ * Aqui o kit faz o que já sabe fazer (integridade + autenticidade fail-closed) e devolve o
+ * caminho do arquivo verificado. Quem sabe o que fazer com ele — rodar um instalador, extrair,
+ * conferir uma assinatura extra — é o consumidor. O kit não executa nada.
+ *
+ * @returns {Promise<{ok:true, path:string, version:string, signed:boolean} | {ok:false, reason:string}>} nunca lança.
+ */
+export async function fetchArtifact(engine, { log = () => {}, destDir, downloadTimeoutMs = 300000, fetcher = fetchBuf } = {}) {
+  const dir = destDir ?? engine.homeDir;
+  try {
+    mkdirSync(dir, { recursive: true });
+  } catch (e) {
+    return { ok: false, reason: `${engine.name}: não consegui criar ${dir}: ${e?.message || e}` };
+  }
+
+  let expected;
+  try {
+    const buf = await fetcher(engine.checksumUrl, 15000);
+    expected = String(buf).trim().split(/\s+/)[0].toLowerCase();
+  } catch (e) {
+    return { ok: false, reason: `${engine.name}: sha256 sidecar inacessível (${e.status || e.message}) → ABORT (fail-closed)` };
+  }
+  if (!/^[0-9a-f]{64}$/.test(expected)) {
+    return { ok: false, reason: `${engine.name}: sha256 sidecar malformado → ABORT` };
+  }
+
+  log(`[engine-kit] baixando ${engine.assetUrl} …`);
+  let buf;
+  try { buf = await fetcher(engine.assetUrl, downloadTimeoutMs); }
+  catch (e) { return { ok: false, reason: `${engine.name}: download falhou (${e.status || e.message})` }; }
+
+  const actual = createHash("sha256").update(buf).digest("hex").toLowerCase();
+  if (actual !== expected) {
+    return { ok: false, reason: `${engine.name}: SHA256 mismatch (esperado ${expected.slice(0, 12)}…, obtido ${actual.slice(0, 12)}…) → ABORT` };
+  }
+
+  const auth = await verifyAuthenticity(engine, buf, { log, fetcher });
+  if (!auth.ok) { return { ok: false, reason: auth.reason }; }
+
+  // .part → rename: nunca entregar um caminho que aponta para download pela metade.
+  const part = join(dir, `${engine.assetName}.part`);
+  const out = join(dir, engine.assetName);
+  try {
+    writeFileSync(part, buf);
+    renameSync(part, out);
+  } catch (e) {
+    return { ok: false, reason: `${engine.name}: não consegui gravar ${out}: ${e?.message || e}` };
+  }
+  log(`[engine-kit] ${engine.name} v${engine.version} verificado em ${out}`);
+  return { ok: true, path: out, version: engine.version, signed: auth.signed };
+}
+
+/**
  * Garante o motor instalado. `onBeforeReplace` é o gancho de shutdown do MOTOR (o kit nunca
  * adivinha como derrubar um daemon: quem sabe é o descritor/consumidor).
  * @returns {Promise<{ok:true, entryPath:string, version:string, reused?:boolean, installed?:boolean} | {ok:false, reason:string}>}
  */
-export async function provision(engine, { log = () => {}, allowNetwork = true, onBeforeReplace, downloadTimeoutMs = 120000 } = {}) {
+export async function provision(engine, { log = () => {}, allowNetwork = true, onBeforeReplace, downloadTimeoutMs = 120000, fetcher = fetchBuf } = {}) {
   const home = engine.homeDir;
   const binDir = join(home, engine.install.extractTo ?? "bin");
   const entryPath = join(home, engine.install.entry);
@@ -123,6 +224,13 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
   if (engine.status === "pending-release") {
     return { ok: false, reason: `${engine.name} ainda não publicou release (status: pending-release)` };
   }
+  // Motor que traz o PRÓPRIO instalador (ex.: um app com updater embutido). A entrada no registry
+  // existe como descritor de registro — release, chave, versão — mas quem instala é ele mesmo.
+  // Tentar provisionar aqui daria erro obscuro (o artefato é um instalador, não um tarball de
+  // `extractTo`); melhor recusar dizendo QUEM instala.
+  if (engine.status === "self-managed") {
+    return { ok: false, reason: `${engine.name} é self-managed: instala e atualiza pelo próprio updater, não pelo engine-kit (o registry guarda o descritor da release)` };
+  }
 
   mkdirSync(home, { recursive: true });
 
@@ -145,7 +253,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
     // 1) SHA256 sidecar OBRIGATÓRIO (fail-closed).
     let expected;
     try {
-      const buf = await fetchBuf(engine.checksumUrl, 15000);
+      const buf = await fetcher(engine.checksumUrl, 15000);
       expected = String(buf).trim().split(/\s+/)[0].toLowerCase();
     } catch (e) {
       return { ok: false, reason: `${engine.name}: sha256 sidecar inacessível (${e.status || e.message}) → ABORT (fail-closed)` };
@@ -157,7 +265,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
     // 2) Download → .part → rename atômico.
     log(`[engine-kit] baixando ${engine.assetUrl} …`);
     let buf;
-    try { buf = await fetchBuf(engine.assetUrl, downloadTimeoutMs); }
+    try { buf = await fetcher(engine.assetUrl, downloadTimeoutMs); }
     catch (e) { return { ok: false, reason: `${engine.name}: download falhou (${e.status || e.message})` }; }
     const part = join(home, `${engine.assetName}.part`);
     const tgz = join(home, engine.assetName);
@@ -171,6 +279,14 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
       return { ok: false, reason: `${engine.name}: SHA256 mismatch (esperado ${expected.slice(0, 12)}…, obtido ${actual.slice(0, 12)}…) → ABORT` };
     }
 
+    // 3.5) AUTENTICIDADE — antes de extrair. Um artefato não confiável não chega a tocar o disco
+    //      final: se a assinatura não confere, o .tgz é apagado e nada é instalado.
+    const auth = await verifyAuthenticity(engine, buf, { log, fetcher });
+    if (!auth.ok) {
+      try { unlinkSync(tgz); } catch { /* ignore */ }
+      return { ok: false, reason: auth.reason };
+    }
+
     // 4) Extrai em staging e faz o swap (com shutdown-first se já existe).
     const staging = join(home, `stage-${engine.version}`);
     rmSync(staging, { recursive: true, force: true });
@@ -182,6 +298,10 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
       if (onBeforeReplace) { try { await onBeforeReplace(); } catch { /* best-effort */ } }
       rmSync(binDir, { recursive: true, force: true });
     }
+    // `extractTo` pode ser ANINHADO (ex.: "runtimes/<motor>", quando o home guarda estado que
+    // precisa sobreviver ao swap — pesos, logs). O rename exige o diretório-pai existente: sem
+    // isto, funciona na máquina que já tem a pasta e falha justamente na máquina limpa.
+    mkdirSync(dirname(binDir), { recursive: true });
     renameSync(staging, binDir);
     try { unlinkSync(tgz); } catch { /* ignore */ }
 
@@ -189,7 +309,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
       return { ok: false, reason: `${engine.name}: artefato extraído incompleto (sem ${engine.install.entry})` };
     }
     log(`[engine-kit] ${engine.name} instalado em ${binDir} (v${engine.version})`);
-    return { ok: true, entryPath, version: engine.version, installed: true };
+    return { ok: true, entryPath, version: engine.version, installed: true, signed: auth.signed };
   } catch (e) {
     return { ok: false, reason: `${engine.name}: provision falhou: ${e?.message || e}` };
   } finally {

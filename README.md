@@ -22,11 +22,39 @@ vive num lugar só e o consumidor apenas **declara a dependência**.
 
 ## Motores registrados
 
-| Motor | Versão | O que faz |
-|---|---|---|
-| `embed-house` | 1.0.4 | Casa de embeddings (MiniLM-L6-v2, 384-dim): carrega o modelo uma vez e serve vetores a N consumidores. |
-| `vox-engine` | 0.22.8 | Motor de voz (STT/TTS) compartilhado, com auto-unload quando ocioso. |
-| `mcp-gateway` | 0.1.0 | Agregador MCP: conecta uma vez em cada servidor MCP e reexpõe tudo num endpoint único. |
+| Motor | Versão | Tipo | O que faz |
+|---|---|---|---|
+| `embed-house` | 1.0.5 | `daemon` (http) | Casa de embeddings (MiniLM-L6-v2, 384-dim): carrega o modelo uma vez e serve vetores a N consumidores. |
+| `vox-engine` | 0.22.8 | `daemon` (pipe), **self-managed** | Motor de voz (STT/TTS) compartilhado, com auto-unload quando ocioso. Traz o próprio instalador e updater. |
+| `mcp-gateway` | 0.1.0 | `daemon` (http) | Agregador MCP: conecta uma vez em cada servidor MCP e reexpõe tudo num endpoint único. |
+| `neural-link` | 0.5.0 | `cli` | Dispatcher adaptativo de hooks: recebe o evento por stdin, pontua os handlers e devolve uma decisão composta. |
+
+**Todos** são publicados aqui, assinados com Ed25519 e verificados antes de instalar.
+
+Um motor pode ser de dois tipos (`kind`):
+
+- **`daemon`** — processo longo que anuncia `runtime.json` e responde a um `healthCheck`. O kit
+  sobe e espera o auto-anúncio.
+- **`cli`** — executável invocado **por evento** (ex.: um dispatcher de hooks). Não há processo
+  para manter vivo: provisionar já é entregar. O `lifecycle` devolve o caminho do binário sem
+  spawn, sem health e sem runtime — forçar um daemon aqui seria inventar um ciclo de vida que o
+  motor não tem.
+
+E pode declarar `status: "self-managed"`: o motor traz o **próprio instalador/updater** (o caso do
+`vox-engine`, um app Python). A entrada aqui é o **descritor de registro** — onde está a release,
+qual a chave, qual a versão — e o `provision` recusa com razão explícita em vez de tentar extrair
+um instalador como se fosse um tarball.
+
+## Conciliar a máquina
+
+```sh
+node kit/doctor.mjs          # diagnostica: o que reusar, atualizar ou baixar
+node kit/doctor.mjs --fix    # aplica
+```
+
+Desatualizado → atualiza. Ausente → baixa. **Atualizado → reusa** — e o diagnóstico não baixa nada,
+porque reusar é o caminho comum e precisa ser barato. Antes de trocar um daemon vivo, o doctor pede
+o `shutdownPath` que o registry declara: no Windows, arquivo em uso não pode ser sobrescrito.
 
 ## Como consumir
 
@@ -80,6 +108,10 @@ if (!gw.available) { log(`gateway indisponível: ${gw.reason}`); return; }  // d
 
 - **Integridade fail-closed** — o sidecar `.sha256` é obrigatório; ausente, malformado ou
   divergente = **aborta sem instalar**.
+- **Autenticidade fail-closed** — quando o registry declara `install.publicKey`, o artefato só é
+  extraído se a **assinatura Ed25519** conferir. Isso cobre o que o SHA256 **não** cobre: quem
+  troca o artefato no release **regenera o `.sha256` junto** e passaria pela integridade. A
+  assinatura amarra o artefato a quem detém a chave privada — que nunca sai da máquina do dono.
 - **Um provisionamento por vez** — lock atômico (`wx`): consumidores concorrentes não brigam;
   os demais esperam o vencedor.
 - **Reúso por semver same-major `>=`** — dois consumidores com pins diferentes convergem no maior,
@@ -91,37 +123,83 @@ if (!gw.available) { log(`gateway indisponível: ${gw.reason}`); return; }  // d
 - **Singleton do motor** — a corrida é resolvida **dentro** do motor (port-lock/bind); o kit só
   sobe e espera o auto-anúncio.
 
+## Assinatura dos motores
+
+Contrato **`ed25519-sha256-raw`** (o mesmo que o `vox-engine` já pratica em produção — a migração
+dele não exige reassinar nada):
+
+- assina-se o **SHA-256** do artefato (*hash-then-sign*), não o artefato direto;
+- o `.sig` é a assinatura Ed25519 **crua: 64 bytes binários**, nunca base64;
+- a chave **pública** (32 bytes hex) é **pinada** no `manifest.json`, em `install.publicKey`;
+- a chave **privada** fica em `~/.engine-signing/<motor>_ed25519_private.key` e **nunca entra em
+  CI** — é isso que impede um CI comprometido de forjar um release.
+
+**Uma chave por motor**, não uma chave do publisher: um vazamento obriga a republicar aquele
+motor, não a casa inteira.
+
+Política do `provision`, sem meio-termo silencioso:
+
+| Situação no registry | O que acontece |
+|---|---|
+| `publicKey` declarada | assinatura **obrigatória**; inválida/ausente = ABORT |
+| `signatureRequired: true` sem `publicKey` | manifesto **inconsistente** = ABORT |
+| `signatureAlgorithm` desconhecido | ABORT (nunca aceite silencioso) |
+| nem chave nem exigência (motor ainda não migrado) | instala, mas o log **sinaliza** que a autenticidade não foi verificada |
+
 ## Estrutura
 
 ```
-manifest.json    # o registry: descritor de cada motor (release, asset, entry, runtime)
+manifest.json    # o registry: descritor de cada motor (release, asset, entry, runtime, chave)
+schema.json      # contrato do manifest (JSON Schema)
 kit/
-  index.mjs      # ensureEngine = resolve → provision → lifecycle
-  resolve.mjs    # descobre o motor no registry (cache 6h, degrada p/ cache obsoleto)
-  provision.mjs  # baixa/atualiza com SHA256 fail-closed, lock e swap atômico
-  lifecycle.mjs  # garante o processo vivo (healthCheck é sempre do motor)
+  index.mjs        # ensureEngine = resolve → provision → lifecycle
+  resolve.mjs      # descobre o motor no registry (cache 6h, degrada p/ cache obsoleto)
+  provision.mjs    # baixa/atualiza: SHA256 + assinatura fail-closed, lock e swap atômico
+  lifecycle.mjs    # garante o processo vivo (daemon) ou entrega o binário (cli)
+  signature.mjs    # contrato ed25519-sha256-raw — assinar e verificar na MESMA fonte
+  keystore.mjs     # onde moram as chaves privadas (~/.engine-signing)
+  gen-key.mjs      # gera o par de UM motor (com auto-prova)
+  sign.mjs         # assina um artefato e prova a assinatura na hora
+  update-manifest.mjs # patch do manifest parseado (nunca regex em JSON)
+  verify-release.mjs  # baixa a release publicada e prova o caminho do consumidor
+  publish-base.ps1    # publicação: identidade do gh → assina → release → manifest → prova
 consumers/
   mcp-gateway.mjs  # adaptador pronto: handshake + token + shutdown do agregador MCP
-smoke.mjs        # contratos do kit: node smoke.mjs
-e2e-install.mjs  # instalação real de um motor do zero: node e2e-install.mjs
+smoke.mjs          # contratos do kit: node smoke.mjs
+test-signature.mjs # contrato de assinatura (inclui o ataque com .sha256 recalculado)
+e2e-install.mjs    # instalação real de um motor do zero: node e2e-install.mjs
 ```
 
 ## Verificar
 
 ```sh
-node smoke.mjs             # contratos, offline
-node smoke.mjs --network   # resolvendo do registry remoto
-node e2e-install.mjs       # baixa e sobe o mcp-gateway num HOME isolado (prova real)
+node smoke.mjs                     # contratos, offline
+node smoke.mjs --network           # resolvendo do registry remoto
+node test-signature.mjs            # contrato de assinatura (hermético)
+node test-signature.mjs --network  # + interop com uma release REAL do vox-engine
+node e2e-install.mjs               # baixa e sobe o mcp-gateway num HOME isolado (prova real)
+node e2e-install.mjs --local       # idem, mas usando o manifest.json que você vai publicar
 ```
 
 ## Publicar um motor
 
-1. Gere o artefato por plataforma: `<motor>-<platform>-<arch>.tgz` **+** `<...>.tgz.sha256`.
-2. Publique num GitHub Release com a tag `<motor>-v<versão>`.
-3. Registre/atualize a entrada em `manifest.json`.
+Veja o passo a passo completo em [`CONTRATO-MOTOR.md`](./CONTRATO-MOTOR.md). Em resumo:
+
+```sh
+node kit/gen-key.mjs <motor>          # uma vez por motor: gera a chave e imprime a pública
+# ... o motor builda o próprio artefato ...
+pwsh kit/publish-base.ps1 -Engine <motor> -Version <x.y.z> -Asset <artefato.tgz> -DryRun
+pwsh kit/publish-base.ps1 -Engine <motor> -Version <x.y.z> -Asset <artefato.tgz>
+```
+
+O `publish-base.ps1` confere a identidade do `gh` (o app Copilot injeta o token de uma conta de
+trabalho nos processos filhos e o `gh` publica pela conta errada), assina, publica no registry,
+atualiza o `manifest.json` **parseado** e então **prova**: baixa a release publicada e valida
+`sha256` + assinatura pelo caminho de um consumidor.
 
 O artefato deve ser **self-contained** (traz o próprio `node_modules` trimado): o motor precisa
 subir numa máquina limpa, sem depender do consumidor.
+
 
 ## Licença
 

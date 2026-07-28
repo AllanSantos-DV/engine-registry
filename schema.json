@@ -23,10 +23,14 @@
       "properties": {
         "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
         "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
-        "kind": { "type": "string", "enum": ["daemon"] },
+        "kind": {
+          "type": "string",
+          "enum": ["daemon", "cli"],
+          "description": "daemon = processo longo que anuncia runtime.json e responde healthCheck. cli = executável invocado por evento (ex.: dispatcher de hooks): o lifecycle NÃO sobe processo, só devolve o caminho do binário."
+        },
         "summary": { "type": "string" },
         "home": { "type": "string", "description": "Diretório de instalação; '~' é expandido." },
-        "status": { "type": "string", "enum": ["pending-release"], "description": "Presente = ainda não consumível; provision aborta com razão explícita." },
+        "status": { "type": "string", "enum": ["pending-release", "self-managed"], "description": "pending-release = ainda não consumível; provision aborta com razão explícita. self-managed = o motor traz o próprio instalador/updater e NÃO é provisionado pelo kit; a entrada existe como descritor de registro (release, chave, versão) e o provision aborta apontando o caminho certo." },
         "notes": { "type": "string" },
         "platforms": {
           "type": "array",
@@ -41,17 +45,57 @@
             "tag": { "type": "string", "description": "Template; aceita {version}." },
             "asset": { "type": "string", "description": "Template; aceita {version}, {platform}, {arch}." },
             "checksum": { "type": "string", "description": "Template do sidecar; aceita {asset}. OBRIGATÓRIO (fail-closed)." },
+            "signature": {
+              "type": "string",
+              "default": "{asset}.sig",
+              "description": "Template do sidecar de ASSINATURA; aceita {asset}. O .sig é a assinatura Ed25519 CRUA (64 bytes) do SHA-256 do asset."
+            },
+            "publicKey": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{64}$",
+              "description": "Chave pública Ed25519 do motor, 32 bytes em hex (64 chars). PINADA aqui: declarada = a assinatura passa a ser verificada e OBRIGATÓRIA para este motor."
+            },
+            "signatureAlgorithm": {
+              "type": "string",
+              "enum": ["ed25519-sha256-raw"],
+              "default": "ed25519-sha256-raw",
+              "description": "Contrato de assinatura. 'ed25519-sha256-raw' = assina-se o SHA-256 do artefato (hash-then-sign), .sig binário cru de 64 bytes. Algoritmo desconhecido = ABORT (fail-closed), nunca aceite silencioso."
+            },
+            "signatureRequired": {
+              "type": "boolean",
+              "default": false,
+              "description": "true = recusar instalar sem assinatura válida. Exige 'publicKey' presente; ausente com este flag ligado = manifesto inconsistente e o provision aborta."
+            },
+            "sdkFlats": {
+              "type": "object",
+              "description": "Canônico público do SDK do motor (gate anti-drift dos consumidores). Só descritivo: o kit não consome — quem baixa é o publish do consumidor.",
+              "properties": {
+                "asset": { "type": "string" },
+                "checksum": { "type": "string", "default": "{asset}.sha256" },
+                "signature": { "type": "string", "default": "{asset}.sig" }
+              }
+            },
             "extractTo": { "type": "string", "default": "bin" },
             "entry": { "type": "string", "description": "Caminho do entrypoint relativo ao home." }
           }
         },
         "runtime": {
           "type": "object",
+          "description": "Só faz sentido para kind=daemon. Um motor kind=cli não anuncia runtime nem responde health.",
           "properties": {
-            "transport": { "type": "string", "enum": ["http"] },
+            "transport": { "type": "string", "enum": ["http", "pipe"] },
+            "pipeName": { "type": "string", "description": "Nome do named pipe quando transport=pipe (ex.: 'vox')." },
             "runtimeFile": { "type": "string", "default": "runtime.json" },
             "healthPath": { "type": "string" },
             "shutdownPath": { "type": "string" },
+            "shutdownTokenField": {
+              "type": "string",
+              "description": "Campo do runtime.json que carrega o token de shutdown. Sem ele, o kit não manda token — e NÃO inventa um: um shutdown sem autenticação seria um endpoint de desligar aberto no loopback."
+            },
+            "shutdownTokenHeader": {
+              "type": "string",
+              "description": "Cabeçalho em que o token de shutdown viaja (ex.: 'x-shutdown-token'). Declarado, não presumido: cada motor escolhe o seu."
+            },
             "heartbeatMs": {
               "type": "integer",
               "description": "Intervalo de heartbeat do motor. O kit considera o runtime obsoleto após 3 batimentos. Ausente = usa o default do kit (não é tratado como 'nunca expira')."
@@ -60,7 +104,20 @@
             "authFile": { "type": "string" }
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "cli" } }, "required": ["kind"] },
+          "then": {
+            "not": { "required": ["runtime"] },
+            "description": "kind=cli não tem runtime: o lifecycle devolve o binário sem subir processo."
+          }
+        },
+        {
+          "if": { "properties": { "install": { "required": ["signatureRequired"], "properties": { "signatureRequired": { "const": true } } } }, "required": ["install"] },
+          "then": { "properties": { "install": { "required": ["publicKey"] } } }
+        }
+      ]
     }
   }
 }

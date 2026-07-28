@@ -29,20 +29,31 @@ check("2.0.0 NÃO satisfaz 1.0.4 (major)", !satisfiesPin("2.0.0", "1.0.4"));
 // 2) resolve: monta URLs a partir do manifest
 console.log("\n2) resolve");
 const manifest = JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8"));
-check("manifest tem 3 motores", manifest.engines.length === 3, manifest.engines.map((e) => e.name).join(", "));
+const names = manifest.engines.map((e) => e.name);
+check("manifest tem motores registrados", manifest.engines.length > 0, names.join(", "));
+// Um motor sem assinatura é aceito pelo kit (compatibilidade), mas aqui é regressão: a casa
+// inteira já migrou. Se alguém adicionar um motor sem chave, isto acusa antes de publicar.
+const semChave = manifest.engines.filter((e) => !e.install?.publicKey).map((e) => e.name);
+check("todo motor declara publicKey", semChave.length === 0, semChave.length ? `sem chave: ${semChave.join(", ")}` : "");
+const semExigir = manifest.engines.filter((e) => e.install?.signatureRequired !== true).map((e) => e.name);
+check("todo motor exige assinatura", semExigir.length === 0, semExigir.length ? `não exigem: ${semExigir.join(", ")}` : "");
+const foraDaCasa = manifest.engines.filter((e) => e.install?.repo !== "AllanSantos-DV/engine-registry").map((e) => e.name);
+check("todo motor publica no registry", foraDaCasa.length === 0, foraDaCasa.length ? `fora: ${foraDaCasa.join(", ")}` : "");
 
 // Cache local para resolver offline (o resolve lê ~/.engine-kit/manifest.json quando fresco).
 const cacheDir = join(process.env.HOME ?? process.env.USERPROFILE ?? tmpdir(), ".engine-kit");
 mkdirSync(cacheDir, { recursive: true });
 writeFileSync(join(cacheDir, "manifest.json"), JSON.stringify(manifest, null, 2));
 
+const eh = manifest.engines.find((e) => e.name === "embed-house");
 const r = await resolve("embed-house", { allowNetwork: useNetwork });
 check("resolve('embed-house') ok", r.ok, r.ok ? "" : r.reason);
 if (r.ok) {
-  check("assetUrl aponta pro release correto",
-    r.engine.assetUrl.includes("embed-house-v1.0.4") && r.engine.assetUrl.endsWith(".tgz"),
+  check("assetUrl aponta pro release da versão do manifest",
+    r.engine.assetUrl.includes(`embed-house-v${eh.version}`) && r.engine.assetUrl.endsWith(".tgz"),
     r.engine.assetUrl);
   check("checksumUrl é o sidecar .sha256", r.engine.checksumUrl.endsWith(".tgz.sha256"));
+  check("signatureUrl é o sidecar .sig", r.engine.signatureUrl.endsWith(".tgz.sig"));
   check("homeDir expandido (sem ~)", !r.engine.homeDir.startsWith("~"), r.engine.homeDir);
 }
 

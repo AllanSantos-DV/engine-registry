@@ -43,18 +43,23 @@ async function fetchManifest(url, timeoutMs) {
 
 /**
  * Devolve o descritor do motor `name`, já com caminhos expandidos e URLs montadas.
+ * @param opts.manifest manifest JÁ carregado (pula rede e cache) — usado pelo publish para
+ *        conferir a release contra o manifest LOCAL que ele acabou de escrever, e por testes.
  * @returns {Promise<{ok:true, engine:object} | {ok:false, reason:string}>}
  */
-export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowNetwork = true, timeoutMs = 10000, version } = {}) {
+export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowNetwork = true, timeoutMs = 10000, version, manifest: given } = {}) {
   let manifest = null;
-  const cached = readCache();
+  const cached = given ? null : readCache();
   // Sinalizações marcadas ONDE acontecem (não deduzidas depois):
   //  • degraded  → tentou a rede, falhou, e caiu num cache VENCIDO (descritor pode estar velho);
   //  • offline   → não se falou com o registry nesta resolução (rede desabilitada ou falha).
   let degraded = false;
   let offline = false;
 
-  if (cached && !cached.stale) {
+  if (given) {
+    manifest = given;
+    offline = true; // manifest entregue na mão: não se falou com o registry
+  } else if (cached && !cached.stale) {
     manifest = cached.manifest;
     offline = true; // cache fresco: não precisou da rede
   } else if (allowNetwork) {
@@ -83,6 +88,9 @@ export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowN
   const asset = fill(found.install.asset, vars);
   const tag = fill(found.install.tag, vars);
   const base = `https://github.com/${found.install.repo}/releases/download/${tag}`;
+  // Sidecar de assinatura: template opcional, default `<asset>.sig`. A URL é sempre montada —
+  // quem decide se ela é OBRIGATÓRIA é o provision, olhando publicKey/signatureRequired.
+  const sigName = fill(found.install.signature ?? "{asset}.sig", { ...vars, asset });
 
   return {
     ok: true,
@@ -93,6 +101,8 @@ export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowN
       assetName: asset,
       assetUrl: `${base}/${asset}`,
       checksumUrl: `${base}/${fill(found.install.checksum, { ...vars, asset })}`,
+      signatureName: sigName,
+      signatureUrl: `${base}/${sigName}`,
       /** true = o descritor veio de um cache VENCIDO porque o registry não respondeu. */
       staleCache: degraded,
       /** true = esta resolução não falou com o registry (cache fresco, sem rede, ou falha). */
