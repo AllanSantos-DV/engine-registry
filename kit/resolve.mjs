@@ -83,6 +83,9 @@ export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowN
   const asset = fill(found.install.asset, vars);
   const tag = fill(found.install.tag, vars);
   const base = `https://github.com/${found.install.repo}/releases/download/${tag}`;
+  // Sidecar de assinatura: template opcional, default `<asset>.sig`. A URL é sempre montada —
+  // quem decide se ela é OBRIGATÓRIA é o provision, olhando publicKey/signatureRequired.
+  const sigName = fill(found.install.signature ?? "{asset}.sig", { ...vars, asset });
 
   return {
     ok: true,
@@ -93,6 +96,8 @@ export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowN
       assetName: asset,
       assetUrl: `${base}/${asset}`,
       checksumUrl: `${base}/${fill(found.install.checksum, { ...vars, asset })}`,
+      signatureName: sigName,
+      signatureUrl: `${base}/${sigName}`,
       /** true = o descritor veio de um cache VENCIDO porque o registry não respondeu. */
       staleCache: degraded,
       /** true = esta resolução não falou com o registry (cache fresco, sem rede, ou falha). */

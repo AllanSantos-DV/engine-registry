@@ -3,6 +3,12 @@
 // motor — `healthCheck` é sempre um callback de quem conhece o protocolo (handshake de versão,
 // modelo, dimensão…). O kit cuida do que é genérico: ler o runtime.json fresco, subir o processo
 // destacado e esperar o auto-anúncio. NUNCA lança.
+//
+// Dois tipos de motor (`kind`):
+//   • daemon — processo longo que anuncia `runtime.json` e responde health. É o fluxo abaixo.
+//   • cli    — executável invocado POR EVENTO (ex.: o dispatcher de hooks): não há processo para
+//              manter vivo, nem runtime, nem health. Provisionar já é entregar. Forçar um daemon
+//              aqui seria inventar um ciclo de vida que o motor não tem.
 import { spawn } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -55,6 +61,14 @@ function spawnEngine(nodePath, entryPath, log, extraEnv) {
  * @returns {Promise<{available:true, runtime:object, health:object} | {available:false, reason:string}>}
  */
 export async function lifecycle(engine, entryPath, { healthCheck, log = () => {}, bootTimeoutMs = 60000, nodePath = process.execPath, env } = {}) {
+  // 0) MOTOR CLI: não existe daemon a subir nem runtime a esperar — o binário provisionado É a
+  //    entrega. Sai ANTES da exigência de healthCheck: cobrar handshake de quem não tem protocolo
+  //    de rede seria uma barreira artificial.
+  if (engine.kind === "cli") {
+    log(`[engine-kit] ${engine.name}: motor kind=cli (invocado por evento) — sem processo para manter vivo`);
+    return { available: true, kind: "cli", bin: entryPath, runtime: null, health: null };
+  }
+
   if (typeof healthCheck !== "function") {
     return { available: false, reason: "healthCheck é obrigatório (o kit não adivinha o protocolo do motor)" };
   }
