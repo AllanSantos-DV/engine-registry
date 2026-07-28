@@ -9,6 +9,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { provision } from "./kit/provision.mjs";
 import { readFreshRuntime } from "./kit/lifecycle.mjs";
+import { resolve } from "./kit/resolve.mjs";
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -133,6 +134,55 @@ const P2 = server2.address().port;
 const h7 = join(ROOT, "h7");
 const p7 = await provision({ ...engineFor(h7), assetName: "bad.tgz", assetUrl: `http://127.0.0.1:${P2}/bad.tgz`, checksumUrl: `http://127.0.0.1:${P2}/bad.tgz.sha256` }, { allowNetwork: true });
 check("detectou artefato incompleto", !p7.ok && /incompleto/i.test(p7.reason), p7.reason);
+
+// 8) Instalação em ESTADO DESCONHECIDO (entry presente, package.json ausente/corrompido).
+//    Nunca reusar: é fail-open silencioso e congela a máquina numa instalação quebrada.
+console.log("\n8) instalação com versão ilegível");
+for (const [rotulo, escrever] of [
+  ["package.json AUSENTE", () => {}],
+  ["package.json CORROMPIDO", (dir) => writeFileSync(join(dir, "package.json"), "{ isto nao e json")],
+]) {
+  const h = join(ROOT, `h8-${rotulo.includes("AUSENTE") ? "missing" : "corrupt"}`);
+  mkdirSync(join(h, "bin"), { recursive: true });
+  writeFileSync(join(h, "bin", "server.mjs"), "// entry\n");
+  escrever(join(h, "bin"));
+
+  const off = await provision(engineFor(h), { allowNetwork: false });
+  check(`${rotulo} + sem rede → ok:false explícito`, !off.ok && /estado desconhecido/i.test(off.reason), off.reason);
+
+  const on = await provision(engineFor(h), { allowNetwork: true });
+  check(`${rotulo} + com rede → REPROVISIONA (não reusa)`, on.ok && on.installed === true && on.reused !== true,
+    on.ok ? `installed=${on.installed} reused=${on.reused} v${on.version}` : on.reason);
+  check(`${rotulo} → versão agora é LIDA do disco`, on.ok && on.version === "1.0.0", on.ok ? on.version : "-");
+}
+
+// 9) Sinalização de degradação do resolve (cache vencido + registry inacessível).
+console.log("\n9) resolve: sinaliza cache obsoleto");
+const cacheDir = join(process.env.USERPROFILE ?? process.env.HOME, ".engine-kit");
+const cacheFile = join(cacheDir, "manifest.json");
+mkdirSync(cacheDir, { recursive: true });
+const hadCache = existsSync(cacheFile);
+const backup = hadCache ? readFileSync(cacheFile) : null;
+try {
+  const fakeManifest = { engines: [{ name: "fake-engine", version: "1.0.0", home: "~/.fake",
+    install: { repo: "x/y", tag: "t{version}", asset: "a.tgz", checksum: "{asset}.sha256", entry: "bin/s.mjs" } }] };
+  writeFileSync(cacheFile, JSON.stringify(fakeManifest));
+
+  // (a) cache VENCIDO + rede tentada e falhando → degradação REAL, tem que sinalizar
+  const old = new Date(Date.now() - 48 * 3600 * 1000);
+  utimesSync(cacheFile, old, old);
+  const deg = await resolve("fake-engine", { registryUrl: "http://127.0.0.1:1/nope.json", allowNetwork: true, timeoutMs: 1200 });
+  check("cache vencido + registry fora → staleCache=true", deg.ok && deg.engine.staleCache === true, deg.ok ? String(deg.engine.staleCache) : deg.reason);
+  check("e marca offline", deg.ok && deg.engine.offline === true);
+
+  // (b) cache FRESCO → não sinaliza (guarda contra virar ruído)
+  const now = new Date();
+  utimesSync(cacheFile, now, now);
+  const fresh = await resolve("fake-engine", { allowNetwork: false });
+  check("cache fresco → staleCache=false", fresh.ok && fresh.engine.staleCache === false, fresh.ok ? String(fresh.engine.staleCache) : fresh.reason);
+} finally {
+  if (hadCache) { writeFileSync(cacheFile, backup); } else { rmSync(cacheFile, { force: true }); }
+}
 
 server.close(); server2.close();
 try { rmSync(ROOT, { recursive: true, force: true }); } catch { /* best-effort */ }

@@ -48,19 +48,29 @@ async function fetchManifest(url, timeoutMs) {
 export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowNetwork = true, timeoutMs = 10000, version } = {}) {
   let manifest = null;
   const cached = readCache();
+  // Sinalizações marcadas ONDE acontecem (não deduzidas depois):
+  //  • degraded  → tentou a rede, falhou, e caiu num cache VENCIDO (descritor pode estar velho);
+  //  • offline   → não se falou com o registry nesta resolução (rede desabilitada ou falha).
+  let degraded = false;
+  let offline = false;
 
   if (cached && !cached.stale) {
     manifest = cached.manifest;
+    offline = true; // cache fresco: não precisou da rede
   } else if (allowNetwork) {
     try {
       manifest = await fetchManifest(registryUrl, timeoutMs);
       try { mkdirSync(CACHE_DIR, { recursive: true }); writeFileSync(CACHE, JSON.stringify(manifest, null, 2)); } catch { /* cache é best-effort */ }
     } catch (e) {
       if (!cached) { return { ok: false, reason: `registry inacessível (${e.message}) e sem cache` }; }
-      manifest = cached.manifest; // degrada para cache obsoleto, sinalizado abaixo
+      manifest = cached.manifest;
+      offline = true;
+      degraded = cached.stale; // AQUI é a degradação real: rede falhou e o cache está vencido
     }
   } else if (cached) {
     manifest = cached.manifest;
+    offline = true;
+    degraded = cached.stale;
   } else {
     return { ok: false, reason: "sem cache do registry e rede desabilitada" };
   }
@@ -83,7 +93,10 @@ export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowN
       assetName: asset,
       assetUrl: `${base}/${asset}`,
       checksumUrl: `${base}/${fill(found.install.checksum, { ...vars, asset })}`,
-      staleCache: Boolean(cached?.stale && !allowNetwork),
+      /** true = o descritor veio de um cache VENCIDO porque o registry não respondeu. */
+      staleCache: degraded,
+      /** true = esta resolução não falou com o registry (cache fresco, sem rede, ou falha). */
+      offline,
     },
   };
 }

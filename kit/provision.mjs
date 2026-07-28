@@ -99,13 +99,24 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
   const entryPath = join(home, engine.install.entry);
   const lock = join(home, "provision.lock");
 
-  // Já instalado e satisfaz o pin? Reusa (barato, sem rede).
+  // Já instalado? Só reusa se a versão instalada for LEGÍVEL e satisfizer o pin.
+  // Versão ilegível (package.json ausente/corrompido = extração interrompida, disco cheio,
+  // arquivo truncado) NÃO é motivo para reusar: é estado desconhecido → reprovisiona.
+  // Reusar aqui seria fail-open silencioso — o oposto do resto do kit — e congelaria a máquina
+  // numa instalação quebrada para sempre, ignorando o pin do registry.
   if (existsSync(entryPath)) {
     const inst = installedVersion(binDir);
-    if (!inst || satisfiesPin(inst, engine.version)) {
-      return { ok: true, entryPath, version: inst ?? engine.version, reused: true };
+    if (inst && satisfiesPin(inst, engine.version)) {
+      return { ok: true, entryPath, version: inst, reused: true };
     }
-    log(`[engine-kit] ${engine.name}: instalada v${inst} não satisfaz o pin v${engine.version} → atualizando`);
+    if (!inst) {
+      log(`[engine-kit] ${engine.name}: instalação em estado desconhecido (versão ilegível) → reprovisionando`);
+      if (!allowNetwork) {
+        return { ok: false, reason: `${engine.name}: instalação em estado desconhecido (package.json ausente/corrompido em ${binDir}) e rede desabilitada — não dá para validar nem reparar` };
+      }
+    } else {
+      log(`[engine-kit] ${engine.name}: instalada v${inst} não satisfaz o pin v${engine.version} → atualizando`);
+    }
   }
 
   if (!allowNetwork) { return { ok: false, reason: `${engine.name} ausente/desatualizado e rede desabilitada` }; }
@@ -120,7 +131,11 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
   const lockFd = claimLock(lock);
   if (lockFd === null) {
     for (let i = 0; i < 40; i++) {
-      if (existsSync(entryPath)) { return { ok: true, entryPath, version: installedVersion(binDir) ?? engine.version, reused: true }; }
+      if (existsSync(entryPath)) {
+        const inst = installedVersion(binDir);
+        // Se o vencedor terminou mas a versão continua ilegível, não invente: sinalize.
+        if (inst) { return { ok: true, entryPath, version: inst, reused: true }; }
+      }
       await sleep(1000);
     }
     return { ok: false, reason: `${engine.name}: provision-locked-timeout (outro consumidor está instalando há >40s)` };
