@@ -59,9 +59,9 @@
       "home": "~/.mcp-gateway",
       "install": {
         "type": "github-release",
-        "repo": "AllanSantos-DV/mcp-bridge",
+        "repo": "AllanSantos-DV/engine-registry",
         "tag": "mcp-gateway-v{version}",
-        "asset": "mcp-gateway-{platform}-{arch}.tgz",
+        "asset": "mcp-gateway.tgz",
         "checksum": "{asset}.sha256",
         "extractTo": "bin",
         "entry": "bin/mcp-gateway.mjs"
@@ -73,8 +73,8 @@
         "defaultPort": 7337,
         "authFile": "auth-token"
       },
-      "platforms": ["win32-x64", "linux-x64", "darwin-arm64"],
-      "status": "pending-release"
+      "platforms": ["any"],
+      "notes": "Artefato cross-platform (bundle JS puro, sem binário nativo) — um único asset serve todas as plataformas. Código-fonte no repo privado mcp-bridge, branch feat/mcp-gateway."
     }
   ]
 }
