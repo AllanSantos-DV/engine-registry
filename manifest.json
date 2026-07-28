@@ -106,7 +106,7 @@
     },
     {
       "name": "neural-link",
-      "version": "0.7.2",
+      "version": "0.7.3",
       "kind": "cli",
       "summary": "Dispatcher adaptativo de hooks para agentes LLM: recebe o evento por stdin, pontua e executa os handlers registrados, e devolve UMA decisão composta. Não é daemon — é invocado a cada evento de hook, por qualquer host (Copilot CLI, VS Code, Claude Code).",
       "home": "~/.copilot/neural-link",
