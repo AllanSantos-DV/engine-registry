@@ -21,9 +21,17 @@ publish-base.ps1 - Publica UM motor no engine-registry, assinado, com prova do c
   e historico/rollback: se falhar, AVISA alto mas nao invalida a publicacao. Dois canonicos
   seriam duas verdades, e a divergencia apareceria como "atualizei e voltou a versao velha".
 
+  PONTE DE MIGRACAO (-MarketplaceMirror): enquanto existir consumidor com a URL ANTIGA gravada
+  no codigo (SDK vendorizado, provision copiado), a release precisa continuar aparecendo la
+  tambem -- senao a migracao quebra quem ainda nao foi repontado. Tambem e o rollback: para
+  voltar atras, o consumidor so reaponta a URL, sem rebuild. Como o -SourceRepo, a falha aqui
+  AVISA e segue: o canonico ja esta de pe. Desligue quando um grep nos consumidores pela URL
+  antiga daquele motor voltar VAZIO.
+
 Uso:
   ./publish-base.ps1 -Engine mcp-gateway -Version 0.2.0 -Asset dist/mcp-gateway.tgz
   ./publish-base.ps1 -Engine vox-engine -Version 0.23.0 -Asset a.tgz,b.tgz -SourceRepo AllanSantos-DV/vox-engine
+  ./publish-base.ps1 -Engine embed-house -Version 1.0.5 -Asset x.tgz -MarketplaceMirror AllanSantos-DV/copilot-marketplace
   ./publish-base.ps1 -Engine mcp-gateway -Version 0.2.0 -Asset dist/x.tgz -DryRun
 #>
 param(
@@ -32,6 +40,7 @@ param(
     [Parameter(Mandatory = $true)][string[]]$Asset,
     [string]$Registry = "AllanSantos-DV/engine-registry",
     [string]$SourceRepo = "",
+    [string]$MarketplaceMirror = "",
     [string]$RegistryPath = "",
     [string]$Notes = "",
     [switch]$SkipManifest,
@@ -75,8 +84,10 @@ foreach ($a in $Asset) {
 }
 
 $keyPath = Join-Path $env:USERPROFILE ".engine-signing\${Engine}_ed25519_private.key"
+$envVar = "ENGINE_SIGNING_KEY_" + ($Engine -replace '-', '_').ToUpper()
+if (Test-Path "env:$envVar") { $keyPath = (Get-Item "env:$envVar").Value }
 if (-not (Test-Path $keyPath)) {
-    Fail "chave privada ausente: $keyPath`n       gere com: node `"$kit\gen-key.mjs`" $Engine"
+    Fail "chave privada ausente: $keyPath`n       gere com: node `"$kit\gen-key.mjs`" $Engine`n       ou aponte a existente com: `$env:$envVar = '<caminho>'"
 }
 
 # --- 2. Assinar e PROVAR a assinatura antes de publicar -----------------------------------
@@ -100,6 +111,7 @@ if ($DryRun) {
     Step "DRY-RUN: publicaria a tag '$tag' em $Registry com:"
     $upload | ForEach-Object { Write-Host "      $([IO.Path]::GetFileName($_))" }
     if ($SourceRepo) { Write-Host "      + espelho no repo privado $SourceRepo (nao-fatal)" }
+    if ($MarketplaceMirror) { Write-Host "      + ponte no canal antigo $MarketplaceMirror (nao-fatal)" }
     Write-Host "    e atualizaria $manifest (publicKey=$pubKey, signatureRequired=true, repo=$Registry)"
     exit 0
 }
@@ -121,6 +133,16 @@ if ($SourceRepo) {
     gh release create $tag --repo $SourceRepo --title "$Engine $Version" --notes "Espelho do release canonico: https://github.com/$Registry/releases/tag/$tag" @upload
     if ($LASTEXITCODE -ne 0) {
         Warn "o espelho em $SourceRepo falhou. A publicacao CANONICA esta de pe (consumidores nao sao afetados); refaca o espelho a mao se quiser o historico la."
+    }
+}
+
+# --- 4b. Ponte no canal ANTIGO: para quem ainda tem a URL velha gravada no codigo ----------
+if ($MarketplaceMirror) {
+    Step "Publicando a ponte no canal antigo ($MarketplaceMirror) - consumidores nao repontados"
+    $bridgeNotes = "PONTE DE MIGRACAO. O canonico deste motor agora e https://github.com/$Registry/releases/tag/$tag - esta copia existe so para os consumidores que ainda apontam para ca e sera removida quando nao restar nenhum."
+    gh release create $tag --repo $MarketplaceMirror --title "$Engine $Version (ponte)" --notes $bridgeNotes @upload
+    if ($LASTEXITCODE -ne 0) {
+        Warn "a ponte em $MarketplaceMirror falhou. O canonico esta de pe, mas quem AINDA aponta para o canal antigo nao vera esta versao - publique a ponte a mao ou reponte esses consumidores."
     }
 }
 

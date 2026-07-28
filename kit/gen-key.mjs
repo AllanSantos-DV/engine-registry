@@ -27,7 +27,6 @@ if (existsSync(keyPath)) {
       "       Sobrescrever invalidaria todas as releases assinadas com ela (os consumidores têm a pública pinada).\n" +
       "       Se a rotação for intencional, mova o arquivo antigo à mão e rode de novo.");
 }
-
 const { publicKeyHex, privateKeyHex } = generateKeyPairHex();
 
 // Auto-prova antes de gravar: o par gerado assina e verifica de verdade, e recusa adulterado.
