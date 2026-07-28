@@ -51,12 +51,16 @@ check("motor inexistente → ok:false com razão", !missing.ok && /não existe/.
 
 // 3) provision: contratos de segurança (sem baixar nada)
 console.log("\n3) provision (fail-closed)");
-const pending = await resolve("mcp-gateway", { allowNetwork: false });
-if (pending.ok) {
-  const p = await provision(pending.engine, { allowNetwork: true });
-  check("motor sem release publicado → ABORT explícito", !p.ok && /pending-release/.test(p.reason), p.reason);
-  const off = await provision(pending.engine, { allowNetwork: false });
-  check("sem rede e não instalado → ok:false", !off.ok, off.reason);
+// `pending-release` é sintético aqui: nenhum motor real deve ficar nesse estado por muito tempo.
+const notPublished = { name: "futuro", version: "0.0.1", homeDir: join(tmpdir(), "engine-kit-nope"), status: "pending-release", install: { entry: "bin/x.mjs" } };
+const pr = await provision(notPublished, { allowNetwork: true });
+check("motor sem release publicado → ABORT explícito", !pr.ok && /pending-release/.test(pr.reason), pr.reason);
+
+const gw = await resolve("mcp-gateway", { allowNetwork: false });
+check("mcp-gateway está publicado (sem pending-release)", gw.ok && gw.engine.status !== "pending-release");
+if (gw.ok) {
+  const off = await provision({ ...gw.engine, homeDir: join(tmpdir(), "engine-kit-offline") }, { allowNetwork: false });
+  check("sem rede e não instalado → ok:false", !off.ok && /rede desabilitada/.test(off.reason), off.reason);
 }
 
 // 4) lifecycle: healthCheck é obrigatório (o kit não adivinha o protocolo)

@@ -7,12 +7,57 @@
 //   • download -> .part -> rename atômico; extração em staging -> swap;
 //   • shutdown-first (Windows: DLL/EXE em uso impede sobrescrever o diretório).
 // NUNCA lança: devolve { ok:false, reason }.
-import { mkdirSync, existsSync, renameSync, rmSync, openSync, closeSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
+import { mkdirSync, existsSync, renameSync, rmSync, openSync, closeSync, readFileSync, writeFileSync, unlinkSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Lock mais velho que isto é considerado ÓRFÃO (processo morreu antes do finally). */
+const LOCK_STALE_MS = 120000;
+
+/**
+ * Extrai o .tgz. Usa o `tar` do sistema (presente por padrão no Windows 10 1803+, macOS e Linux).
+ * Se faltar, falha com razão EXPLÍCITA e acionável em vez de um erro cru de spawn — nunca
+ * instala pela metade.
+ */
+function extractTgz(tgz, dest) {
+  try {
+    execFileSync("tar", ["--version"], { stdio: "ignore" });
+  } catch {
+    return { ok: false, reason: "`tar` não encontrado no PATH — necessário para extrair o artefato (Windows 10 1803+, macOS e Linux já trazem). Instale-o e tente de novo." };
+  }
+  try {
+    execFileSync("tar", ["-xzf", tgz, "-C", dest], { stdio: "ignore" });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, reason: `extração (tar) falhou: ${e?.message || e}` };
+  }
+}
+
+/**
+ * Tenta claim do lock de provisionamento. Grava o PID para diagnóstico e reclama locks
+ * órfãos (mais velhos que {@link LOCK_STALE_MS}) — sem isso, um processo morto entre o
+ * `openSync` e o `finally` travaria todos os consumidores para sempre.
+ */
+function claimLock(lock) {
+  try {
+    const fd = openSync(lock, "wx");
+    try { writeFileSync(lock, String(process.pid)); } catch { /* diagnóstico é best-effort */ }
+    return fd;
+  } catch {
+    try {
+      if (Date.now() - statSync(lock).mtimeMs > LOCK_STALE_MS) {
+        unlinkSync(lock);
+        const fd = openSync(lock, "wx");
+        try { writeFileSync(lock, String(process.pid)); } catch { /* ignore */ }
+        return fd;
+      }
+    } catch { /* outro consumidor ganhou a corrida */ }
+    return null;
+  }
+}
 
 const parseVer = (v) => String(v || "").split(".").map((n) => parseInt(n, 10) || 0);
 
@@ -71,15 +116,14 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
   mkdirSync(home, { recursive: true });
 
   // LOCK atômico: só um consumidor provisiona; os demais aguardam o resultado dele.
-  let lockFd = null;
-  try {
-    lockFd = openSync(lock, "wx");
-  } catch {
+  // Um lock órfão (processo morto) é reclamado por idade — não trava a máquina para sempre.
+  const lockFd = claimLock(lock);
+  if (lockFd === null) {
     for (let i = 0; i < 40; i++) {
       if (existsSync(entryPath)) { return { ok: true, entryPath, version: installedVersion(binDir) ?? engine.version, reused: true }; }
       await sleep(1000);
     }
-    return { ok: false, reason: `${engine.name}: provision-locked-timeout` };
+    return { ok: false, reason: `${engine.name}: provision-locked-timeout (outro consumidor está instalando há >40s)` };
   }
 
   try {
@@ -116,8 +160,8 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
     const staging = join(home, `stage-${engine.version}`);
     rmSync(staging, { recursive: true, force: true });
     mkdirSync(staging, { recursive: true });
-    try { execFileSync("tar", ["-xzf", tgz, "-C", staging], { stdio: "ignore" }); }
-    catch (e) { return { ok: false, reason: `${engine.name}: extract (tar) falhou: ${e?.message || e}` }; }
+    const ex = extractTgz(tgz, staging);
+    if (!ex.ok) { return { ok: false, reason: `${engine.name}: ${ex.reason}` }; }
 
     if (existsSync(binDir)) {
       if (onBeforeReplace) { try { await onBeforeReplace(); } catch { /* best-effort */ } }

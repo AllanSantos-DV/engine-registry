@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/AllanSantos-DV/engine-registry/main/schema.json",
+  "title": "engine-registry manifest",
+  "description": "Descritor dos MOTORES (dependências compartilhadas) consumidos via engine-kit.",
+  "type": "object",
+  "required": ["registry", "version", "engines"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "registry": { "type": "string" },
+    "version": { "type": "integer", "minimum": 1 },
+    "owner": {
+      "type": "object",
+      "properties": { "name": { "type": "string" }, "url": { "type": "string", "format": "uri" } }
+    },
+    "description": { "type": "string" },
+    "engines": { "type": "array", "items": { "$ref": "#/definitions/engine" } }
+  },
+  "definitions": {
+    "engine": {
+      "type": "object",
+      "required": ["name", "version", "kind", "home", "install"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+        "kind": { "type": "string", "enum": ["daemon"] },
+        "summary": { "type": "string" },
+        "home": { "type": "string", "description": "Diretório de instalação; '~' é expandido." },
+        "status": { "type": "string", "enum": ["pending-release"], "description": "Presente = ainda não consumível; provision aborta com razão explícita." },
+        "notes": { "type": "string" },
+        "platforms": {
+          "type": "array",
+          "items": { "type": "string", "description": "'<platform>-<arch>' ou 'any' para artefato cross-platform." }
+        },
+        "install": {
+          "type": "object",
+          "required": ["type", "repo", "tag", "asset", "checksum", "entry"],
+          "properties": {
+            "type": { "type": "string", "enum": ["github-release"] },
+            "repo": { "type": "string", "pattern": "^[^/]+/[^/]+$" },
+            "tag": { "type": "string", "description": "Template; aceita {version}." },
+            "asset": { "type": "string", "description": "Template; aceita {version}, {platform}, {arch}." },
+            "checksum": { "type": "string", "description": "Template do sidecar; aceita {asset}. OBRIGATÓRIO (fail-closed)." },
+            "extractTo": { "type": "string", "default": "bin" },
+            "entry": { "type": "string", "description": "Caminho do entrypoint relativo ao home." }
+          }
+        },
+        "runtime": {
+          "type": "object",
+          "properties": {
+            "transport": { "type": "string", "enum": ["http"] },
+            "runtimeFile": { "type": "string", "default": "runtime.json" },
+            "healthPath": { "type": "string" },
+            "shutdownPath": { "type": "string" },
+            "heartbeatMs": {
+              "type": "integer",
+              "description": "Intervalo de heartbeat do motor. O kit considera o runtime obsoleto após 3 batimentos. Ausente = usa o default do kit (não é tratado como 'nunca expira')."
+            },
+            "defaultPort": { "type": "integer" },
+            "authFile": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

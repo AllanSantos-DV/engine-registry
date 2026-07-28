@@ -9,12 +9,20 @@ import { join } from "node:path";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Janela padrão de frescor quando o motor não declara `heartbeatMs`.
+ * NUNCA usar Infinity aqui: um `runtime.json` de dias atrás passaria como "vivo" e o
+ * lifecycle devolveria um motor morto. Sem heartbeat declarado, 2 minutos é o teto.
+ */
+const DEFAULT_STALE_MS = 120000;
+
 /** Lê o runtime.json do motor SE estiver fresco (heartbeat vivo). null se ausente/obsoleto. */
 export function readFreshRuntime(engine, { staleMs } = {}) {
   const rt = join(engine.homeDir, engine.runtime?.runtimeFile ?? "runtime.json");
-  const limit = staleMs ?? (engine.runtime?.heartbeatMs ? engine.runtime.heartbeatMs * 3 : Infinity);
+  const hb = engine.runtime?.heartbeatMs;
+  const limit = staleMs ?? (hb ? hb * 3 : DEFAULT_STALE_MS);
   try {
-    if (Number.isFinite(limit) && Date.now() - statSync(rt).mtimeMs > limit) { return null; }
+    if (Date.now() - statSync(rt).mtimeMs > limit) { return null; }
     return JSON.parse(readFileSync(rt, "utf8"));
   } catch {
     return null;

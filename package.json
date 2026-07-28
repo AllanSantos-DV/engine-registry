@@ -1,0 +1,24 @@
+{
+  "name": "engine-kit",
+  "version": "0.1.0",
+  "description": "Cliente das dependências compartilhadas (motores) do engine-registry: resolve, provisiona com SHA256 fail-closed e mantém o motor vivo — uma instalação por máquina, N consumidores.",
+  "type": "module",
+  "exports": {
+    ".": "./kit/index.mjs",
+    "./kit/*": "./kit/*",
+    "./consumers/*": "./consumers/*",
+    "./manifest.json": "./manifest.json"
+  },
+  "files": ["kit", "consumers", "manifest.json", "README.md", "LICENSE"],
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node smoke.mjs && node test-edge.mjs",
+    "test:network": "node smoke.mjs --network",
+    "test:e2e": "node e2e-install.mjs"
+  },
+  "keywords": ["engine", "daemon", "registry", "mcp", "embeddings", "shared-infra"],
+  "author": { "name": "Allan Santos", "url": "https://github.com/AllanSantos-DV" },
+  "repository": { "type": "git", "url": "https://github.com/AllanSantos-DV/engine-registry.git" },
+  "license": "MIT",
+  "private": false
+}
