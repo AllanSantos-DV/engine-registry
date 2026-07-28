@@ -94,6 +94,29 @@
         "any"
       ],
       "notes": "Artefato cross-platform (bundle JS puro, sem binário nativo) — um único asset serve todas as plataformas. Código-fonte no repo privado mcp-bridge, branch feat/mcp-gateway."
+    },
+    {
+      "name": "neural-link",
+      "version": "0.5.0",
+      "kind": "cli",
+      "summary": "Dispatcher adaptativo de hooks para agentes LLM: recebe o evento por stdin, pontua e executa os handlers registrados, e devolve UMA decisão composta. Não é daemon — é invocado a cada evento de hook, por qualquer host (Copilot CLI, VS Code, Claude Code).",
+      "home": "~/.copilot/neural-link",
+      "install": {
+        "type": "github-release",
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "neural-link-v{version}",
+        "asset": "neural-link-any.tgz",
+        "checksum": "{asset}.sha256",
+        "extractTo": "runtimes/neural-link",
+        "entry": "runtimes/neural-link/src/index.js",
+        "publicKey": "c51ebf5169454163a8c0238d07bbaf62ea5e32926a639b04b8ea57ce2df4ae26",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true
+      },
+      "platforms": [
+        "any"
+      ],
+      "notes": "kind=cli: o lifecycle entrega o binário e NÃO sobe processo. `extractTo` é aninhado de propósito — o home guarda ESTADO que precisa sobreviver ao update (weights/, logs/, active.json), e só `runtimes/<motor>` é trocado. O home fica sob `~/.copilot/` por compatibilidade com os hooks já reescritos em produção; desacoplar do host é o passo do ciclo em que o Skill Manager passar a provisionar pelo kit. Contrato de invocação: CONTRATO-DISPATCHER.md no repo público neural-link-runtime."
     }
   ]
 }

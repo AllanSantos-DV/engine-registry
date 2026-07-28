@@ -8,7 +8,7 @@
 //   • shutdown-first (Windows: DLL/EXE em uso impede sobrescrever o diretório).
 // NUNCA lança: devolve { ok:false, reason }.
 import { mkdirSync, existsSync, renameSync, rmSync, openSync, closeSync, readFileSync, writeFileSync, unlinkSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { verifyBlob, DEFAULT_ALGORITHM } from "./signature.mjs";
@@ -232,6 +232,10 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
       if (onBeforeReplace) { try { await onBeforeReplace(); } catch { /* best-effort */ } }
       rmSync(binDir, { recursive: true, force: true });
     }
+    // `extractTo` pode ser ANINHADO (ex.: "runtimes/<motor>", quando o home guarda estado que
+    // precisa sobreviver ao swap — pesos, logs). O rename exige o diretório-pai existente: sem
+    // isto, funciona na máquina que já tem a pasta e falha justamente na máquina limpa.
+    mkdirSync(dirname(binDir), { recursive: true });
     renameSync(staging, binDir);
     try { unlinkSync(tgz); } catch { /* ignore */ }
 
