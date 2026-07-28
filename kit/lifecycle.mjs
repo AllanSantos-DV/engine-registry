@@ -35,6 +35,43 @@ export function readFreshRuntime(engine, { staleMs } = {}) {
   }
 }
 
+/**
+ * Pede ao motor que se encerre, usando SÓ o que o registry declara.
+ *
+ * Existe porque no Windows um arquivo em uso não pode ser sobrescrito: atualizar um daemon vivo
+ * falha com EPERM no meio do swap. O kit continua não adivinhando nada — se o descritor não
+ * declara `shutdownPath`, ele não tenta; se declara um token, o token vem do campo declarado do
+ * runtime.json, no cabeçalho declarado. Sem declaração, sem token (e não se inventa um: seria um
+ * endpoint de desligar aberto no loopback).
+ *
+ * @returns {Promise<{ok:true, stopped:boolean} | {ok:false, reason:string}>} nunca lança.
+ */
+export async function shutdown(engine, { log = () => {}, timeoutMs = 5000 } = {}) {
+  const path = engine.runtime?.shutdownPath;
+  if (!path) { return { ok: true, stopped: false }; }
+
+  const rt = readFreshRuntime(engine);
+  if (!rt?.port) { return { ok: true, stopped: false }; } // nada vivo para derrubar
+
+  const headers = {};
+  const field = engine.runtime?.shutdownTokenField;
+  const header = engine.runtime?.shutdownTokenHeader;
+  if (field && header && rt[field]) { headers[header] = rt[field]; }
+
+  try {
+    const res = await fetch(`http://127.0.0.1:${rt.port}${path}`, {
+      method: "POST", headers, signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!res.ok) { return { ok: false, reason: `${engine.name}: shutdown respondeu HTTP ${res.status}` }; }
+    log(`[engine-kit] ${engine.name}: shutdown pedido (pid ${rt.pid ?? "?"})`);
+    // O motor responde ANTES de sair. Sem esta espera, o swap ainda encontra o arquivo em uso.
+    await sleep(1500);
+    return { ok: true, stopped: true };
+  } catch (e) {
+    return { ok: false, reason: `${engine.name}: shutdown falhou (${e?.message || e})` };
+  }
+}
+
 /** Sobe o motor destacado, com ambiente limpo (fora do fork do host). */
 function spawnEngine(nodePath, entryPath, log, extraEnv) {
   try {

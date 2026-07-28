@@ -165,6 +165,13 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
   if (engine.status === "pending-release") {
     return { ok: false, reason: `${engine.name} ainda não publicou release (status: pending-release)` };
   }
+  // Motor que traz o PRÓPRIO instalador (ex.: um app com updater embutido). A entrada no registry
+  // existe como descritor de registro — release, chave, versão — mas quem instala é ele mesmo.
+  // Tentar provisionar aqui daria erro obscuro (o artefato é um instalador, não um tarball de
+  // `extractTo`); melhor recusar dizendo QUEM instala.
+  if (engine.status === "self-managed") {
+    return { ok: false, reason: `${engine.name} é self-managed: instala e atualiza pelo próprio updater, não pelo engine-kit (o registry guarda o descritor da release)` };
+  }
 
   mkdirSync(home, { recursive: true });
 

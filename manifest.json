@@ -31,7 +31,9 @@
         "runtimeFile": "run/runtime.json",
         "healthPath": "/health",
         "shutdownPath": "/shutdown",
-        "heartbeatMs": 30000
+        "heartbeatMs": 30000,
+        "shutdownTokenField": "shutdownToken",
+        "shutdownTokenHeader": "x-shutdown-token"
       },
       "platforms": [
         "win32-x64",
@@ -43,26 +45,33 @@
       "name": "vox-engine",
       "version": "0.22.8",
       "kind": "daemon",
+      "status": "self-managed",
       "summary": "Motor de voz (STT/TTS) compartilhado: transcreve e sintetiza para N consumidores a partir de uma única instância, com auto-unload quando ocioso.",
       "home": "~/.vox-engine",
       "install": {
         "type": "github-release",
-        "repo": "AllanSantos-DV/copilot-marketplace",
+        "repo": "AllanSantos-DV/engine-registry",
         "tag": "vox-engine-v{version}",
-        "asset": "vox-engine-{platform}-{arch}.tgz",
+        "asset": "vox-engine-installer.zip",
         "checksum": "{asset}.sha256",
+        "signature": "{asset}.sig",
+        "publicKey": "293263e73c4ba424a9ef3432d1ce55740fc0a68478f20235ca109c074ec83f52",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true,
         "extractTo": "bin",
-        "entry": "bin/server.mjs"
+        "entry": "bin/vox_engine",
+        "sdkFlats": {
+          "asset": "vox-sdk-flats.zip",
+          "checksum": "{asset}.sha256"
+        }
       },
       "runtime": {
-        "transport": "http",
-        "runtimeFile": "run/runtime.json",
-        "healthPath": "/health"
+        "transport": "pipe",
+        "pipeName": "vox"
       },
+      "notes": "self-managed: é um app Python com instalador e updater PRÓPRIOS (src/vox_engine/core/updater.py) — o engine-kit NÃO o provisiona; esta entrada é o descritor de registro (onde está a release, qual a chave, qual a versão). A chave pública é a MESMA de sempre: o instalador continua assinado pelo tools/sign_release.py em Python e foi verificado pelo kit em Node contra a release real, então a migração não exigiu reassinar nada. `sdkFlats` é o canônico público do gate anti-drift dos consumidores — publicar a release sem ele quebra o publish deles.",
       "platforms": [
-        "win32-x64",
-        "linux-x64",
-        "darwin-arm64"
+        "win32-x64"
       ]
     },
     {

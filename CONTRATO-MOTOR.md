@@ -85,38 +85,45 @@ até lá o registry publicado continua descrevendo a versão anterior.
 
 ## 5. Estado da migração
 
-| Motor | `kind` | Fonte | Release canônica | Assinado | Pendências |
+| Motor | `kind` | Fonte (privado) | Release canônica | Assinado | Ponte no canal antigo |
 |---|---|---|---|---|---|
-| `mcp-gateway` | daemon | `mcp-bridge` (branch `feat/mcp-gateway`) | `engine-registry` | **sim** | script de build/publish no repo do motor |
-| `vox-engine` | daemon (`pipe`) | `vox-engine` (privado) | `copilot-marketplace` ❌ | sim, **por conta própria** | migrar release; `RELEASES_API` está hard-coded em 3 arquivos; mover o `vox-sdk-flats.zip` junto |
-| `embed-house` | daemon (http) | `embed-house` (privado, não clonado) | `copilot-marketplace` ❌ | não | clonar, gerar chave, build multi-plataforma, publicar |
-| `neural-link` | **cli** | `neural-link` (privado) | `neural-link-runtime` (público) | não | virar asset do registry; hoje há 3 cópias na máquina |
+| `mcp-gateway` | daemon | `mcp-bridge` (branch `feat/mcp-gateway`) | `engine-registry` ✅ | ✅ | — (nunca esteve lá) |
+| `embed-house` | daemon | `embed-house` | `engine-registry` ✅ | ✅ | `copilot-marketplace` |
+| `neural-link` | **cli** | `neural-link` | `engine-registry` ✅ | ✅ | `neural-link-runtime` (redirecionado) |
+| `vox-engine` | daemon (`pipe`), **self-managed** | `vox-engine` | `engine-registry` ✅ | ✅ | `copilot-marketplace` |
 
-### O que ainda prende o `vox-engine` ao `copilot-marketplace`
+Cada repo de motor tem o próprio `publish.ps1`, que **builda** o que é específico dele e **delega**
+ao `kit/publish-base.ps1` a parte comum (identidade do `gh`, assinatura, release, manifest, prova).
 
-A URL da vitrine está **hard-coded** em três lugares, e o SDK é **vendorizado** dentro dos
-consumidores — quem já copiou a versão antiga continua procurando release no repo velho:
+### Consumidores repontados
 
-- `src/vox_engine/core/updater.py` → `RELEASES_API`
-- `sdk/python/vox_lifecycle.py` → `RELEASES_API`
-- `sdk/node/vox-sdk.mjs` → `RELEASES_API`
+| Consumidor | Motor | O que mudou |
+|---|---|---|
+| `modo-auto` + espelho no marketplace | embed-house | `provision.mjs` → registry |
+| `copilot-voice` | vox-engine | `tools/sdk-drift.ps1` baixa o canônico do registry — **gate verde, provado nesta máquina** |
+| `Action`, `cerne` | vox-engine | `vox_sdk.py` vendorizado → registry |
 
-Duas boas notícias, ambas **medidas**, não supostas:
+### O que ficou de propósito
 
-1. o `latest_release()` do vox **filtra por prefixo de tag** (`vox-engine-v`), então hospedar vários
-   motores no mesmo repositório de releases é seguro — nenhum motor instala o outro;
-2. o contrato de assinatura do vox (assinado em **Python**) foi verificado pelo `engine-kit` em
-   **Node** contra a release real `vox-engine-v0.22.8`: **valida o legítimo e recusa o adulterado**.
-   A migração **não exige reassinar** nada. Esse caso vive em `test-signature.mjs --network`.
-
-O `vox-sdk-flats.zip` (canônico público do gate anti-drift) **precisa ser publicado junto** com a
-release, no mesmo lugar que o consumidor consulta: sem ele, o `publish` dos consumidores quebra.
+- **`copilot-voice` / `voice-chat`: o SDK vendorizado NÃO foi tocado.** Essas cópias são
+  **byte-idênticas** ao canônico publicado (é o que o gate anti-drift verifica). Editá-las agora
+  criaria drift contra o canônico atual e **quebraria o publish desses consumidores** — por 404 do
+  gate, não por bug. Elas migram sozinhas na próxima release do vox, quando os flats publicados já
+  carregarem a URL nova. Enquanto isso, continuam achando a release pela ponte.
+- **Cópias em worktrees de feature** (`hermes-agent-*`, `cerne-feat-*`): são branches de trabalho,
+  não distribuição. Migram no merge.
+- **Escopo por projeto no dispatcher**: o campo `project` já é aceito, validado e propagado; o
+  **filtro** por escopo é o próximo passo. A ordem é essa de propósito — ligar o filtro antes de
+  alguém mandar o campo silenciaria todos os handlers de uma vez.
+- **Skill Manager provisionando pelo kit**: hoje ele embute e faz o deploy do runtime. É extensão
+  em produção; a troca entra junto com o ciclo do escopo.
 
 ### Sobre remover as releases do `copilot-marketplace`
 
-**Não apague antes do critério bater.** Existem ~45 releases `vox-engine-v*` e 5 `embed-house-v*` lá,
-e consumidores com SDK vendorizado antigo apontam para elas. O critério de remoção é binário:
+**Não apague antes do critério bater.** O critério é binário:
 
 > um `grep` nos repositórios dos consumidores pela URL antiga daquele motor retorna **zero**.
 
-Enquanto não bater, mantenha a última release como ponte, com aviso de depreciação no corpo.
+Hoje ainda retorna para `copilot-voice`/`voice-chat` (SDK vendorizado byte-idêntico ao canônico
+publicado). Enquanto não zerar, a ponte fica — com aviso de depreciação no corpo da release.
+

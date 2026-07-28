@@ -22,11 +22,14 @@ vive num lugar só e o consumidor apenas **declara a dependência**.
 
 ## Motores registrados
 
-| Motor | Versão | Assinado | O que faz |
+| Motor | Versão | Tipo | O que faz |
 |---|---|---|---|
-| `embed-house` | 1.0.4 | ainda não | Casa de embeddings (MiniLM-L6-v2, 384-dim): carrega o modelo uma vez e serve vetores a N consumidores. |
-| `vox-engine` | 0.22.8 | no próprio motor | Motor de voz (STT/TTS) compartilhado, com auto-unload quando ocioso. |
-| `mcp-gateway` | 0.1.0 | **sim** (Ed25519) | Agregador MCP: conecta uma vez em cada servidor MCP e reexpõe tudo num endpoint único. |
+| `embed-house` | 1.0.5 | `daemon` (http) | Casa de embeddings (MiniLM-L6-v2, 384-dim): carrega o modelo uma vez e serve vetores a N consumidores. |
+| `vox-engine` | 0.22.8 | `daemon` (pipe), **self-managed** | Motor de voz (STT/TTS) compartilhado, com auto-unload quando ocioso. Traz o próprio instalador e updater. |
+| `mcp-gateway` | 0.1.0 | `daemon` (http) | Agregador MCP: conecta uma vez em cada servidor MCP e reexpõe tudo num endpoint único. |
+| `neural-link` | 0.5.0 | `cli` | Dispatcher adaptativo de hooks: recebe o evento por stdin, pontua os handlers e devolve uma decisão composta. |
+
+**Todos** são publicados aqui, assinados com Ed25519 e verificados antes de instalar.
 
 Um motor pode ser de dois tipos (`kind`):
 
@@ -36,6 +39,22 @@ Um motor pode ser de dois tipos (`kind`):
   para manter vivo: provisionar já é entregar. O `lifecycle` devolve o caminho do binário sem
   spawn, sem health e sem runtime — forçar um daemon aqui seria inventar um ciclo de vida que o
   motor não tem.
+
+E pode declarar `status: "self-managed"`: o motor traz o **próprio instalador/updater** (o caso do
+`vox-engine`, um app Python). A entrada aqui é o **descritor de registro** — onde está a release,
+qual a chave, qual a versão — e o `provision` recusa com razão explícita em vez de tentar extrair
+um instalador como se fosse um tarball.
+
+## Conciliar a máquina
+
+```sh
+node kit/doctor.mjs          # diagnostica: o que reusar, atualizar ou baixar
+node kit/doctor.mjs --fix    # aplica
+```
+
+Desatualizado → atualiza. Ausente → baixa. **Atualizado → reusa** — e o diagnóstico não baixa nada,
+porque reusar é o caminho comum e precisa ser barato. Antes de trocar um daemon vivo, o doctor pede
+o `shutdownPath` que o registry declara: no Windows, arquivo em uso não pode ser sobrescrito.
 
 ## Como consumir
 

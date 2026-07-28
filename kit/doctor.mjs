@@ -16,6 +16,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { resolve } from "./resolve.mjs";
 import { provision, satisfiesPin } from "./provision.mjs";
+import { shutdown } from "./lifecycle.mjs";
 
 const args = process.argv.slice(2);
 const useLocal = args.includes("--local");
@@ -54,7 +55,12 @@ for (const name of names) {
   const inst = present ? installedVersion(engine) : null;
 
   let state, detail;
-  if (!present) {
+  if (engine.status === "self-managed") {
+    // Traz o próprio instalador/updater. O doctor NÃO opina sobre a versão dele: olhar o disco
+    // pelo caminho do manifest daria "ausente" para um motor que está instalado e funcionando,
+    // só que em outro lugar. Reportar e não agir é a resposta honesta.
+    state = "SELF-MANAGED"; detail = `v${engine.version} no registry — atualiza pelo próprio updater`;
+  } else if (!present) {
     state = "AUSENTE"; detail = `baixar v${engine.version}`;
   } else if (!inst) {
     // Estado desconhecido: o artefato está lá mas a versão não é legível. Não invente que está ok.
@@ -64,13 +70,13 @@ for (const name of names) {
   } else {
     state = "DESATUALIZADO"; detail = `v${inst} → v${engine.version}`;
   }
-  rows.push({ name, state, detail, engine, needsWork: state !== "OK" });
+  rows.push({ name, state, detail, engine, needsWork: state !== "OK" && state !== "SELF-MANAGED" });
 }
 
 const pad = (s, n) => String(s).padEnd(n);
 const w = Math.max(12, ...rows.map((r) => r.name.length));
 for (const r of rows) {
-  const mark = r.state === "OK" ? "  OK  " : r.state === "ERRO" ? " ERRO " : "  !!  ";
+  const mark = (r.state === "OK" || r.state === "SELF-MANAGED") ? "  OK  " : r.state === "ERRO" ? " ERRO " : "  !!  ";
   console.log(`${mark} ${pad(r.name, w)}  ${pad(r.state, 14)} ${r.detail}`);
 }
 
@@ -89,7 +95,16 @@ console.log("\n-- aplicando (--fix) --");
 let failures = 0;
 for (const r of pending) {
   console.log(`\n${r.name}: ${r.detail}`);
-  const p = await provision(r.engine, { log: (m) => console.log(`    ${m}`) });
+  const p = await provision(r.engine, {
+    log: (m) => console.log(`    ${m}`),
+    // No Windows um arquivo EM USO não pode ser sobrescrito: sem derrubar o daemon antes, o
+    // update de um motor vivo falha com EPERM no meio do swap. O kit não adivinha como parar
+    // um motor — usa o `shutdownPath` que o próprio registry declara.
+    onBeforeReplace: async () => {
+      const s = await shutdown(r.engine, { log: (m) => console.log(`    ${m}`) });
+      if (!s.ok) { console.log(`    aviso: ${s.reason} — o swap pode falhar com o motor vivo`); }
+    },
+  });
   if (p.ok) {
     console.log(`  OK   ${r.name} v${p.version}${p.signed === false ? " (SEM assinatura — motor ainda não migrado)" : ""}`);
   } else {

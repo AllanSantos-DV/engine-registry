@@ -30,7 +30,7 @@
         },
         "summary": { "type": "string" },
         "home": { "type": "string", "description": "Diretório de instalação; '~' é expandido." },
-        "status": { "type": "string", "enum": ["pending-release"], "description": "Presente = ainda não consumível; provision aborta com razão explícita." },
+        "status": { "type": "string", "enum": ["pending-release", "self-managed"], "description": "pending-release = ainda não consumível; provision aborta com razão explícita. self-managed = o motor traz o próprio instalador/updater e NÃO é provisionado pelo kit; a entrada existe como descritor de registro (release, chave, versão) e o provision aborta apontando o caminho certo." },
         "notes": { "type": "string" },
         "platforms": {
           "type": "array",
@@ -88,6 +88,14 @@
             "runtimeFile": { "type": "string", "default": "runtime.json" },
             "healthPath": { "type": "string" },
             "shutdownPath": { "type": "string" },
+            "shutdownTokenField": {
+              "type": "string",
+              "description": "Campo do runtime.json que carrega o token de shutdown. Sem ele, o kit não manda token — e NÃO inventa um: um shutdown sem autenticação seria um endpoint de desligar aberto no loopback."
+            },
+            "shutdownTokenHeader": {
+              "type": "string",
+              "description": "Cabeçalho em que o token de shutdown viaja (ex.: 'x-shutdown-token'). Declarado, não presumido: cada motor escolhe o seu."
+            },
             "heartbeatMs": {
               "type": "integer",
               "description": "Intervalo de heartbeat do motor. O kit considera o runtime obsoleto após 3 batimentos. Ausente = usa o default do kit (não é tratado como 'nunca expira')."

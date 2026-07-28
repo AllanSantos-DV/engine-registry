@@ -12,7 +12,7 @@
 // consumidor decidir (fail-loud no caller, não no kit).
 export { resolve, DEFAULT_REGISTRY_URL, expandHome, target, fill } from "./resolve.mjs";
 export { provision, satisfiesPin } from "./provision.mjs";
-export { lifecycle, readFreshRuntime } from "./lifecycle.mjs";
+export { lifecycle, readFreshRuntime, shutdown } from "./lifecycle.mjs";
 export {
   verifyBlob, signBlob, generateKeyPairHex, publicKeyFromHex, privateKeyFromHex, publicKeyHexFromPrivateHex,
   SUPPORTED_ALGORITHMS, DEFAULT_ALGORITHM, SIGNATURE_BYTES,
