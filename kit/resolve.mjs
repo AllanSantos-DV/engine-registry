@@ -43,18 +43,23 @@ async function fetchManifest(url, timeoutMs) {
 
 /**
  * Devolve o descritor do motor `name`, já com caminhos expandidos e URLs montadas.
+ * @param opts.manifest manifest JÁ carregado (pula rede e cache) — usado pelo publish para
+ *        conferir a release contra o manifest LOCAL que ele acabou de escrever, e por testes.
  * @returns {Promise<{ok:true, engine:object} | {ok:false, reason:string}>}
  */
-export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowNetwork = true, timeoutMs = 10000, version } = {}) {
+export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowNetwork = true, timeoutMs = 10000, version, manifest: given } = {}) {
   let manifest = null;
-  const cached = readCache();
+  const cached = given ? null : readCache();
   // Sinalizações marcadas ONDE acontecem (não deduzidas depois):
   //  • degraded  → tentou a rede, falhou, e caiu num cache VENCIDO (descritor pode estar velho);
   //  • offline   → não se falou com o registry nesta resolução (rede desabilitada ou falha).
   let degraded = false;
   let offline = false;
 
-  if (cached && !cached.stale) {
+  if (given) {
+    manifest = given;
+    offline = true; // manifest entregue na mão: não se falou com o registry
+  } else if (cached && !cached.stale) {
     manifest = cached.manifest;
     offline = true; // cache fresco: não precisou da rede
   } else if (allowNetwork) {

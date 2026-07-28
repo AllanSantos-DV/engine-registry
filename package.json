@@ -1,7 +1,7 @@
 {
   "name": "engine-kit",
   "version": "0.1.0",
-  "description": "Cliente das dependências compartilhadas (motores) do engine-registry: resolve, provisiona com SHA256 fail-closed e mantém o motor vivo — uma instalação por máquina, N consumidores.",
+  "description": "Cliente das dependências compartilhadas (motores) do engine-registry: resolve, provisiona com SHA256 e assinatura Ed25519 fail-closed, e mantém o motor vivo — uma instalação por máquina, N consumidores.",
   "type": "module",
   "exports": {
     ".": "./kit/index.mjs",
@@ -9,12 +9,14 @@
     "./consumers/*": "./consumers/*",
     "./manifest.json": "./manifest.json"
   },
-  "files": ["kit", "consumers", "manifest.json", "README.md", "LICENSE"],
+  "files": ["kit", "consumers", "manifest.json", "README.md", "CONTRATO-MOTOR.md", "LICENSE"],
   "engines": { "node": ">=18" },
   "scripts": {
-    "test": "node smoke.mjs && node test-edge.mjs",
-    "test:network": "node smoke.mjs --network",
-    "test:e2e": "node e2e-install.mjs"
+    "test": "node smoke.mjs && node test-edge.mjs && node test-signature.mjs",
+    "test:network": "node smoke.mjs --network && node test-signature.mjs --network",
+    "test:e2e": "node e2e-install.mjs",
+    "gen-key": "node kit/gen-key.mjs",
+    "verify-release": "node kit/verify-release.mjs"
   },
   "keywords": ["engine", "daemon", "registry", "mcp", "embeddings", "shared-infra"],
   "author": { "name": "Allan Santos", "url": "https://github.com/AllanSantos-DV" },
