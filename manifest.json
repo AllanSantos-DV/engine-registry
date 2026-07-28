@@ -10,18 +10,21 @@
   "engines": [
     {
       "name": "embed-house",
-      "version": "1.0.4",
+      "version": "1.0.5",
       "kind": "daemon",
       "summary": "Casa de embeddings compartilhada (MiniLM-L6-v2, 384-dim): carrega o modelo UMA vez e serve vetores a N consumidores via 127.0.0.1, em vez de cada sessão carregar ~147 MB.",
       "home": "~/.embed-house",
       "install": {
         "type": "github-release",
-        "repo": "AllanSantos-DV/copilot-marketplace",
+        "repo": "AllanSantos-DV/engine-registry",
         "tag": "embed-house-v{version}",
         "asset": "embed-house-{platform}-{arch}.tgz",
         "checksum": "{asset}.sha256",
         "extractTo": "bin",
-        "entry": "bin/server.mjs"
+        "entry": "bin/server.mjs",
+        "publicKey": "16cf4b3d73df3afca030d1281bae930897e290828df80e7354bc4dd527713699",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true
       },
       "runtime": {
         "transport": "http",
