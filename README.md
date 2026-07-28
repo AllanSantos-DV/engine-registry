@@ -60,6 +60,22 @@ Declare a dependência no manifesto do seu plugin:
 }
 ```
 
+### Adaptadores prontos
+
+Cada motor tem um adaptador em `consumers/` que já sabe o handshake dele — o consumidor não
+precisa escrever `healthCheck` nem descobrir onde mora o token:
+
+```js
+import { ensureGateway } from "engine-registry/consumers/mcp-gateway.mjs";
+
+const gw = await ensureGateway({ log });
+if (!gw.available) { log(`gateway indisponível: ${gw.reason}`); return; }  // degrade SINALIZADO
+
+// gw.url    -> http://127.0.0.1:7337/mcp
+// gw.token  -> bearer (lido do cofre com ACL do dono)
+// gw.backends -> ["files", "memory", ...]
+```
+
 ## Garantias do kit
 
 - **Integridade fail-closed** — o sidecar `.sha256` é obrigatório; ausente, malformado ou
@@ -84,7 +100,10 @@ kit/
   resolve.mjs    # descobre o motor no registry (cache 6h, degrada p/ cache obsoleto)
   provision.mjs  # baixa/atualiza com SHA256 fail-closed, lock e swap atômico
   lifecycle.mjs  # garante o processo vivo (healthCheck é sempre do motor)
-smoke.mjs        # verificação: node smoke.mjs
+consumers/
+  mcp-gateway.mjs  # adaptador pronto: handshake + token + shutdown do agregador MCP
+smoke.mjs        # contratos do kit: node smoke.mjs
+e2e-install.mjs  # instalação real de um motor do zero: node e2e-install.mjs
 ```
 
 ## Verificar
@@ -92,6 +111,7 @@ smoke.mjs        # verificação: node smoke.mjs
 ```sh
 node smoke.mjs             # contratos, offline
 node smoke.mjs --network   # resolvendo do registry remoto
+node e2e-install.mjs       # baixa e sobe o mcp-gateway num HOME isolado (prova real)
 ```
 
 ## Publicar um motor
