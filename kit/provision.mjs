@@ -131,6 +131,65 @@ async function verifyAuthenticity(engine, blob, { log, fetcher }) {
 }
 
 /**
+ * Baixa e VERIFICA um artefato sem instalar — o caminho dos motores `self-managed`.
+ *
+ * Existe para fechar o ovo-e-galinha do primeiro install: um motor que traz o próprio
+ * instalador (o `vox-engine` é um app Python com `install.ps1`) não pode se instalar sozinho
+ * numa máquina onde ainda não está. Alguém tem de buscar o instalador — e esse alguém estava
+ * sendo CADA consumidor, cada um com sua cópia de resolução de release, SHA256 e Ed25519.
+ *
+ * Aqui o kit faz o que já sabe fazer (integridade + autenticidade fail-closed) e devolve o
+ * caminho do arquivo verificado. Quem sabe o que fazer com ele — rodar um instalador, extrair,
+ * conferir uma assinatura extra — é o consumidor. O kit não executa nada.
+ *
+ * @returns {Promise<{ok:true, path:string, version:string, signed:boolean} | {ok:false, reason:string}>} nunca lança.
+ */
+export async function fetchArtifact(engine, { log = () => {}, destDir, downloadTimeoutMs = 300000, fetcher = fetchBuf } = {}) {
+  const dir = destDir ?? engine.homeDir;
+  try {
+    mkdirSync(dir, { recursive: true });
+  } catch (e) {
+    return { ok: false, reason: `${engine.name}: não consegui criar ${dir}: ${e?.message || e}` };
+  }
+
+  let expected;
+  try {
+    const buf = await fetcher(engine.checksumUrl, 15000);
+    expected = String(buf).trim().split(/\s+/)[0].toLowerCase();
+  } catch (e) {
+    return { ok: false, reason: `${engine.name}: sha256 sidecar inacessível (${e.status || e.message}) → ABORT (fail-closed)` };
+  }
+  if (!/^[0-9a-f]{64}$/.test(expected)) {
+    return { ok: false, reason: `${engine.name}: sha256 sidecar malformado → ABORT` };
+  }
+
+  log(`[engine-kit] baixando ${engine.assetUrl} …`);
+  let buf;
+  try { buf = await fetcher(engine.assetUrl, downloadTimeoutMs); }
+  catch (e) { return { ok: false, reason: `${engine.name}: download falhou (${e.status || e.message})` }; }
+
+  const actual = createHash("sha256").update(buf).digest("hex").toLowerCase();
+  if (actual !== expected) {
+    return { ok: false, reason: `${engine.name}: SHA256 mismatch (esperado ${expected.slice(0, 12)}…, obtido ${actual.slice(0, 12)}…) → ABORT` };
+  }
+
+  const auth = await verifyAuthenticity(engine, buf, { log, fetcher });
+  if (!auth.ok) { return { ok: false, reason: auth.reason }; }
+
+  // .part → rename: nunca entregar um caminho que aponta para download pela metade.
+  const part = join(dir, `${engine.assetName}.part`);
+  const out = join(dir, engine.assetName);
+  try {
+    writeFileSync(part, buf);
+    renameSync(part, out);
+  } catch (e) {
+    return { ok: false, reason: `${engine.name}: não consegui gravar ${out}: ${e?.message || e}` };
+  }
+  log(`[engine-kit] ${engine.name} v${engine.version} verificado em ${out}`);
+  return { ok: true, path: out, version: engine.version, signed: auth.signed };
+}
+
+/**
  * Garante o motor instalado. `onBeforeReplace` é o gancho de shutdown do MOTOR (o kit nunca
  * adivinha como derrubar um daemon: quem sabe é o descritor/consumidor).
  * @returns {Promise<{ok:true, entryPath:string, version:string, reused?:boolean, installed?:boolean} | {ok:false, reason:string}>}
