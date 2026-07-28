@@ -1,0 +1,80 @@
+{
+  "$schema": "./schema.json",
+  "registry": "engine-registry",
+  "version": 1,
+  "owner": { "name": "Allan Santos", "url": "https://github.com/AllanSantos-DV" },
+  "description": "Vitrine de MOTORES (dependências compartilhadas) consumidos pelas extensões. Um motor não é instalável pelo usuário: é provisionado sob demanda por quem o declara como dependência, verificado por SHA256 fail-closed e compartilhado por todos os consumidores da máquina.",
+  "engines": [
+    {
+      "name": "embed-house",
+      "version": "1.0.4",
+      "kind": "daemon",
+      "summary": "Casa de embeddings compartilhada (MiniLM-L6-v2, 384-dim): carrega o modelo UMA vez e serve vetores a N consumidores via 127.0.0.1, em vez de cada sessão carregar ~147 MB.",
+      "home": "~/.embed-house",
+      "install": {
+        "type": "github-release",
+        "repo": "AllanSantos-DV/copilot-marketplace",
+        "tag": "embed-house-v{version}",
+        "asset": "embed-house-{platform}-{arch}.tgz",
+        "checksum": "{asset}.sha256",
+        "extractTo": "bin",
+        "entry": "bin/server.mjs"
+      },
+      "runtime": {
+        "transport": "http",
+        "runtimeFile": "run/runtime.json",
+        "healthPath": "/health",
+        "shutdownPath": "/shutdown",
+        "heartbeatMs": 30000
+      },
+      "platforms": ["win32-x64", "linux-x64", "darwin-arm64"]
+    },
+    {
+      "name": "vox-engine",
+      "version": "0.22.8",
+      "kind": "daemon",
+      "summary": "Motor de voz (STT/TTS) compartilhado: transcreve e sintetiza para N consumidores a partir de uma única instância, com auto-unload quando ocioso.",
+      "home": "~/.vox-engine",
+      "install": {
+        "type": "github-release",
+        "repo": "AllanSantos-DV/copilot-marketplace",
+        "tag": "vox-engine-v{version}",
+        "asset": "vox-engine-{platform}-{arch}.tgz",
+        "checksum": "{asset}.sha256",
+        "extractTo": "bin",
+        "entry": "bin/server.mjs"
+      },
+      "runtime": {
+        "transport": "http",
+        "runtimeFile": "run/runtime.json",
+        "healthPath": "/health"
+      },
+      "platforms": ["win32-x64", "linux-x64", "darwin-arm64"]
+    },
+    {
+      "name": "mcp-gateway",
+      "version": "0.1.0",
+      "kind": "daemon",
+      "summary": "Agregador MCP: conecta UMA vez em cada servidor MCP e reexpõe todas as tools num endpoint Streamable HTTP único, com auth bearer, namespacing condicional, resiliência e auditoria. Mata a multiplicação de processos por sessão.",
+      "home": "~/.mcp-gateway",
+      "install": {
+        "type": "github-release",
+        "repo": "AllanSantos-DV/mcp-bridge",
+        "tag": "mcp-gateway-v{version}",
+        "asset": "mcp-gateway-{platform}-{arch}.tgz",
+        "checksum": "{asset}.sha256",
+        "extractTo": "bin",
+        "entry": "bin/mcp-gateway.mjs"
+      },
+      "runtime": {
+        "transport": "http",
+        "runtimeFile": "runtime.json",
+        "healthPath": "/health",
+        "defaultPort": 7337,
+        "authFile": "auth-token"
+      },
+      "platforms": ["win32-x64", "linux-x64", "darwin-arm64"],
+      "status": "pending-release"
+    }
+  ]
+}

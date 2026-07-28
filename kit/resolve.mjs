@@ -1,0 +1,89 @@
+// engine-kit/resolve.mjs — RESOLVE: descobre o descritor de um motor no registry.
+// Ordem: cache local fresco -> registry remoto -> cache obsoleto (degradação sinalizada).
+// NUNCA lança: devolve { ok:false, reason } para o consumidor decidir (fail-loud no caller).
+import { mkdirSync, existsSync, readFileSync, writeFileSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
+
+export const DEFAULT_REGISTRY_URL =
+  "https://raw.githubusercontent.com/AllanSantos-DV/engine-registry/main/manifest.json";
+
+const CACHE_DIR = join(homedir(), ".engine-kit");
+const CACHE = join(CACHE_DIR, "manifest.json");
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h
+
+/** Expande `~` e placeholders de plataforma. */
+export function expandHome(p) {
+  return p.startsWith("~") ? join(homedir(), p.slice(1).replace(/^[/\\]/, "")) : p;
+}
+
+export function target() {
+  return `${process.platform}-${process.arch}`;
+}
+
+/** Substitui {version}, {platform}, {arch}, {asset} num template. */
+export function fill(tpl, vars) {
+  return String(tpl).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
+}
+
+function readCache() {
+  try {
+    const age = Date.now() - statSync(CACHE).mtimeMs;
+    return { manifest: JSON.parse(readFileSync(CACHE, "utf8")), stale: age > CACHE_TTL_MS };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchManifest(url, timeoutMs) {
+  const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+  if (!res.ok) { throw new Error(`HTTP ${res.status}`); }
+  return res.json();
+}
+
+/**
+ * Devolve o descritor do motor `name`, já com caminhos expandidos e URLs montadas.
+ * @returns {Promise<{ok:true, engine:object} | {ok:false, reason:string}>}
+ */
+export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowNetwork = true, timeoutMs = 10000, version } = {}) {
+  let manifest = null;
+  const cached = readCache();
+
+  if (cached && !cached.stale) {
+    manifest = cached.manifest;
+  } else if (allowNetwork) {
+    try {
+      manifest = await fetchManifest(registryUrl, timeoutMs);
+      try { mkdirSync(CACHE_DIR, { recursive: true }); writeFileSync(CACHE, JSON.stringify(manifest, null, 2)); } catch { /* cache é best-effort */ }
+    } catch (e) {
+      if (!cached) { return { ok: false, reason: `registry inacessível (${e.message}) e sem cache` }; }
+      manifest = cached.manifest; // degrada para cache obsoleto, sinalizado abaixo
+    }
+  } else if (cached) {
+    manifest = cached.manifest;
+  } else {
+    return { ok: false, reason: "sem cache do registry e rede desabilitada" };
+  }
+
+  const found = (manifest.engines ?? []).find((e) => e.name === name);
+  if (!found) { return { ok: false, reason: `motor "${name}" não existe no registry` }; }
+
+  const v = version ?? found.version;
+  const vars = { version: v, platform: process.platform, arch: process.arch };
+  const asset = fill(found.install.asset, vars);
+  const tag = fill(found.install.tag, vars);
+  const base = `https://github.com/${found.install.repo}/releases/download/${tag}`;
+
+  return {
+    ok: true,
+    engine: {
+      ...found,
+      version: v,
+      homeDir: expandHome(found.home),
+      assetName: asset,
+      assetUrl: `${base}/${asset}`,
+      checksumUrl: `${base}/${fill(found.install.checksum, { ...vars, asset })}`,
+      staleCache: Boolean(cached?.stale && !allowNetwork),
+    },
+  };
+}
