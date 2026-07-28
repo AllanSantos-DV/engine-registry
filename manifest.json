@@ -43,7 +43,7 @@
     },
     {
       "name": "vox-engine",
-      "version": "0.22.8",
+      "version": "0.23.0",
       "kind": "daemon",
       "status": "self-managed",
       "summary": "Motor de voz (STT/TTS) compartilhado: transcreve e sintetiza para N consumidores a partir de uma única instância, com auto-unload quando ocioso.",
