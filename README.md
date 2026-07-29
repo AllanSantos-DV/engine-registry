@@ -146,6 +146,26 @@ Política do `provision`, sem meio-termo silencioso:
 | `signatureAlgorithm` desconhecido | ABORT (nunca aceite silencioso) |
 | nem chave nem exigência (motor ainda não migrado) | instala, mas o log **sinaliza** que a autenticidade não foi verificada |
 
+### Raiz de confiança — por que a chave no manifest não bastava
+
+A `publicKey` vinha do **mesmo `manifest.json`** que o kit baixa. Quem controla o repositório troca
+o artefato, o `.sig` **e** a chave — e o fail-closed aprova os três, porque todos vêm da mesma
+origem. É uma tranca com a chave pendurada na porta. Uma review corroborada apontou; está fechado
+assim:
+
+| Camada | Como funciona | Fecha o quê |
+|---|---|---|
+| **TOFU** (padrão, automático) | a chave do 1º contato é gravada em `~/.engine-kit/trust.json`; qualquer troca depois = **ABORT** | repo comprometido **depois** da adoção — o caso realista |
+| **Pin do consumidor** | `ensureEngine(nome, { trustedKeys: { "<motor>": "<hex>" } })`; divergência = **ABORT** já no 1º contato | não depende do registry em momento nenhum (padrão do `vox-engine`) |
+
+Rotação legítima é **ato explícito**: apagar a entrada em `~/.engine-kit/trust.json`.
+
+**O que isto NÃO cobre, dito na cara:** comprometimento **anterior** ao primeiro contato (o TOFU
+grava a chave do atacante), downgrade/replay e expiração. Fechar isso exige transparência pública
+(**Sigstore/cosign**, **TUF**, *npm provenance*) — decisão de produto do dono, registrada e não
+esquecida. Para 4 motores de um autor só, TOFU + pin cobre o vetor realista a custo operacional
+zero; log de transparência cobre o resto a um custo bem maior.
+
 ## Estrutura
 
 ```

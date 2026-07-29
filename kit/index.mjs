@@ -30,16 +30,19 @@ import { lifecycle } from "./lifecycle.mjs";
  * @param {(runtime:object)=>Promise<object|null>} opts.healthCheck validação de saúde/protocolo (obrigatória).
  * @param {string=} opts.version pin de versão (default: a do registry).
  * @param {boolean=} opts.allowNetwork permite baixar/atualizar (default true).
+ * @param {Record<string,string>=} opts.trustedKeys chaves públicas FIXADAS pelo consumidor
+ *        (`{ "<motor>": "<hex>" }`). Divergência com o registry = ABORT. Sem isso vale TOFU:
+ *        a chave da 1ª instalação é gravada e qualquer troca posterior aborta.
  * @param {()=>Promise<void>=} opts.onBeforeReplace shutdown do motor antes de sobrescrever (Windows).
  * @returns {Promise<{available:true, runtime:object, health:object, engine:object} | {available:false, reason:string}>}
  */
 export async function ensureEngine(name, opts = {}) {
-  const { healthCheck, version, allowNetwork = true, registryUrl, log = () => {}, bootTimeoutMs, onBeforeReplace, env } = opts;
+  const { healthCheck, version, allowNetwork = true, registryUrl, log = () => {}, bootTimeoutMs, onBeforeReplace, env, trustedKeys } = opts;
 
   const r = await resolve(name, { version, allowNetwork, registryUrl });
   if (!r.ok) { return { available: false, reason: r.reason }; }
 
-  const p = await provision(r.engine, { log, allowNetwork, onBeforeReplace });
+  const p = await provision(r.engine, { log, allowNetwork, onBeforeReplace, trustedKeys });
   if (!p.ok) { return { available: false, reason: p.reason }; }
 
   const l = await lifecycle(r.engine, p.entryPath, { healthCheck, log, bootTimeoutMs, env });

@@ -21,7 +21,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node kit/budget.mjs && node smoke.mjs && node test-edge.mjs && node test-signature.mjs",
+    "test": "node kit/budget.mjs && node smoke.mjs && node test-edge.mjs && node test-signature.mjs && node test-trust.mjs",
     "test:network": "node smoke.mjs --network && node test-signature.mjs --network",
     "test:e2e": "node e2e-install.mjs",
     "gen-key": "node kit/gen-key.mjs",

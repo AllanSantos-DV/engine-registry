@@ -12,6 +12,7 @@ import { join, dirname } from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { verifyBlob, DEFAULT_ALGORITHM } from "./signature.mjs";
+import { checkTrust, TRUST_PATH } from "./trust.mjs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -103,7 +104,7 @@ function installedVersion(binDir) {
  *
  * @returns {Promise<{ok:true, signed:boolean} | {ok:false, reason:string}>} nunca lança.
  */
-async function verifyAuthenticity(engine, blob, { log, fetcher }) {
+async function verifyAuthenticity(engine, blob, { log, fetcher, trustedKeys }) {
   const publicKey = engine.install?.publicKey;
   const required = engine.install?.signatureRequired === true;
   const algorithm = engine.install?.signatureAlgorithm ?? DEFAULT_ALGORITHM;
@@ -115,6 +116,12 @@ async function verifyAuthenticity(engine, blob, { log, fetcher }) {
     log(`[engine-kit] ${engine.name}: SEM assinatura no registry — integridade (sha256) verificada, AUTENTICIDADE não`);
     return { ok: true, signed: false };
   }
+
+  // A chave veio do MESMO manifest que o kit baixou — sozinha, ela não prova nada contra um
+  // registry comprometido. Confronta com a raiz de confiança LOCAL antes de usá-la.
+  const t = checkTrust(engine.name, publicKey, { trustedKeys });
+  if (!t.ok) { return { ok: false, reason: t.reason }; }
+  if (t.tofu) { log(`[engine-kit] ${engine.name}: chave pública gravada na 1ª vez (TOFU) em ${TRUST_PATH} — trocas futuras serão ABORT`); }
 
   let sig;
   try {
@@ -144,7 +151,7 @@ async function verifyAuthenticity(engine, blob, { log, fetcher }) {
  *
  * @returns {Promise<{ok:true, path:string, version:string, signed:boolean} | {ok:false, reason:string}>} nunca lança.
  */
-export async function fetchArtifact(engine, { log = () => {}, destDir, downloadTimeoutMs = 300000, fetcher = fetchBuf } = {}) {
+export async function fetchArtifact(engine, { log = () => {}, destDir, downloadTimeoutMs = 300000, fetcher = fetchBuf, trustedKeys } = {}) {
   const dir = destDir ?? engine.homeDir;
   try {
     mkdirSync(dir, { recursive: true });
@@ -173,7 +180,7 @@ export async function fetchArtifact(engine, { log = () => {}, destDir, downloadT
     return { ok: false, reason: `${engine.name}: SHA256 mismatch (esperado ${expected.slice(0, 12)}…, obtido ${actual.slice(0, 12)}…) → ABORT` };
   }
 
-  const auth = await verifyAuthenticity(engine, buf, { log, fetcher });
+  const auth = await verifyAuthenticity(engine, buf, { log, fetcher, trustedKeys });
   if (!auth.ok) { return { ok: false, reason: auth.reason }; }
 
   // .part → rename: nunca entregar um caminho que aponta para download pela metade.
@@ -194,7 +201,7 @@ export async function fetchArtifact(engine, { log = () => {}, destDir, downloadT
  * adivinha como derrubar um daemon: quem sabe é o descritor/consumidor).
  * @returns {Promise<{ok:true, entryPath:string, version:string, reused?:boolean, installed?:boolean} | {ok:false, reason:string}>}
  */
-export async function provision(engine, { log = () => {}, allowNetwork = true, onBeforeReplace, downloadTimeoutMs = 120000, fetcher = fetchBuf } = {}) {
+export async function provision(engine, { log = () => {}, allowNetwork = true, onBeforeReplace, downloadTimeoutMs = 120000, fetcher = fetchBuf, trustedKeys } = {}) {
   const home = engine.homeDir;
   const binDir = join(home, engine.install.extractTo ?? "bin");
   const entryPath = join(home, engine.install.entry);
@@ -281,7 +288,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
 
     // 3.5) AUTENTICIDADE — antes de extrair. Um artefato não confiável não chega a tocar o disco
     //      final: se a assinatura não confere, o .tgz é apagado e nada é instalado.
-    const auth = await verifyAuthenticity(engine, buf, { log, fetcher });
+    const auth = await verifyAuthenticity(engine, buf, { log, fetcher, trustedKeys });
     if (!auth.ok) {
       try { unlinkSync(tgz); } catch { /* ignore */ }
       return { ok: false, reason: auth.reason };

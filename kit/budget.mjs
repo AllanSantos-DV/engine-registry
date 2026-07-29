@@ -19,16 +19,36 @@ import { fileURLToPath } from "node:url";
 const KIT = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolvePath(KIT, "..");
 
-// Budgets re-baselinados em 2026-07-29 com DELTA JUSTIFICADO, não bump arbitrário:
-//   600 (original: resolve+provision+lifecycle) + 137 (autenticidade Ed25519: signature+keystore,
-//   pedida por review e aprovada pelo dono) = 737 real medido → 800 com ~8% de folga, para que
-//   uma correção de 2 linhas não dispare o kill-switch (ruído) mas uma FEATURE nova dispare (sinal).
-const BUDGETS = { runtime: 800, tooling: 500, adapter: 150 };
+// Budgets. A métrica ENFORÇADA é **bytes de código** (linhas em branco e comentários fora), não
+// linhas: uma review corroborada apontou, com razão, que LOC é proxy ruim — o que custa ao
+// consumidor é o que ele carrega e parseia, e este kit é comentado em pt-BR (comentário engorda
+// LOC sem custar comportamento). LOC fica como informação, não como portão.
+//
+// Contra o "mover a trave": cada faixa registra `baseline` — o valor MEDIDO quando a métrica foi
+// adotada (2026-07-29, já com a raiz de confiança). O relatório imprime o crescimento desde essa
+// marca, então subir o teto depois deixa de ser invisível: vira um número na tela e um diff.
+// Calibrar uma vez, na adoção da métrica, é linha de base; recalibrar toda vez que dispara é
+// contornar o guarda-corpo — e é isso que o baseline expõe.
+const BUDGETS = {
+  runtime: { codeBytes: 27000, baseline: 24519, loc: 900 },
+  tooling: { codeBytes: 18000, baseline: 16420, loc: 600 },
+  adapter: { codeBytes: 4000, baseline: 1859, loc: 150 },
+};
 
 // `split("\n")` num arquivo terminado em newline devolve um elemento vazio no fim — linha
 // fantasma. Sem o `replace`, cada arquivo inflava a conta em 1 e o kill-switch disparava
 // por medição errada (foi o que aconteceu na primeira execução deste arquivo).
-const lines = (f) => readFileSync(f, "utf8").replace(/\n$/, "").split("\n").length;
+const linesOf = (f) => readFileSync(f, "utf8").replace(/\n$/, "").split("\n");
+const lines = (f) => linesOf(f).length;
+
+/** Bytes que não são linha em branco nem comentário de linha inteira. */
+const codeBytes = (f) =>
+  linesOf(f)
+    .filter((l) => {
+      const t = l.trim();
+      return t && !t.startsWith("//") && !t.startsWith("*") && !t.startsWith("/*");
+    })
+    .reduce((n, l) => n + Buffer.byteLength(l, "utf8") + 1, 0);
 
 /** Fecho transitivo dos imports relativos a partir de um entrypoint. */
 function closure(entry) {
@@ -49,22 +69,26 @@ const runtime = closure(join(KIT, "index.mjs"));
 const all = readdirSync(KIT).filter((f) => f.endsWith(".mjs")).map((f) => join(KIT, f));
 const tooling = all.filter((f) => !runtime.has(f));
 
-const sum = (files) => files.reduce((n, f) => n + lines(f), 0);
 const rel = (f) => f.replace(ROOT + "\\", "").replace(ROOT + "/", "").replaceAll("\\", "/");
 
 let failed = false;
 const report = (label, files, budget) => {
-  const total = sum(files);
-  const over = total > budget;
+  const bytes = files.reduce((n, f) => n + codeBytes(f), 0);
+  const loc = files.reduce((n, f) => n + lines(f), 0);
+  const over = bytes > budget.codeBytes;
   failed ||= over;
-  console.log(`\n${over ? "!!" : "OK"}  ${label}: ${total}/${budget} linhas`);
-  for (const f of [...files].sort((a, b) => lines(b) - lines(a))) {
-    console.log(`      ${String(lines(f)).padStart(4)}  ${rel(f)}`);
+  console.log(`\n${over ? "!!" : "OK"}  ${label}`);
+  const growth = bytes - budget.baseline;
+  const pct = ((growth / budget.baseline) * 100).toFixed(1);
+  console.log(`      ${bytes}/${budget.codeBytes} bytes de código   (${loc} linhas, informativo)`);
+  console.log(`      baseline ${budget.baseline} B → ${growth >= 0 ? "+" : ""}${growth} B (${pct}%) desde a adoção da métrica`);
+  for (const f of [...files].sort((a, b) => codeBytes(b) - codeBytes(a))) {
+    console.log(`      ${String(codeBytes(f)).padStart(6)} B  ${String(lines(f)).padStart(4)} L  ${rel(f)}`);
   }
-  if (over) { console.log(`      ESTOUROU em ${total - budget} linhas → decidir: cortar ou re-baselinar com delta justificado.`); }
+  if (over) { console.log(`      ESTOUROU em ${bytes - budget.codeBytes} bytes → decidir: cortar ou re-baselinar com delta justificado.`); }
 };
 
-console.log("== engine-kit budget ==  (kill-switch auto-aplicado)");
+console.log("== engine-kit budget ==  (kill-switch auto-aplicado; métrica = bytes de código)");
 report("runtime do consumidor (fecho de index.mjs)", [...runtime], BUDGETS.runtime);
 report("ferramental de autor (nunca importado por consumidor)", tooling, BUDGETS.tooling);
 
