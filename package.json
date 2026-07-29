@@ -9,18 +9,41 @@
     "./consumers/*": "./consumers/*",
     "./manifest.json": "./manifest.json"
   },
-  "files": ["kit", "consumers", "manifest.json", "README.md", "CONTRATO-MOTOR.md", "LICENSE"],
-  "engines": { "node": ">=18" },
+  "files": [
+    "kit",
+    "consumers",
+    "manifest.json",
+    "README.md",
+    "CONTRATO-MOTOR.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "test": "node smoke.mjs && node test-edge.mjs && node test-signature.mjs",
+    "test": "node kit/budget.mjs && node smoke.mjs && node test-edge.mjs && node test-signature.mjs",
     "test:network": "node smoke.mjs --network && node test-signature.mjs --network",
     "test:e2e": "node e2e-install.mjs",
     "gen-key": "node kit/gen-key.mjs",
-    "verify-release": "node kit/verify-release.mjs"
+    "verify-release": "node kit/verify-release.mjs",
+    "budget": "node kit/budget.mjs"
   },
-  "keywords": ["engine", "daemon", "registry", "mcp", "embeddings", "shared-infra"],
-  "author": { "name": "Allan Santos", "url": "https://github.com/AllanSantos-DV" },
-  "repository": { "type": "git", "url": "https://github.com/AllanSantos-DV/engine-registry.git" },
+  "keywords": [
+    "engine",
+    "daemon",
+    "registry",
+    "mcp",
+    "embeddings",
+    "shared-infra"
+  ],
+  "author": {
+    "name": "Allan Santos",
+    "url": "https://github.com/AllanSantos-DV"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AllanSantos-DV/engine-registry.git"
+  },
   "license": "MIT",
   "private": false
 }
