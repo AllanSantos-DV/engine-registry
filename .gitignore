@@ -1,3 +1,8 @@
 node_modules/
 *.log
 .DS_Store
+
+# Snapshot de sessao escrito por hook a cada sessao. Ja foi commitado uma vez por
+# engano e nao pertence ao registry: e estado efemero de uma maquina, nao artefato
+# publicado. Ignorar aqui e o que impede a reincidencia.
+docs/maps/session-*-snapshot.md
