@@ -10,6 +10,7 @@
 //
 //   node test-signature.mjs
 import { provision, lifecycle, generateKeyPairHex, signBlob, verifyBlob } from "./kit/index.mjs";
+
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -24,6 +25,12 @@ const check = (name, cond, detail = "") => {
 
 const RUN = join(tmpdir(), `engine-sig-${Date.now()}`);
 mkdirSync(RUN, { recursive: true });
+
+// Isola a RAIZ DE CONFIANÇA. Este teste gera um par de chaves NOVO a cada execução, e o kit
+// (de propósito) aborta quando a chave de um motor muda desde a 1ª instalação. Sem isolar, a
+// suíte passaria na primeira rodada e falharia em todas as seguintes — foi exatamente o que
+// aconteceu, e é um bom sinal: a proteção funcionou até contra o próprio teste.
+process.env.ENGINE_KIT_HOME = join(RUN, "trust-home");
 
 /**
  * Constrói um .tgz real de motor-fantasma e devolve os bytes.

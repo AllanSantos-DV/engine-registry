@@ -12,7 +12,7 @@ import { join, dirname } from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { verifyBlob, DEFAULT_ALGORITHM } from "./signature.mjs";
-import { checkTrust, TRUST_PATH } from "./trust.mjs";
+import { checkTrust, trustPath } from "./trust.mjs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -121,7 +121,7 @@ async function verifyAuthenticity(engine, blob, { log, fetcher, trustedKeys }) {
   // registry comprometido. Confronta com a raiz de confiança LOCAL antes de usá-la.
   const t = checkTrust(engine.name, publicKey, { trustedKeys });
   if (!t.ok) { return { ok: false, reason: t.reason }; }
-  if (t.tofu) { log(`[engine-kit] ${engine.name}: chave pública gravada na 1ª vez (TOFU) em ${TRUST_PATH} — trocas futuras serão ABORT`); }
+  if (t.tofu) { log(`[engine-kit] ${engine.name}: chave pública gravada na 1ª vez (TOFU) em ${trustPath()} — trocas futuras serão ABORT`); }
 
   let sig;
   try {

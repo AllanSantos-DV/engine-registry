@@ -19,12 +19,16 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
-const TRUST_DIR = process.env.ENGINE_KIT_HOME || join(homedir(), ".engine-kit");
-const TRUST_FILE = join(TRUST_DIR, "trust.json");
+// Lido a CADA chamada, não no import: assim um teste (ou um consumidor com HOME próprio) pode
+// isolar a raiz de confiança sem depender da ordem de carregamento dos módulos. Foi a própria
+// suíte que expôs isto — o motor-fake do teste de assinatura gera chave nova a cada execução e
+// ficava preso na confiança da execução anterior.
+const trustDir = () => process.env.ENGINE_KIT_HOME || join(homedir(), ".engine-kit");
+const trustFile = () => join(trustDir(), "trust.json");
 
 function readTrust() {
   try {
-    const v = JSON.parse(readFileSync(TRUST_FILE, "utf8"));
+    const v = JSON.parse(readFileSync(trustFile(), "utf8"));
     return v && typeof v === "object" && !Array.isArray(v) ? v : {};
   } catch {
     return {};
@@ -48,16 +52,16 @@ export function checkTrust(engineName, publicKey, { trustedKeys } = {}) {
       ok: false,
       reason:
         `${engineName}: a chave pública MUDOU desde a primeira instalação → ABORT. ` +
-        `Rotação legítima exige apagar a entrada em ${TRUST_FILE} de propósito; ` +
+        `Rotação legítima exige apagar a entrada em ${trustFile()} de propósito; ` +
         `se você não rotacionou, o registry pode estar comprometido.`,
     };
   }
   if (known) return { ok: true, tofu: false };
 
   try {
-    mkdirSync(TRUST_DIR, { recursive: true });
+    mkdirSync(trustDir(), { recursive: true });
     store[engineName] = { publicKey, firstSeen: new Date().toISOString(), source: pinned ? "pinned" : "tofu" };
-    writeFileSync(TRUST_FILE, JSON.stringify(store, null, 2));
+    writeFileSync(trustFile(), JSON.stringify(store, null, 2));
   } catch {
     // Não poder gravar a raiz não pode impedir a instalação — mas também não vira silêncio:
     // sem gravar, a próxima execução repete o TOFU (e o consumidor vê `tofu:true` de novo).
@@ -65,4 +69,4 @@ export function checkTrust(engineName, publicKey, { trustedKeys } = {}) {
   return { ok: true, tofu: true };
 }
 
-export const TRUST_PATH = TRUST_FILE;
+export const trustPath = () => trustFile();
