@@ -181,13 +181,29 @@ check("chave de outro motor não valida", !verifyBlob(good, goodSig, generateKey
 // O vox-engine já assina em produção com `tools/sign_release.py` (cryptography, hash-then-sign).
 // Se o verificador do kit em Node divergir do assinador em Python, a migração do vox quebra
 // silenciosamente. Este caso baixa uma release REAL e prova que o contrato é o mesmo.
+//
+// A release alvo vem do MANIFESTO, não de uma URL fixa. Antes era um link cravado para
+// `copilot-marketplace/vox-engine-v0.22.8`; quando o motor saiu daquela vitrine (canal
+// descontinuado de propósito), o link virou 404 e o teste passou a baixar 9 bytes de HTML de
+// erro e acusar "sig não tem 64 bytes" — apontando para o artefato, quando o defeito era o
+// endereço. Lendo do manifesto, o teste segue o motor para onde ele estiver e nunca mais
+// envelhece sozinho a cada release.
 if (process.argv.includes("--network")) {
   console.log("\nJ) interop: release REAL do vox-engine (assinada em Python) verificada pelo kit");
-  const VOX_PUB = "293263e73c4ba424a9ef3432d1ce55740fc0a68478f20235ca109c074ec83f52";
-  const BASE = "https://github.com/AllanSantos-DV/copilot-marketplace/releases/download/vox-engine-v0.22.8";
   try {
-    const grab = async (u) => Buffer.from(await (await fetch(u, { signal: AbortSignal.timeout(60000) })).arrayBuffer());
-    const [zip, sig] = await Promise.all([grab(`${BASE}/vox-engine-installer.zip`), grab(`${BASE}/vox-engine-installer.zip.sig`)]);
+    const mani = JSON.parse(readFileSync(join(import.meta.dirname, "manifest.json"), "utf8"));
+    const vox = mani.engines.find((e) => e.name === "vox-engine");
+    if (!vox) { throw new Error("vox-engine não está no manifest.json"); }
+    const VOX_PUB = vox.install.publicKey;
+    const tag = vox.install.tag.replace("{version}", vox.version);
+    const BASE = `https://github.com/${vox.install.repo}/releases/download/${tag}`;
+    console.log(`   alvo: ${vox.install.repo} ${tag}`);
+    const grab = async (u) => {
+      const r = await fetch(u, { signal: AbortSignal.timeout(60000) });
+      if (!r.ok) { throw new Error(`${r.status} ${r.statusText} em ${u}`); }
+      return Buffer.from(await r.arrayBuffer());
+    };
+    const [zip, sig] = await Promise.all([grab(`${BASE}/${vox.install.asset}`), grab(`${BASE}/${vox.install.asset}.sig`)]);
     check("sidecar .sig é cru de 64 bytes", sig.length === 64, `${sig.length} bytes`);
     check("kit (Node) valida assinatura feita em Python", verifyBlob(zip, sig, VOX_PUB).ok);
     check("kit recusa o mesmo instalador adulterado", !verifyBlob(Buffer.concat([zip, Buffer.from([0])]), sig, VOX_PUB).ok);
