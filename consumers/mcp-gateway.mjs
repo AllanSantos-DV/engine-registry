@@ -40,8 +40,9 @@ function readToken() {
 }
 
 /**
- * Handshake do gateway: confirma que quem atende na porta é MESMO este motor e está pronto
- * (`starting` significa que ainda está conectando os backends — não serve ainda).
+ * Handshake do gateway: confirma que quem atende na porta é MESMO este motor e já está
+ * servindo. `degraded` é ACEITO — significa que o gateway está de pé e atendendo, com um
+ * ou mais backends em reconexão; `starting` não serve (ainda conectando pela primeira vez).
  */
 async function healthCheck() {
   const port = configuredPort();
@@ -49,7 +50,8 @@ async function healthCheck() {
     const res = await fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(2000) });
     if (!res.ok) { return null; }
     const h = await res.json();
-    return h?.name === "mcp-gateway" && h.status === "ok" ? { ...h, port } : null;
+    const serving = h?.status === "ok" || h?.status === "degraded";
+    return h?.name === "mcp-gateway" && serving ? { ...h, port } : null;
   } catch {
     return null;
   }
