@@ -67,7 +67,63 @@ O script faz, em ordem e com *fail-loud* em cada passo:
 Depois: commitar e enviar o `manifest.json`. **Consumidores só enxergam a mudança após o push** —
 até lá o registry publicado continua descrevendo a versão anterior.
 
-## 4. Checklist por motor
+## 4. Onde o motor instala — e como o consumidor ACHA
+
+Esta seção existe porque a ausência dela custou caro: um consumidor escreveu o caminho do
+executável **de cabeça**, errou por um segmento, e o mesmo palpite foi copiado para três
+conectores em duas linguagens. O motor ficava "não instalado" com o binário no disco, e o
+consumidor entrava em laço de reinstalação que nunca resolvia.
+
+**Layout de instalação (Windows, por-usuário):**
+
+```
+%LOCALAPPDATA%\<motor>\           ← raiz  (a ÚNICA parte que o consumidor pode assumir)
+    venv\Scripts\<motor>.exe      ← o CLI              ⚠ tem 'venv'
+    venv\Scripts\python.exe       ← o interpretador do motor
+    logs\daemon.log
+    run\daemon-<hash>.pid
+    cli.json                      ← o PONTEIRO publicado pelo motor
+```
+
+**Como o consumidor acha o CLI — nesta ordem:**
+
+1. variável de ambiente de override (`<MOTOR>_CLI`), se existir e apontar para arquivo real;
+2. **`<raiz>/cli.json`** — o motor grava ali o caminho do próprio executável, derivado do
+   `sys.executable` do venv dele. Não é palpite: é o motor declarando onde está;
+3. só então o layout acima, como plano B para o **primeiro contato** (antes de o motor ter
+   rodado alguma vez, o ponteiro ainda não existe);
+4. `PATH` por último — e sabendo que normalmente **não resolve**: ninguém ativa o venv do motor.
+   Procurar no `PATH` primeiro ainda arrisca pegar um binário homônimo de outro projeto.
+
+**Regras para quem escreve um consumidor:**
+
+- **Não escreva o caminho de memória.** A resposta está no código do motor
+  (`bootstrap.daemon_paths()`, `sdk/python/vox_lifecycle.py`) e no `cli.json`. Se você está
+  digitando `Scripts` sem olhar, você está adivinhando.
+- **Não duplique a descoberta em N conectores.** Cada cópia é um lugar a mais para o palpite
+  errado sobrar quando o layout mudar. Um erro copiado três vezes leva três releases para sair.
+- **Ausência do motor é ESTADO, não exceção**: devolva "não instalado" e deixe o bootstrap
+  decidir. Levantar aqui transforma primeiro-uso em erro.
+
+**Regra para quem publica o motor:** o motor **declara** onde se instalou (escreve o
+`cli.json` no arranque do daemon e em qualquer invocação do CLI, com escrita atômica). Publicar
+um ponteiro para arquivo inexistente é pior que não publicar — o consumidor confiaria nele.
+
+## 5. Disciplina de release
+
+Release não é ferramenta de depuração. Publicar para "ver se agora vai" gasta número de versão,
+polui o histórico e obriga todo consumidor a decidir se atualiza — para descobrir o bug seguinte.
+
+- **Reproduza o defeito localmente antes de versionar.** Se você não sabe qual linha falha, não
+  há o que publicar.
+- **Valide pelo caminho REAL do consumidor**, não pela peça isolada. Testar `find_vox()` sozinho
+  não prova que o worker sobe; foi assim que três releases seguidas saíram sem resolver.
+- **Uma release deve carregar a correção E o teste que a trava.** Sem o teste, o mesmo erro
+  volta em silêncio na próxima refatoração.
+- Sinal de alerta: duas releases do mesmo motor no mesmo dia com poucos minutos de intervalo.
+  Isso não é entrega incremental, é depuração em produção.
+
+## 6. Checklist por motor
 
 ```
 [ ] chave gerada em ~/.engine-signing/<motor>_ed25519_private.key
@@ -78,12 +134,16 @@ até lá o registry publicado continua descrevendo a versão anterior.
 [ ] manifest.json com publicKey, signatureAlgorithm, signatureRequired:true, repo=engine-registry
 [ ] node kit/verify-release.mjs <motor>  → verde
 [ ] node e2e-install.mjs --local          → instala e sobe num HOME isolado
+[ ] o motor PUBLICA o ponteiro do CLI (<raiz>/cli.json) no arranque — nada de o consumidor adivinhar
+[ ] nenhum consumidor tem caminho de instalação escrito à mão (grep por "Scripts" nos conectores)
+[ ] o defeito foi reproduzido pelo caminho REAL do consumidor, não só na peça isolada
+[ ] a correção vai junto com o teste que a trava
 [ ] consumidores apontados para o engine-registry (o repo antigo deixou de ser consultado)
 [ ] grep nos repos dos consumidores pela URL antiga retorna ZERO   ← critério de remoção da ponte
 [ ] só então: release antiga marcada como deprecated / removida
 ```
 
-## 5. Estado da migração
+## 7. Estado da migração
 
 | Motor | `kind` | Fonte (privado) | Release canônica | Assinado | Ponte no canal antigo |
 |---|---|---|---|---|---|
