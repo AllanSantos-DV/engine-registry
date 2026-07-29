@@ -76,7 +76,7 @@
     },
     {
       "name": "mcp-gateway",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "kind": "daemon",
       "summary": "Agregador MCP: conecta UMA vez em cada servidor MCP e reexpõe todas as tools num endpoint Streamable HTTP único, com auth bearer, namespacing condicional, resiliência e auditoria. Mata a multiplicação de processos por sessão.",
       "home": "~/.mcp-gateway",
@@ -102,7 +102,7 @@
       "platforms": [
         "any"
       ],
-      "notes": "Artefato cross-platform (bundle JS puro, sem binário nativo) — um único asset serve todas as plataformas. Código-fonte no repo privado mcp-bridge, branch feat/mcp-gateway."
+      "notes": "Artefato cross-platform (bundle JS puro, sem binario nativo) — um unico asset serve todas as plataformas. Codigo-fonte no repo proprio AllanSantos-DV/mcp-gateway (privado); a release publica mora aqui, na casa dos motores."
     },
     {
       "name": "neural-link",
