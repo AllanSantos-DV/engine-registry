@@ -37,9 +37,9 @@ import { lifecycle } from "./lifecycle.mjs";
  * @returns {Promise<{available:true, runtime:object, health:object, engine:object} | {available:false, reason:string}>}
  */
 export async function ensureEngine(name, opts = {}) {
-  const { healthCheck, version, allowNetwork = true, registryUrl, log = () => {}, bootTimeoutMs, onBeforeReplace, env, trustedKeys } = opts;
+  const { healthCheck, version, allowNetwork = true, registryUrl, log = () => {}, bootTimeoutMs, onBeforeReplace, env, trustedKeys, refresh = false } = opts;
 
-  const r = await resolve(name, { version, allowNetwork, registryUrl });
+  const r = await resolve(name, { version, allowNetwork, registryUrl, refresh });
   if (!r.ok) { return { available: false, reason: r.reason }; }
 
   const p = await provision(r.engine, { log, allowNetwork, onBeforeReplace, trustedKeys });

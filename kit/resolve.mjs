@@ -47,7 +47,7 @@ async function fetchManifest(url, timeoutMs) {
  *        conferir a release contra o manifest LOCAL que ele acabou de escrever, e por testes.
  * @returns {Promise<{ok:true, engine:object} | {ok:false, reason:string}>}
  */
-export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowNetwork = true, timeoutMs = 10000, version, manifest: given } = {}) {
+export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowNetwork = true, timeoutMs = 10000, version, manifest: given, refresh = false } = {}) {
   let manifest = null;
   const cached = given ? null : readCache();
   // Sinalizações marcadas ONDE acontecem (não deduzidas depois):
@@ -56,10 +56,17 @@ export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowN
   let degraded = false;
   let offline = false;
 
+  // `refresh` ignora o cache fresco de propósito. Sem isso, quem já resolveu uma vez fica com o
+  // descritor congelado pelo TTL inteiro: publiquei três versões seguidas do mcp-gateway e o
+  // consumidor continuou instalando a primeira, porque o cache tinha 6 minutos de vida. Cache
+  // acelera o caminho quente (reusar o que já está instalado); INSTALAR ou DIAGNOSTICAR quer a
+  // verdade do registry, e essas operações são raras — pagar uma requisição não pesa.
+  const useCache = cached && !cached.stale && !refresh;
+
   if (given) {
     manifest = given;
     offline = true; // manifest entregue na mão: não se falou com o registry
-  } else if (cached && !cached.stale) {
+  } else if (useCache) {
     manifest = cached.manifest;
     offline = true; // cache fresco: não precisou da rede
   } else if (allowNetwork) {

@@ -46,7 +46,9 @@ console.log(`== engine-kit doctor ==  (registry: ${useLocal ? "manifest LOCAL" :
 
 const rows = [];
 for (const name of names) {
-  const r = await resolve(name, { allowNetwork: !useLocal, manifest: useLocal ? manifest : undefined });
+  // `refresh`: diagnóstico com cache velho mente — dizer "atualizado" olhando um descritor
+  // vencido é pior do que não diagnosticar. Aqui a requisição de rede vale a pena.
+  const r = await resolve(name, { allowNetwork: !useLocal, manifest: useLocal ? manifest : undefined, refresh: !useLocal });
   if (!r.ok) { rows.push({ name, state: "ERRO", detail: r.reason }); continue; }
 
   const engine = r.engine;
