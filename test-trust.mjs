@@ -19,9 +19,9 @@ const check = (name, cond, detail = "") => {
 /** Roda `checkTrust` num HOME de kit isolado (ENGINE_KIT_HOME), como um processo novo faria. */
 function trust(home, args) {
   const code =
-    `import { checkTrust, TRUST_PATH } from ${JSON.stringify(KIT)};` +
+    `import { checkTrust, trustPath } from ${JSON.stringify(KIT)};` +
     `const r = checkTrust(${args});` +
-    `process.stdout.write(JSON.stringify({ ...r, path: TRUST_PATH }));`;
+    `process.stdout.write(JSON.stringify({ ...r, path: trustPath() }));`;
   const p = spawnSync(process.execPath, ["--input-type=module", "-e", code], {
     encoding: "utf8",
     env: { ...process.env, ENGINE_KIT_HOME: home },

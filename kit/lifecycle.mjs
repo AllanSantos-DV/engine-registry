@@ -22,6 +22,16 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  */
 const DEFAULT_STALE_MS = 120000;
 
+/** Lê o runtime.json do motor, sem julgar idade. `null` se ausente/ilegível. */
+export function readRuntime(engine) {
+  try {
+    const rt = join(engine.homeDir, engine.runtime?.runtimeFile ?? "runtime.json");
+    return JSON.parse(readFileSync(rt, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
 /** Lê o runtime.json do motor SE estiver fresco (heartbeat vivo). null se ausente/obsoleto. */
 export function readFreshRuntime(engine, { staleMs } = {}) {
   const rt = join(engine.homeDir, engine.runtime?.runtimeFile ?? "runtime.json");
@@ -33,6 +43,24 @@ export function readFreshRuntime(engine, { staleMs } = {}) {
   } catch {
     return null;
   }
+}
+
+/**
+ * Localiza um motor VIVO: lê o runtime (dica de onde procurar) e pergunta ao próprio motor
+ * (prova de que está vivo).
+ *
+ * A ordem importa e custou um bug de produção: antes, o frescor do `runtime.json` **vetava** o
+ * handshake — um motor que escreve o arquivo só no boot (o caso do mcp-gateway) era declarado
+ * morto depois de 2 minutos de uptime, e o kit tentava subir outro por cima do que estava
+ * servindo. Arquivo é DICA (diz a porta); handshake é AUTORIDADE (prova que atende, e que é o
+ * motor certo — o healthCheck confere o nome). Runtime velho apontando para porta alheia
+ * continua seguro: o handshake não reconhece e o fluxo segue para o spawn.
+ */
+async function findAlive(engine, healthCheck) {
+  const rt = readRuntime(engine);
+  if (!rt) { return null; }
+  const health = await healthCheck(rt);
+  return health ? { runtime: rt, health } : null;
 }
 
 /**
@@ -50,7 +78,10 @@ export async function shutdown(engine, { log = () => {}, timeoutMs = 5000 } = {}
   const path = engine.runtime?.shutdownPath;
   if (!path) { return { ok: true, stopped: false }; }
 
-  const rt = readFreshRuntime(engine);
+  // Runtime SEM gate de frescor: um motor que só escreve o arquivo no boot (caso do mcp-gateway)
+  // seria considerado "morto" aqui e o shutdown viraria no-op — e aí o swap de arquivos falharia
+  // no Windows com EPERM, exatamente o problema que esta função existe para evitar.
+  const rt = readRuntime(engine);
   if (!rt?.port) { return { ok: true, stopped: false }; } // nada vivo para derrubar
 
   const headers = {};
@@ -110,13 +141,9 @@ export async function lifecycle(engine, entryPath, { healthCheck, log = () => {}
     return { available: false, reason: "healthCheck é obrigatório (o kit não adivinha o protocolo do motor)" };
   }
 
-  // 1) FAST PATH: já vivo? (runtime fresco + handshake do motor)
-  const fresh = readFreshRuntime(engine);
-  if (fresh) {
-    const h = await healthCheck(fresh);
-    if (h) { log(`[engine-kit] ${engine.name}: fast-path (já vivo)`); return { available: true, runtime: fresh, health: h }; }
-    log(`[engine-kit] ${engine.name}: runtime fresco mas health incompatível — vai resubir`);
-  }
+  // 1) FAST PATH: já vivo? (runtime diz onde; o handshake do motor prova que sim)
+  const alive = await findAlive(engine, healthCheck);
+  if (alive) { log(`[engine-kit] ${engine.name}: fast-path (já vivo)`); return { available: true, ...alive }; }
 
   // 2) SOBE. A corrida por singleton é resolvida DENTRO do motor (port-lock/bind); quem perde sai.
   if (!spawnEngine(nodePath, entryPath, log, env)) {
@@ -125,11 +152,8 @@ export async function lifecycle(engine, entryPath, { healthCheck, log = () => {}
 
   const deadline = Date.now() + bootTimeoutMs;
   while (Date.now() < deadline) {
-    const info = readFreshRuntime(engine);
-    if (info) {
-      const h = await healthCheck(info);
-      if (h) { return { available: true, runtime: info, health: h }; }
-    }
+    const up = await findAlive(engine, healthCheck);
+    if (up) { return { available: true, ...up }; }
     await sleep(1000);
   }
   return { available: false, reason: `${engine.name}: não anunciou em ${bootTimeoutMs}ms` };

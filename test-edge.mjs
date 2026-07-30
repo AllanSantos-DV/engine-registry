@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { provision } from "./kit/provision.mjs";
-import { readFreshRuntime } from "./kit/lifecycle.mjs";
+import { readFreshRuntime, lifecycle } from "./kit/lifecycle.mjs";
 import { resolve } from "./kit/resolve.mjs";
 
 let failures = 0;
@@ -116,6 +116,26 @@ utimesSync(rt, longAgo, longAgo);                   // 1 dia atrás
 check("runtime de 1 dia NÃO é 'fresco'", readFreshRuntime(engineFor(h6)) === null);
 writeFileSync(rt, JSON.stringify({ pid: 2, port: 2 }));  // agora
 check("runtime recém-escrito É fresco", readFreshRuntime(engineFor(h6))?.pid === 2);
+
+// 6b) REGRESSÃO (bug de produção): motor VIVO com runtime.json antigo deve ser reconhecido.
+// O mcp-gateway escreve o runtime só no boot. Enquanto o frescor do arquivo VETAVA o handshake,
+// ele era declarado morto após 2 min de uptime e o kit tentava subir outro POR CIMA do que
+// estava servindo — derrubando o daemon de produção. Arquivo é dica; handshake é autoridade.
+console.log("\n6b) motor vivo com runtime antigo (regressão)");
+utimesSync(rt, longAgo, longAgo);                       // arquivo velho de novo
+const vivo = await lifecycle(engineFor(h6), "nao-usado.mjs", {
+  healthCheck: async (r) => (r?.pid === 2 ? { status: "ok", port: r.port } : null),
+  bootTimeoutMs: 1,
+});
+check("fast-path reconhece motor vivo apesar do arquivo velho", vivo.available === true && vivo.health?.status === "ok",
+  vivo.available ? "" : vivo.reason);
+
+// E o contrário continua valendo: sem ninguém atendendo, não se inventa que está vivo.
+const morto = await lifecycle(engineFor(h6), join(ROOT, "inexistente.mjs"), {
+  healthCheck: async () => null,
+  bootTimeoutMs: 1,
+});
+check("sem handshake, NÃO declara vivo", morto.available === false, JSON.stringify(morto));
 
 // 7) Artefato INCOMPLETO (sem o entry declarado) → falha explícita
 console.log("\n7) artefato sem o entrypoint");
