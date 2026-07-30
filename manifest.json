@@ -76,7 +76,7 @@
     },
     {
       "name": "mcp-gateway",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "kind": "daemon",
       "summary": "Agregador MCP: conecta UMA vez em cada servidor MCP e reexpõe todas as tools num endpoint Streamable HTTP único, com auth bearer, namespacing condicional, resiliência e auditoria. Mata a multiplicação de processos por sessão.",
       "home": "~/.mcp-gateway",
