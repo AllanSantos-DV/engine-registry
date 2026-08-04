@@ -1,6 +1,6 @@
 {
   "name": "engine-kit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Cliente das dependências compartilhadas (motores) do engine-registry: resolve, provisiona com SHA256 e assinatura Ed25519 fail-closed, e mantém o motor vivo — uma instalação por máquina, N consumidores.",
   "type": "module",
   "exports": {
