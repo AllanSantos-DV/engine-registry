@@ -76,7 +76,11 @@
               }
             },
             "extractTo": { "type": "string", "default": "bin" },
-            "entry": { "type": "string", "description": "Caminho do entrypoint relativo ao home." }
+            "entry": { "type": "string", "description": "Caminho do entrypoint relativo ao home." },
+            "agentInstructions": {
+              "type": "string",
+              "description": "Caminho RELATIVO ao home do motor, dentro do artefato desempacotado, onde mora o pacote de instruções para agentes (ex.: docs/AGENT-INSTRUCTIONS.md). Sem raiz absoluta e sem '..': o valor é publicado no manifesto público. Ausente = o motor não publica instrução para agente."
+            }
           }
         },
         "runtime": {

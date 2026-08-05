@@ -14,12 +14,37 @@
 //
 // Contrato: nunca lança.
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, dirname, resolve as resolvePath, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import { ensureEngine } from "../kit/index.mjs";
 
-const HOME = join(homedir(), ".mcp-gateway");
+const DEFAULT_HOME = join(homedir(), ".mcp-gateway");
 const DEFAULT_PORT = 7337;
+const ENGINE_NAME = "mcp-gateway";
+// manifest.json do próprio engine-registry — mesmo arquivo que declara `install.agentInstructions`
+// e `install.extractTo` para este motor (fonte única de verdade; ver schema.json).
+const MANIFEST_PATH = join(dirname(dirname(fileURLToPath(import.meta.url))), "manifest.json");
+
+/** HOME do motor, resolvido a cada chamada (respeita override de teste/dev via env). */
+function resolveHome() {
+  return process.env.MCP_GATEWAY_DATA_DIR || DEFAULT_HOME;
+}
+
+const HOME = resolveHome();
+
+/**
+ * Descritor do motor `mcp-gateway` lido do manifest.json do registry. Nunca lança: manifest
+ * ilegível ou motor ausente do registro → null (quem chama sinaliza, não inventa um default).
+ */
+function loadEngineDescriptor() {
+  try {
+    const manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"));
+    return (manifest.engines ?? []).find((e) => e?.name === ENGINE_NAME) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /** Lê a porta configurada pelo usuário (config.json), caindo no default do motor. */
 function configuredPort() {
@@ -64,6 +89,50 @@ async function onBeforeReplace() {
     if (rt?.pid) { process.kill(rt.pid, "SIGTERM"); }
     await new Promise((r) => setTimeout(r, 1500));
   } catch { /* já parado / sem runtime */ }
+}
+
+/**
+ * Caminho do pacote de instruções para agente, dentro do HOME do motor. Composto a partir do
+ * MESMO `install.agentInstructions` declarado no manifest.json (fonte única de verdade — mudar
+ * o manifest muda o consumer, nunca o contrário) e de `install.extractTo` (a pasta onde o
+ * `provision` REALMENTE desempacota o artefato — ver kit/provision.mjs: `binDir = join(home,
+ * install.extractTo ?? "bin")`). Sem isso o caminho apontaria para <home>/docs/... enquanto o
+ * artefato desempacotado mora em <home>/<extractTo>/docs/... — dois lugares diferentes.
+ * Função pura: só resolve o caminho, não toca rede (o manifest.json lido é o arquivo estático
+ * empacotado junto com este módulo, não uma chamada ao registry remoto).
+ * @returns {string|null} null quando o manifest não declara `agentInstructions` para o motor.
+ */
+export function instructionsPath() {
+  const engine = loadEngineDescriptor();
+  const rel = engine?.install?.agentInstructions;
+  if (!rel) { return null; }
+  const extractTo = engine.install.extractTo ?? "bin";
+  if (rel.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(rel) || rel.split(/[\\/]+/).includes("..")) {
+    return null;
+  }
+  const home = resolvePath(resolveHome());
+  const candidate = resolvePath(home, extractTo, rel);
+  if (candidate !== home && !candidate.startsWith(`${home}${sep}`)) {
+    return null;
+  }
+  return candidate;
+}
+
+/**
+ * Carrega o pacote de instruções do disco (sem rede, sem healthcheck). Host-agnóstico:
+ * devolve o conteúdo cru para qualquer cliente MCP decidir o que fazer com ele.
+ * @returns {{available:true, path:string, content:string} | {available:false, reason:string}}
+ */
+export function readInstructions() {
+  const path = instructionsPath();
+  if (!path) {
+    return { available: false, reason: "manifest.json não declara um caminho seguro para as instruções do mcp-gateway" };
+  }
+  try {
+    return { available: true, path, content: readFileSync(path, "utf8") };
+  } catch (e) {
+    return { available: false, reason: e.message };
+  }
 }
 
 /**
