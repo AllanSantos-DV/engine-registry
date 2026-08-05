@@ -184,7 +184,9 @@ if (entry) {
 
           const extractTo = entry.install.extractTo ?? "bin";
           const relInstructions = entry.install.agentInstructions;
-          const packagedPath = join(extractDir, extractTo, relInstructions);
+          // O tarball cru contém o conteúdo de extractTo na raiz. O provision
+          // renomeia o staging inteiro para <home>/<extractTo> depois da extração.
+          const packagedPath = join(extractDir, relInstructions);
           let packagedContent = null;
           try {
             packagedContent = readFileSync(packagedPath, "utf8");
