@@ -1,6 +1,7 @@
 # engine-registry
 
-Vitrine de **MOTORES** — as dependências compartilhadas que as extensões consomem.
+Vitrine de **MOTORES** compartilhados e, em uma seção separada, de aplicativos
+distribuídos. O `engine-kit` continua lendo somente `manifest.engines`.
 
 Um motor **não é um plugin**: não se instala pela vitrine de extensões, não tem `hooks` nem
 `extensions`. Ele é **infraestrutura**: instala **uma vez por máquina** em `~/.<motor>` e serve
@@ -30,6 +31,20 @@ vive num lugar só e o consumidor apenas **declara a dependência**.
 | `neural-link` | 0.7.6 | `cli` | Dispatcher adaptativo de hooks: recebe o evento por stdin, pontua os handlers e devolve uma decisão composta. |
 
 **Todos** são publicados aqui, assinados com Ed25519 e verificados antes de instalar.
+
+## Aplicativos distribuídos
+
+`manifest.apps` reserva uma entrada por aplicativo publicado, com versão atual,
+tag e artefatos por plataforma. Um aplicativo não é provisionado pelo `engine-kit`:
+seu instalador, interface e atualização seguem o contrato do próprio produto.
+Não anunciar um aplicativo no manifesto antes de a release pública e seus
+checksums existirem e passarem por download anônimo.
+
+O WhatsApp Bridge é um aplicativo integrador, portanto sua futura tag
+`whatsapp-bridge-vX.Y.Z` pertence a `apps`, não a `engines`. O Cerne é um motor
+compartilhado com GUI e instalador próprios; sua futura entrada pertence a
+`engines` com `status: "self-managed"`. Nenhuma dessas releases foi publicada
+neste registry até a data deste rascunho.
 
 Um motor pode ser de dois tipos (`kind`):
 

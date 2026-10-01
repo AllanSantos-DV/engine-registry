@@ -6,7 +6,8 @@
     "name": "Allan Santos",
     "url": "https://github.com/AllanSantos-DV"
   },
-  "description": "Vitrine de MOTORES (dependências compartilhadas) consumidos pelas extensões. Um motor não é instalável pelo usuário: é provisionado sob demanda por quem o declara como dependência, verificado por SHA256 fail-closed e compartilhado por todos os consumidores da máquina.",
+  "description": "Catálogo público de motores compartilhados e aplicativos distribuídos. engine-kit consome apenas engines; apps declara versões e downloads sem instalar aplicativos automaticamente.",
+  "apps": [],
   "engines": [
     {
       "name": "embed-house",
