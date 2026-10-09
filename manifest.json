@@ -128,6 +128,29 @@
         "any"
       ],
       "notes": "kind=cli: o lifecycle entrega o binário e NÃO sobe processo. `extractTo` é aninhado de propósito — o home guarda ESTADO que precisa sobreviver ao update (weights/, logs/, active.json), e só `runtimes/<motor>` é trocado. O home fica sob `~/.copilot/` por compatibilidade com os hooks já reescritos em produção; desacoplar do host é o passo do ciclo em que o Skill Manager passar a provisionar pelo kit. Contrato de invocação: CONTRATO-DISPATCHER.md no repo público neural-link-runtime."
+    },
+    {
+      "name": "vxk",
+      "version": "0.4.0",
+      "kind": "cli",
+      "summary": "VXK — explicações visuais animadas e narradas como servidor MCP (stdio): qualquer cliente MCP (Claude Code, Codex, Copilot) compõe a biblioteca de componentes, ícones e o controle único de reprodução e recebe UM HTML autocontido e offline. A narração é assada pelo motor vox-engine.",
+      "home": "~/.vxk",
+      "install": {
+        "type": "github-release",
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "vxk-v{version}",
+        "asset": "vxk.tgz",
+        "checksum": "{asset}.sha256",
+        "extractTo": "bin",
+        "entry": "bin/vxk-mcp.mjs",
+        "publicKey": "50fab11fdd668f14c1e7d4c5379959f8a168fd9283bf05c0ac9cd7c8f6aaa299",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true
+      },
+      "platforms": [
+        "any"
+      ],
+      "notes": "kind=cli: o host MCP sobe `node ~/.vxk/bin/vxk-mcp.mjs` por stdio (direto ou como backend do mcp-gateway); o build é job assíncrono porque o gateway corta chamadas em 30 s. O motor publica ~/.vxk/cli.json (mcp, builder, version) a cada arranque. Traz também o builder CLI (bin/build-artifact.mjs). Narração requer o vox-engine (Windows); sem ele o build falha alto em vez de gerar mudo."
     }
   ]
 }
