@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { provision } from "./kit/provision.mjs";
+import { provision, tarBinary } from "./kit/provision.mjs";
 import { readFreshRuntime, lifecycle } from "./kit/lifecycle.mjs";
 import { resolve } from "./kit/resolve.mjs";
 
@@ -28,7 +28,7 @@ mkdirSync(pkgDir, { recursive: true });
 writeFileSync(join(pkgDir, "package.json"), JSON.stringify({ name: "fake-engine", version: "1.0.0" }));
 writeFileSync(join(pkgDir, "server.mjs"), "console.log('fake');\n");
 const TGZ = join(ROOT, "fake.tgz");
-execFileSync("tar", ["-czf", TGZ, "-C", pkgDir, "."], { stdio: "ignore" });
+execFileSync(tarBinary(), ["-czf", TGZ, "-C", pkgDir, "."], { stdio: "ignore" });
 const REAL_SHA = sha256(TGZ);
 
 // --- servidor local que serve o artefato e o sidecar (com corpo controlável) ---
@@ -143,7 +143,7 @@ const badDir = join(ROOT, "badpkg");
 mkdirSync(badDir, { recursive: true });
 writeFileSync(join(badDir, "package.json"), JSON.stringify({ name: "x", version: "1.0.0" }));
 const BAD = join(ROOT, "bad.tgz");
-execFileSync("tar", ["-czf", BAD, "-C", badDir, "."], { stdio: "ignore" });
+execFileSync(tarBinary(), ["-czf", BAD, "-C", badDir, "."], { stdio: "ignore" });
 const badSha = sha256(BAD);
 const server2 = createServer((req, res) => {
   if (req.url.endsWith(".sha256")) { res.writeHead(200).end(`${badSha}  bad.tgz`); return; }

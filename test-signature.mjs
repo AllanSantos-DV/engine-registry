@@ -15,6 +15,7 @@ import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
+import { tarBinary } from "./kit/provision.mjs";   // tar nativo no Windows (o GNU tar do Git Bash não aceita C:\)
 import { tmpdir } from "node:os";
 
 let failures = 0;
@@ -43,7 +44,7 @@ function buildFixtureTgz(version) {
   writeFileSync(join(src, "package.json"), JSON.stringify({ name: "test-engine", version }));
   writeFileSync(join(src, "test-engine.mjs"), 'console.log(JSON.stringify({ ok: true }));\n');
   const tgz = join(RUN, `test-engine-${version}.tgz`);
-  execFileSync("tar", ["-czf", tgz, "-C", src, "."], { stdio: "ignore" });
+  execFileSync(tarBinary(), ["-czf", tgz, "-C", src, "."], { stdio: "ignore" });
   return readFileSync(tgz);
 }
 

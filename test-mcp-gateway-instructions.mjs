@@ -23,7 +23,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { resolve } from "./kit/resolve.mjs";
-import { fetchArtifact } from "./kit/provision.mjs";
+import { fetchArtifact, tarBinary } from "./kit/provision.mjs";
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -180,7 +180,7 @@ if (entry) {
         const extractDir = join(workDir, "extracted");
         mkdirSync(extractDir, { recursive: true });
         try {
-          execFileSync("tar", ["-xzf", fetched.path, "-C", extractDir], { stdio: "ignore" });
+          execFileSync(tarBinary(), ["-xzf", fetched.path, "-C", extractDir], { stdio: "ignore" });
 
           const extractTo = entry.install.extractTo ?? "bin";
           const relInstructions = entry.install.agentInstructions;
