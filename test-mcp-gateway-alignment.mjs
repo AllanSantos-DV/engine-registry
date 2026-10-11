@@ -1,8 +1,8 @@
 // test-mcp-gateway-alignment.mjs — prova de que o manifest do engine-registry está
-// alinhado com a versão REAL publicada do motor mcp-gateway (0.13.6).
+// alinhado com a versão REAL publicada do motor mcp-gateway (0.13.7).
 //
 // Contexto (RED): o manifest.json hoje trava o consumidor em "mcp-gateway" v0.8.4,
-// mas o motor já está em 0.13.6 (package.json do repo mcp-gateway). Enquanto o
+// mas o motor já está em 0.13.7 (package.json do repo mcp-gateway). Enquanto o
 // manifest não for atualizado, `ensureGateway()` (consumers/mcp-gateway.mjs) resolve,
 // baixa e "trava" qualquer consumidor numa versão 5 minors atrás — nenhum agente
 // consumidor (mcp-bridge, etc.) recebe fixes/features do gateway atual até o
@@ -19,7 +19,7 @@ const check = (name, cond, detail = "") => {
 };
 
 const MANIFEST_PATH = join(import.meta.dirname, "manifest.json");
-const EXPECTED_VERSION = "0.13.6"; // versão publicada em mcp-gateway/package.json nesta fase
+const EXPECTED_VERSION = "0.13.7"; // versão publicada em mcp-gateway/package.json nesta fase
 
 let manifest;
 try {
