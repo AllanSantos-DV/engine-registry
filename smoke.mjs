@@ -25,6 +25,8 @@ check("1.0.4 satisfaz 1.0.4", satisfiesPin("1.0.4", "1.0.4"));
 check("1.0.5 satisfaz 1.0.4", satisfiesPin("1.0.5", "1.0.4"));
 check("1.0.3 NÃO satisfaz 1.0.4", !satisfiesPin("1.0.3", "1.0.4"));
 check("2.0.0 NÃO satisfaz 1.0.4 (major)", !satisfiesPin("2.0.0", "1.0.4"));
+check("0.7.10 satisfaz 0.7.9 (numérico, não string)", satisfiesPin("0.7.10", "0.7.9"));
+check("0.7.9 NÃO satisfaz 0.7.10 (numérico, não string)", !satisfiesPin("0.7.9", "0.7.10"));
 
 // 2) resolve: monta URLs a partir do manifest
 console.log("\n2) resolve");
