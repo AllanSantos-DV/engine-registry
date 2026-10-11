@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://raw.githubusercontent.com/AllanSantos-DV/engine-registry/main/schema.json",
   "title": "engine-registry manifest",
-  "description": "Descritor dos MOTORES (dependências compartilhadas) consumidos via engine-kit.",
+  "description": "Descritor de motores consumidos via engine-kit e aplicativos distribuídos separadamente.",
   "type": "object",
   "required": ["registry", "version", "engines"],
   "properties": {
@@ -14,9 +14,39 @@
       "properties": { "name": { "type": "string" }, "url": { "type": "string", "format": "uri" } }
     },
     "description": { "type": "string" },
-    "engines": { "type": "array", "items": { "$ref": "#/definitions/engine" } }
+    "engines": { "type": "array", "items": { "$ref": "#/definitions/engine" } },
+    "apps": { "type": "array", "items": { "$ref": "#/definitions/app" } }
   },
   "definitions": {
+    "app": {
+      "type": "object",
+      "required": ["name", "version", "summary", "release", "platforms"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+        "summary": { "type": "string" },
+        "platforms": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "release": {
+          "type": "object",
+          "required": ["repo", "tag", "assets"],
+          "properties": {
+            "repo": { "type": "string", "pattern": "^[^/]+/[^/]+$" },
+            "tag": { "type": "string", "description": "Template por produto; aceita {version}." },
+            "assets": { "type": "array", "minItems": 1, "items": {
+              "type": "object", "required": ["name", "platform", "checksum"],
+              "properties": {
+                "name": { "type": "string" },
+                "platform": { "type": "string" },
+                "checksum": { "type": "string", "description": "Nome do sidecar SHA-256 público." },
+                "signature": { "type": "string", "description": "Assinatura opcional do artefato, conforme a política do aplicativo." }
+              }
+            } },
+            "publicKey": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+            "signatureAlgorithm": { "type": "string", "enum": ["ed25519-sha256-raw"] }
+          }
+        }
+      }
+    },
     "engine": {
       "type": "object",
       "required": ["name", "version", "kind", "home", "install"],
