@@ -43,6 +43,11 @@ Requisitos do artefato:
 > com o pin do registry. Se o manifest disser `0.1.1` e o artefato disser `0.1.0`, o pin nunca é
 > satisfeito e a máquina **reinstala o motor em toda chamada**. Bump de versão exige rebuild.
 
+> **Armadilha do tar no Windows:** num terminal Git Bash, o GNU tar do Git vem antes no `PATH` e
+> lê `C:\...` como host remoto (`Cannot connect to C: resolve failed`). Empacote com o tar nativo
+> (`C:\Windows\System32\tar.exe`, bsdtar), chamando-o pelo caminho absoluto ou pondo `System32`
+> antes no `PATH`. Na extração o kit já faz isso sozinho (`kit/provision.mjs`).
+
 ## 3. Publicar
 
 ```sh

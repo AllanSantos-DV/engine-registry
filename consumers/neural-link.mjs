@@ -19,7 +19,7 @@ import { pathToFileURL } from "node:url";
 import { ensureEngine } from "../kit/index.mjs";
 
 /** Pin default: última versão do neural-link confirmada publicada no manifest deste kit. */
-const DEFAULT_PIN = "0.7.6";
+const DEFAULT_PIN = "0.7.7";
 
 /**
  * Garante o dispatcher de hooks `neural-link` instalado/atualizado, e roda o `install()` dele
