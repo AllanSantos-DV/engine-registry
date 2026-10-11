@@ -29,9 +29,14 @@ const ROOT = resolvePath(KIT, "..");
 // marca, então subir o teto depois deixa de ser invisível: vira um número na tela e um diff.
 // Calibrar uma vez, na adoção da métrica, é linha de base; recalibrar toda vez que dispara é
 // contornar o guarda-corpo — e é isso que o baseline expõe.
+//
+// Recalibrações com delta justificado (o baseline NÃO muda; só o teto):
+//   2026-10-11 tooling 18000 → 24000: catálogo de APLICATIVOS (manifest.apps) — app-release.mjs e
+//   os modos --app de update-manifest/verify-release, +6.4 KB. É escopo novo (segundo tipo de
+//   entrada no registry), não inchaço; e é ferramental de autor: o caminho do consumidor não mudou.
 const BUDGETS = {
   runtime: { codeBytes: 27000, baseline: 24519, loc: 900 },
-  tooling: { codeBytes: 18000, baseline: 16420, loc: 600 },
+  tooling: { codeBytes: 24000, baseline: 16420, loc: 800 },
   adapter: { codeBytes: 4000, baseline: 1859, loc: 150 },
 };
 

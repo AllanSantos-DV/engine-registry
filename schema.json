@@ -20,30 +20,44 @@
   "definitions": {
     "app": {
       "type": "object",
+      "description": "Aplicativo distribuído: o engine-kit NÃO provisiona. A entrada declara versão e downloads; kit/verify-release.mjs --app prova cada asset por download anônimo. Campos desconhecidos são recusados (um 'checksun' digitado errado não pode passar calado).",
       "required": ["name", "version", "summary", "release", "platforms"],
+      "additionalProperties": false,
       "properties": {
         "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
         "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
         "summary": { "type": "string" },
+        "notes": { "type": "string" },
+        "homepage": { "type": "string", "format": "uri" },
+        "license": { "type": "string", "description": "Termos de distribuição do binário (ex.: identificador SPDX)." },
         "platforms": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
         "release": {
           "type": "object",
           "required": ["repo", "tag", "assets"],
+          "additionalProperties": false,
           "properties": {
             "repo": { "type": "string", "pattern": "^[^/]+/[^/]+$" },
-            "tag": { "type": "string", "description": "Template por produto; aceita {version}." },
+            "tag": { "type": "string", "description": "Template; aceita {version}." },
             "assets": { "type": "array", "minItems": 1, "items": {
               "type": "object", "required": ["name", "platform", "checksum"],
+              "additionalProperties": false,
               "properties": {
-                "name": { "type": "string" },
+                "name": { "type": "string", "description": "Template; aceita {version}. Um nome sem placeholder é um template literal e também vale." },
                 "platform": { "type": "string" },
-                "checksum": { "type": "string", "description": "Nome do sidecar SHA-256 público." },
-                "signature": { "type": "string", "description": "Assinatura opcional do artefato, conforme a política do aplicativo." }
+                "checksum": { "type": "string", "description": "Template do sidecar SHA-256; aceita {asset} e {version} (ex.: '{asset}.sha256'). Nome literal também vale. OBRIGATÓRIO (fail-closed)." },
+                "signature": { "type": "string", "default": "{asset}.sig", "description": "Template do sidecar Ed25519 cru (64 bytes); aceita {asset} e {version}. Ausente = '{asset}.sig'." }
               }
             } },
-            "publicKey": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
-            "signatureAlgorithm": { "type": "string", "enum": ["ed25519-sha256-raw"] }
-          }
+            "publicKey": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$", "description": "Chave pública Ed25519 do aplicativo (uma por produto), 32 bytes em hex." },
+            "signatureAlgorithm": { "type": "string", "enum": ["ed25519-sha256-raw"], "default": "ed25519-sha256-raw" },
+            "signatureRequired": { "type": "boolean", "default": false, "description": "true = todo asset precisa de assinatura válida. Exige 'publicKey'." }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "signatureRequired": { "const": true } }, "required": ["signatureRequired"] },
+              "then": { "required": ["publicKey"] }
+            }
+          ]
         }
       }
     },

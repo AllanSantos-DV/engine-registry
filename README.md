@@ -32,20 +32,6 @@ vive num lugar só e o consumidor apenas **declara a dependência**.
 
 **Todos** são publicados aqui, assinados com Ed25519 e verificados antes de instalar.
 
-## Aplicativos distribuídos
-
-`manifest.apps` reserva uma entrada por aplicativo publicado, com versão atual,
-tag e artefatos por plataforma. Um aplicativo não é provisionado pelo `engine-kit`:
-seu instalador, interface e atualização seguem o contrato do próprio produto.
-Não anunciar um aplicativo no manifesto antes de a release pública e seus
-checksums existirem e passarem por download anônimo.
-
-O WhatsApp Bridge é um aplicativo integrador, portanto sua futura tag
-`whatsapp-bridge-vX.Y.Z` pertence a `apps`, não a `engines`. O Cerne é um motor
-compartilhado com GUI e instalador próprios; sua futura entrada pertence a
-`engines` com `status: "self-managed"`. Nenhuma dessas releases foi publicada
-neste registry até a data deste rascunho.
-
 Um motor pode ser de dois tipos (`kind`):
 
 - **`daemon`** — processo longo que anuncia `runtime.json` e responde a um `healthCheck`. O kit
@@ -195,13 +181,15 @@ kit/
   keystore.mjs     # onde moram as chaves privadas (~/.engine-signing)
   gen-key.mjs      # gera o par de UM motor (com auto-prova)
   sign.mjs         # assina um artefato e prova a assinatura na hora
-  update-manifest.mjs # patch do manifest parseado (nunca regex em JSON)
-  verify-release.mjs  # baixa a release publicada e prova o caminho do consumidor
-  publish-base.ps1    # publicação: identidade do gh → assina → release → manifest → prova
+  update-manifest.mjs # patch do manifest parseado (nunca regex em JSON); --app para apps
+  verify-release.mjs  # baixa a release publicada e prova o caminho do consumidor; --app para apps
+  app-release.mjs     # URLs e verificação de TODOS os assets de um app (manifest.apps)
+  publish-base.ps1    # publicação de motor: identidade do gh → assina → release → manifest → prova
 consumers/
   mcp-gateway.mjs  # adaptador pronto: handshake + token + shutdown do agregador MCP
 smoke.mjs          # contratos do kit: node smoke.mjs
 test-signature.mjs # contrato de assinatura (inclui o ataque com .sha256 recalculado)
+test-apps.mjs      # catálogo de apps: schema, update-manifest --app e verificação (hermético)
 e2e-install.mjs    # instalação real de um motor do zero: node e2e-install.mjs
 ```
 
@@ -212,6 +200,7 @@ node smoke.mjs                     # contratos, offline
 node smoke.mjs --network           # resolvendo do registry remoto
 node test-signature.mjs            # contrato de assinatura (hermético)
 node test-signature.mjs --network  # + interop com uma release REAL do vox-engine
+node test-apps.mjs                 # catálogo de apps (hermético)
 node e2e-install.mjs               # baixa e sobe o mcp-gateway num HOME isolado (prova real)
 node e2e-install.mjs --local       # idem, mas usando o manifest.json que você vai publicar
 ```
@@ -234,6 +223,49 @@ atualiza o `manifest.json` **parseado** e então **prova**: baixa a release publ
 
 O artefato deve ser **self-contained** (traz o próprio `node_modules` trimado): o motor precisa
 subir numa máquina limpa, sem depender do consumidor.
+
+## Aplicativos
+
+`manifest.apps` é o catálogo de **aplicativos distribuídos**: produtos que o usuário baixa e
+instala, com instalador, interface e atualização próprios. O `engine-kit` **não** os provisiona —
+`resolve`/`provision` leem só `manifest.engines`. A entrada declara versão, tag e os assets por
+plataforma, e a release mora aqui, no registry público, com download **sem login**.
+
+| App | Versão | Plataformas | O que faz |
+|---|---|---|---|
+| — | — | — | Nenhum app registrado ainda. |
+
+Um app só entra nesta tabela e em `manifest.apps` **depois** de a release pública existir e passar
+em `node kit/verify-release.mjs --app <nome>` (download anônimo de todos os assets, `.sha256` e
+`.sig`). Aplicativo integrador (como o WhatsApp Bridge, tag `whatsapp-bridge-vX.Y.Z`) vai em
+`apps`; motor compartilhado com GUI e instalador próprios (como o Cerne) vai em `engines` com
+`status: "self-managed"`.
+
+### Contrato da entrada
+
+- `release.assets[].name` aceita `{version}`; `checksum` e `signature` aceitam `{asset}` e
+  `{version}`. Nome literal, sem placeholder, também vale. Prefira templates
+  (`whatsapp-bridge-setup-{version}-win32-x64.exe`, `{asset}.sha256`): uma versão nova muda só
+  `version`, sem reescrever os assets.
+- `signature` ausente = `{asset}.sig`. Com `release.publicKey` declarada, **todo** asset precisa
+  de `.sig` válido; `signatureRequired: true` sem `publicKey` é recusado.
+- O schema é estrito: campo desconhecido na entrada, na release ou num asset é recusado.
+- Uma chave por produto, como nos motores: `node kit/gen-key.mjs <app>` (a privada fica em
+  `~/.engine-signing/<app>_ed25519_private.key` e nunca entra em CI).
+
+### Publicar um app
+
+O `publish-base.ps1` é dos motores (um `.tgz`, notas que falam do `engine-kit`). Um app publica
+com **o próprio script**, que builda, assina cada asset com `node kit/sign.mjs <asset> --engine
+<app>` e cria a release `<app>-vX.Y.Z` neste repositório. Do kit, o app usa só a parte do
+manifest e a prova:
+
+```sh
+# 1ª vez: registre a entrada à mão em manifest.apps (o script ATUALIZA, não inventa descritor)
+node kit/update-manifest.mjs --app <app> --version <x.y.z> --public-key <hex> \
+     [--asset "<template>=<plataforma>" ...]
+node kit/verify-release.mjs --app <app>   # baixa todos os assets sem login e confere
+```
 
 
 ## Licença

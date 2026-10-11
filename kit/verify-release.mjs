@@ -2,6 +2,7 @@
 // engine-kit/verify-release.mjs — prova o CAMINHO REAL depois de publicar.
 //
 //   node kit/verify-release.mjs <motor> [--manifest <path>]
+//   node kit/verify-release.mjs --app <nome> [--manifest <path>]   # aplicativo: TODOS os assets
 //
 // Baixa do release público exatamente o que um consumidor baixaria (asset + .sha256 + .sig),
 // usando as URLs montadas a partir do manifest, e confere as duas garantias:
@@ -16,18 +17,37 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { resolve } from "./resolve.mjs";
 import { verifyBlob, DEFAULT_ALGORITHM } from "./signature.mjs";
+import { findApp, appAssetUrls, verifyAppRelease } from "./app-release.mjs";
 
 const die = (msg) => { console.error(`FALHOU: ${msg}`); process.exit(1); };
 
+const USAGE = "uso: node kit/verify-release.mjs <motor> [--manifest <path>]\n" +
+              "     node kit/verify-release.mjs --app <nome> [--manifest <path>]";
 const args = process.argv.slice(2);
-const engineName = args[0];
-if (!engineName || engineName.startsWith("--")) { die("uso: node kit/verify-release.mjs <motor> [--manifest <path>]"); }
-const i = args.indexOf("--manifest");
-const manifestPath = i === -1 ? join(dirname(dirname(fileURLToPath(import.meta.url))), "manifest.json") : args[i + 1];
+const opt = (flag) => { const k = args.indexOf(flag); return k === -1 ? null : args[k + 1]; };
+const appName = args.includes("--app") ? opt("--app") : null;
+if (args.includes("--app") && (!appName || appName.startsWith("--"))) { die(USAGE); }
+const engineName = appName ? null : args[0];
+if (!appName && (!engineName || engineName.startsWith("--"))) { die(USAGE); }
+const manifestPath = opt("--manifest") ?? join(dirname(dirname(fileURLToPath(import.meta.url))), "manifest.json");
 
 let manifest;
 try { manifest = JSON.parse(readFileSync(manifestPath, "utf8")); }
 catch (e) { die(`manifest ilegível em ${manifestPath}: ${e.message}`); }
+
+// Aplicativo: não há asset único nem provision — baixa TODOS os assets da entrada, anônimo.
+if (appName) {
+  const f = findApp(manifest, appName);
+  if (!f.ok) { die(f.reason); }
+  const { tag } = appAssetUrls(f.app);
+  console.log(`app            : ${f.app.name} v${f.app.version}`);
+  console.log(`release        : ${f.app.release.repo} @ ${tag}`);
+  if (!f.app.release.publicKey) { console.warn("AVISO: app sem publicKey — integridade será verificada, AUTENTICIDADE não."); }
+  const r = await verifyAppRelease(f.app, { log: (m) => console.log(`  OK  ${m}`) });
+  if (!r.ok) { die(r.reason); }
+  console.log(`\nOK: os ${r.assets.length} assets de ${f.app.name} v${f.app.version} baixam sem login e conferem.`);
+  process.exit(0);
+}
 
 const r = await resolve(engineName, { manifest });
 if (!r.ok) { die(r.reason); }
