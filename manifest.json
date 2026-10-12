@@ -152,6 +152,31 @@
         "any"
       ],
       "notes": "kind=cli: o host MCP sobe `node ~/.vxk/bin/vxk-mcp.mjs` por stdio (direto ou como backend do mcp-gateway); o build é job assíncrono porque o gateway corta chamadas em 30 s. O motor publica ~/.vxk/cli.json (mcp, builder, version) a cada arranque. Traz também o builder CLI (bin/build-artifact.mjs). Narração requer o vox-engine (Windows); sem ele o build falha alto em vez de gerar mudo."
+    },
+    {
+      "name": "cerne",
+      "version": "0.4.6",
+      "kind": "daemon",
+      "status": "self-managed",
+      "summary": "Leitura ativa de vídeo por link ou arquivo: captura, seleção de quadros, transcrição, tradução e consolidação em memória, exposta via servidor MCP por um único daemon local (CerneEngine) compartilhado entre os consumidores.",
+      "home": "~/AppData/Local/Programs/Cerne",
+      "install": {
+        "type": "github-release",
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "cerne-v{version}",
+        "asset": "cerne-setup-v{version}.exe",
+        "checksum": "{asset}.sha256",
+        "signature": "{asset}.sig",
+        "publicKey": "f4c1460df98fd6c9ea044df614e4a1a0cf5ad18e9320f9595aae36d8e270ec5c",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true,
+        "extractTo": ".",
+        "entry": "cerne-gui.exe"
+      },
+      "notes": "self-managed: o asset é o instalador Inno Setup por usuário (sem admin) e o Cerne cuida do próprio upgrade — o engine-kit NÃO o provisiona; esta entrada é o descritor de registro (release, chave, versão). `home` é a pasta de INSTALAÇÃO ({autopf} sem privilégio = %LOCALAPPDATA%\\Programs\\Cerne), onde mora `entry`. Os DADOS (catálogo, cofre, mídia, backups) ficam em outro lugar, %LOCALAPPDATA%\\Cerne, e a descoberta do daemon vivo é %LOCALAPPDATA%\\Cerne\\run\\engine.json — por isso não há bloco `runtime` aqui: o runtimeFile do kit é relativo ao home e apontaria para a pasta errada. Código-fonte no repo AllanSantos-DV/cerne; a release pública mora aqui.",
+      "platforms": [
+        "win32-x64"
+      ]
     }
   ]
 }

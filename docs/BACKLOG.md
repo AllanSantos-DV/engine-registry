@@ -10,3 +10,8 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
   silêncio da 0.13.4 até a 0.13.5. O `test-neural-link-alignment.mjs` já deriva o esperado do
   manifest; o do mcp-gateway poderia conferir o `version` do manifest contra o `package.json` de
   dentro do `.tgz` publicado, em vez de uma constante. Visto em 2026-10-11.
+- **`provision()` checa `self-managed` depois do estado local.** Com o app instalado e
+  `allowNetwork: false`, um motor self-managed (cerne, vox-engine) recebe "instalação em estado
+  desconhecido (package.json ausente…)" em vez de "é self-managed". Continua fail-closed (nada é
+  baixado nem tocado), mas a razão engana. Mover o teste de `status` para o topo resolve. Visto em
+  2026-10-12, ao registrar o cerne.
