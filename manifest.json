@@ -155,7 +155,7 @@
     },
     {
       "name": "cerne",
-      "version": "0.4.6",
+      "version": "0.4.7",
       "kind": "daemon",
       "status": "self-managed",
       "summary": "Leitura ativa de vídeo por link ou arquivo: captura, seleção de quadros, transcrição, tradução e consolidação em memória, exposta via servidor MCP por um único daemon local (CerneEngine) compartilhado entre os consumidores.",
