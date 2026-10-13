@@ -204,6 +204,18 @@ try {
   if (hadCache) { writeFileSync(cacheFile, backup); } else { rmSync(cacheFile, { force: true }); }
 }
 
+// self-managed: a razão tem de ser "é self-managed" em qualquer estado local, mesmo offline
+console.log("\nself-managed: razão independe do estado local");
+const hs = join(ROOT, "hsm");
+mkdirSync(hs, { recursive: true });
+writeFileSync(join(hs, "app.exe"), "x"); // instalado, sem package.json (Inno não grava um)
+const sm = { ...engineFor(hs), status: "self-managed", install: { extractTo: ".", entry: "app.exe" } };
+for (const allowNetwork of [false, true]) {
+  const r = await provision(sm, { allowNetwork });
+  check(`instalado sem package.json, allowNetwork=${allowNetwork} → recusa por self-managed`,
+    !r.ok && /self-managed/.test(r.reason) && !/estado desconhecido/.test(r.reason), r.reason);
+}
+
 server.close(); server2.close();
 try { rmSync(ROOT, { recursive: true, force: true }); } catch { /* best-effort */ }
 

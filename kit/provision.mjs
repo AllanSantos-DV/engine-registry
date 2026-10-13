@@ -229,26 +229,29 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
     if (inst && satisfiesPin(inst, engine.version)) {
       return { ok: true, entryPath, version: inst, reused: true };
     }
-    if (!inst) {
+    if (!inst && engine.status !== "self-managed") {
       log(`[engine-kit] ${engine.name}: instalação em estado desconhecido (versão ilegível) → reprovisionando`);
       if (!allowNetwork) {
         return { ok: false, reason: `${engine.name}: instalação em estado desconhecido (package.json ausente/corrompido em ${binDir}) e rede desabilitada — não dá para validar nem reparar` };
       }
-    } else {
+    } else if (inst) {
       log(`[engine-kit] ${engine.name}: instalada v${inst} não satisfaz o pin v${engine.version} → atualizando`);
     }
   }
 
-  if (!allowNetwork) { return { ok: false, reason: `${engine.name} ausente/desatualizado e rede desabilitada` }; }
-  if (engine.status === "pending-release") {
-    return { ok: false, reason: `${engine.name} ainda não publicou release (status: pending-release)` };
-  }
+  // Antes de qualquer teste de rede/estado local: o que o kit NÃO faz com este motor vale
+  // independente de como ele está instalado.
   // Motor que traz o PRÓPRIO instalador (ex.: um app com updater embutido). A entrada no registry
   // existe como descritor de registro — release, chave, versão — mas quem instala é ele mesmo.
   // Tentar provisionar aqui daria erro obscuro (o artefato é um instalador, não um tarball de
   // `extractTo`); melhor recusar dizendo QUEM instala.
   if (engine.status === "self-managed") {
     return { ok: false, reason: `${engine.name} é self-managed: instala e atualiza pelo próprio updater, não pelo engine-kit (o registry guarda o descritor da release)` };
+  }
+
+  if (!allowNetwork) { return { ok: false, reason: `${engine.name} ausente/desatualizado e rede desabilitada` }; }
+  if (engine.status === "pending-release") {
+    return { ok: false, reason: `${engine.name} ainda não publicou release (status: pending-release)` };
   }
 
   mkdirSync(home, { recursive: true });

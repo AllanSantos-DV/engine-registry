@@ -1,16 +1,22 @@
 // test-mcp-gateway-alignment.mjs — prova de que o manifest do engine-registry está
-// alinhado com a versão REAL publicada do motor mcp-gateway (0.13.7).
+// alinhado com a versão REAL publicada do motor mcp-gateway.
 //
-// Contexto (RED): o manifest.json hoje trava o consumidor em "mcp-gateway" v0.8.4,
-// mas o motor já está em 0.13.7 (package.json do repo mcp-gateway). Enquanto o
-// manifest não for atualizado, `ensureGateway()` (consumers/mcp-gateway.mjs) resolve,
-// baixa e "trava" qualquer consumidor numa versão 5 minors atrás — nenhum agente
-// consumidor (mcp-bridge, etc.) recebe fixes/features do gateway atual até o
-// manifest ser realinhado.
+// Contexto: um manifest defasado trava o consumidor numa versão antiga — `ensureGateway()`
+// (consumers/mcp-gateway.mjs) resolve, baixa e "trava" qualquer consumidor, que não recebe
+// fixes/features do gateway atual até o manifest ser realinhado.
 //
-//   node test-mcp-gateway-alignment.mjs
-import { readFileSync } from "node:fs";
+// A versão esperada NÃO é constante no código: com --network, é a do package.json de dentro
+// do .tgz publicado (baixado e verificado pelo caminho do consumidor). Offline, confere só a
+// forma da entrada.
+//
+//   node test-mcp-gateway-alignment.mjs            # offline
+//   node test-mcp-gateway-alignment.mjs --network  # + versão do manifest == package.json do .tgz
+import { readFileSync, mkdtempSync, rmSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { resolve } from "./kit/resolve.mjs";
+import { fetchArtifact, tarBinary } from "./kit/provision.mjs";
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -19,7 +25,6 @@ const check = (name, cond, detail = "") => {
 };
 
 const MANIFEST_PATH = join(import.meta.dirname, "manifest.json");
-const EXPECTED_VERSION = "0.13.7"; // versão publicada em mcp-gateway/package.json nesta fase
 
 let manifest;
 try {
@@ -35,11 +40,26 @@ const entry = (Array.isArray(manifest.engines) ? manifest.engines : []).find((e)
 check("existe uma entrada 'mcp-gateway' no manifest", Boolean(entry), `encontrado: ${JSON.stringify(entry)}`);
 
 if (entry) {
-  check(
-    `versão do manifest está alinhada com ${EXPECTED_VERSION} (release atual do motor)`,
-    entry.version === EXPECTED_VERSION,
-    `manifest tem "${entry.version}", esperado "${EXPECTED_VERSION}"`,
-  );
+  check("versão do manifest é semver x.y.z", /^\d+\.\d+\.\d+$/.test(entry.version ?? ""), `manifest tem "${entry.version}"`);
+
+  if (process.argv.includes("--network")) {
+    const r = await resolve("mcp-gateway", { manifest });
+    const tmp = mkdtempSync(join(tmpdir(), "mcpgw-align-"));
+    try {
+      const a = r.ok ? await fetchArtifact(r.engine, { destDir: tmp }) : r;
+      check("release publicada baixa e passa sha256 + assinatura", a.ok, a.ok ? a.path : a.reason);
+      if (a.ok) {
+        execFileSync(tarBinary(), ["-xzf", a.path, "-C", tmp, "package.json"], { stdio: "ignore" });
+        const pub = JSON.parse(readFileSync(join(tmp, "package.json"), "utf8")).version;
+        check("versão do manifest == package.json de dentro do .tgz publicado", entry.version === pub,
+          `manifest "${entry.version}", .tgz "${pub}"`);
+      }
+    } catch (e) {
+      check("conferência contra o .tgz publicado", false, e.message);
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  }
 
   // Caso-limite: a tag de release e o asset devem seguir o template {version} —
   // um realinhamento de versão feito só em parte (ex.: só o número, sem a tag)
