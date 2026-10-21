@@ -29,7 +29,7 @@ vive num lugar só e o consumidor apenas **declara a dependência**.
 | `vox-engine` | 0.23.6 | `daemon` (pipe), **self-managed** | Motor de voz (STT/TTS) compartilhado, com auto-unload quando ocioso. Traz o próprio instalador e updater. |
 | `mcp-gateway` | 0.13.7 | `daemon` (http) | Agregador MCP: conecta uma vez em cada servidor MCP e reexpõe tudo num endpoint único. |
 | `neural-link` | 0.7.14 | `cli` | Dispatcher adaptativo de hooks: recebe o evento por stdin, pontua os handlers e devolve uma decisão composta. |
-| `vxk` | 0.9.0 | `cli` | Explicações visuais animadas e narradas como servidor MCP (stdio): devolve UM HTML autocontido e offline. A narração vem do `vox-engine`. |
+| `vxk` | 0.14.0 | `cli` | Explicações visuais animadas e narradas como servidor MCP (stdio): devolve UM HTML autocontido e offline. A narração vem do `vox-engine`. |
 | `cerne` | 0.4.9 | `daemon`, **self-managed** | Leitura ativa de vídeo (captura, quadros, transcrição, tradução) exposta via MCP. Instalador Inno por usuário, Windows. |
 
 **Todos** são publicados aqui, assinados com Ed25519 e verificados antes de instalar.
