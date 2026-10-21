@@ -23,6 +23,8 @@ const useLocal = args.includes("--local");
 const doFix = args.includes("--fix");
 const onlyIdx = args.indexOf("--engine");
 const only = onlyIdx === -1 ? null : args[onlyIdx + 1];
+const regIdx = args.indexOf("--registry-url");
+const registryUrl = regIdx === -1 ? undefined : args[regIdx + 1];
 
 const manifestPath = new URL("../manifest.json", import.meta.url);
 let manifest;
@@ -44,11 +46,14 @@ if (only && names.length === 0) {
 
 console.log(`== engine-kit doctor ==  (registry: ${useLocal ? "manifest LOCAL" : "publicado"}${doFix ? ", modo --fix" : ", só diagnóstico"})\n`);
 
+// Sem process.exit() depois de rede: o fetch (undici) ainda tem sockets fechando e o Node do
+// Windows aborta com "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)" (exit 127).
+// Deixar o event loop esvaziar e só marcar process.exitCode.
 const rows = [];
 for (const name of names) {
   // `refresh`: diagnóstico com cache velho mente — dizer "atualizado" olhando um descritor
   // vencido é pior do que não diagnosticar. Aqui a requisição de rede vale a pena.
-  const r = await resolve(name, { allowNetwork: !useLocal, manifest: useLocal ? manifest : undefined, refresh: !useLocal });
+  const r = await resolve(name, { allowNetwork: !useLocal, manifest: useLocal ? manifest : undefined, refresh: !useLocal, registryUrl });
   if (!r.ok) { rows.push({ name, state: "ERRO", detail: r.reason }); continue; }
 
   const engine = r.engine;
@@ -85,14 +90,11 @@ for (const r of rows) {
 const pending = rows.filter((r) => r.needsWork);
 if (pending.length === 0) {
   console.log(`\n== todos os motores conciliados (${rows.length}) ==`);
-  process.exit(rows.some((r) => r.state === "ERRO") ? 1 : 0);
-}
-
-if (!doFix) {
+  process.exitCode = rows.some((r) => r.state === "ERRO") ? 1 : 0;
+} else if (!doFix) {
   console.log(`\n${pending.length} motor(es) precisam de ação. Rode com --fix para instalar/atualizar.`);
-  process.exit(1);
-}
-
+  process.exitCode = 1;
+} else {
 console.log("\n-- aplicando (--fix) --");
 let failures = 0;
 for (const r of pending) {
@@ -116,4 +118,5 @@ for (const r of pending) {
 }
 
 console.log(`\n== ${failures === 0 ? "conciliado" : `${failures} falha(s)`} ==`);
-process.exit(failures === 0 ? 0 : 1);
+process.exitCode = failures === 0 ? 0 : 1;
+}
