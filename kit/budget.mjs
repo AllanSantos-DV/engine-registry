@@ -34,10 +34,13 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-10-11 tooling 18000 → 24000: catálogo de APLICATIVOS (manifest.apps) — app-release.mjs e
 //   os modos --app de update-manifest/verify-release, +6.4 KB. É escopo novo (segundo tipo de
 //   entrada no registry), não inchaço; e é ferramental de autor: o caminho do consumidor não mudou.
+//   2026-10-23 adapter 4000 → 5000: o token do mcp-gateway passou ao cofre DPAPI (0.13.8) e o
+//   adaptador precisa lê-lo (cofre → env → arquivo, a regra do daemon), +1.4 KB. Não é gordura:
+//   é o contrato de autenticação do motor, que só o adaptador do motor pode conhecer.
 const BUDGETS = {
   runtime: { codeBytes: 27000, baseline: 24519, loc: 900 },
   tooling: { codeBytes: 24000, baseline: 16420, loc: 800 },
-  adapter: { codeBytes: 4000, baseline: 1859, loc: 150 },
+  adapter: { codeBytes: 5000, baseline: 1859, loc: 150 },
 };
 
 // `split("\n")` num arquivo terminado em newline devolve um elemento vazio no fim — linha

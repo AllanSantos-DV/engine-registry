@@ -10,10 +10,11 @@
 //   const gw = await ensureGateway({ log });
 //   if (!gw.available) { log(`gateway indisponível: ${gw.reason}`); return; }   // degrade SINALIZADO
 //   // gw.url   -> http://127.0.0.1:<porta>/mcp
-//   // gw.token -> bearer para o header Authorization
+//   // gw.token -> bearer para o header Authorization (cofre DPAPI no HOME padrão; ver readToken)
 //
 // Contrato: nunca lança.
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { join, dirname, resolve as resolvePath, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
@@ -55,13 +56,38 @@ function configuredPort() {
   }
 }
 
-/** Lê o bearer token do cofre do motor (arquivo com ACL só do dono). */
-function readToken() {
-  try {
-    return readFileSync(join(HOME, "auth-token"), "utf8").trim() || null;
-  } catch {
-    return null;
+/**
+ * Lê o bearer token pela MESMA regra do daemon (mcp-gateway src/daemon/auth.ts): no HOME de
+ * produção (~/.mcp-gateway) no Windows o token mora no cofre DPAPI (segredo MCP_GATEWAY_TOKEN em
+ * %LOCALAPPDATA%\Vault, entropia `vault.ps1/v1`) — ordem cofre → env MCP_GATEWAY_TOKEN → arquivo
+ * `auth-token` legado. Em qualquer outro HOME (teste/dev, não-Windows) só vale o arquivo
+ * `auth-token`. Nunca lança nem loga o valor: ausência → null; falha ao abrir um cofre que
+ * existe → null com o motivo em `log` (não finge que o token não existe).
+ * @param {{home?:string, defaultHome?:string, env?:object, platform?:string, log?:(m:string)=>void}} [o]
+ */
+export function readToken({ home = resolveHome(), defaultHome = DEFAULT_HOME, env = process.env, platform = process.platform, log = () => {} } = {}) {
+  const legacy = () => {
+    try { return readFileSync(join(home, "auth-token"), "utf8").trim() || null; } catch { return null; }
+  };
+  const isProd = platform === "win32" && resolvePath(home).toLowerCase() === resolvePath(defaultHome).toLowerCase();
+  if (!isProd) { return legacy(); }
+
+  const vaultDir = env.VAULT_DIR?.trim() || join(env.LOCALAPPDATA ?? join(homedir(), "AppData", "Local"), "Vault");
+  const blob = join(vaultDir, "MCP_GATEWAY_TOKEN.dpapi");
+  if (existsSync(blob)) {
+    const script = "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Security; " +
+      "$b=[IO.File]::ReadAllBytes($env:MCPGW_BLOB); [Console]::Out.Write([Text.Encoding]::UTF8.GetString([Security.Cryptography.ProtectedData]::Unprotect($b,[Text.Encoding]::UTF8.GetBytes('vault.ps1/v1'),'CurrentUser')))";
+    try {
+      const out = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
+        windowsHide: true, encoding: "utf8", timeout: 20000, stdio: ["ignore", "pipe", "pipe"], env: { ...env, MCPGW_BLOB: blob },
+      }).trim();
+      if (out) { return out; }
+    } catch (e) {
+      log(`mcp-gateway: cofre do token ilegível: ${String(e.message).split("\n")[0]}`);
+      return null;
+    }
   }
+  return env.MCP_GATEWAY_TOKEN?.trim() || legacy();
 }
 
 /**
@@ -156,7 +182,7 @@ export async function ensureGateway({ log = () => {}, version, allowNetwork = tr
   return {
     available: true,
     url: `http://127.0.0.1:${port}/mcp`,
-    token: readToken(),
+    token: readToken({ log }),
     port,
     backends: r.health.backends ?? [],
     health: r.health,
