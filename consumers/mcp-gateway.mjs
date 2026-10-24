@@ -166,7 +166,7 @@ export function readInstructions() {
  * @returns {Promise<{available:true, url:string, token:string|null, port:number, backends:string[], health:object}
  *                  | {available:false, reason:string}>}
  */
-export async function ensureGateway({ log = () => {}, version, allowNetwork = true, bootTimeoutMs = 45000 } = {}) {
+export async function ensureGateway({ log = () => {}, version, allowNetwork = true, bootTimeoutMs = 45000, registryUrl, fetcher } = {}) {
   const r = await ensureEngine("mcp-gateway", {
     healthCheck,
     onBeforeReplace,
@@ -174,6 +174,8 @@ export async function ensureGateway({ log = () => {}, version, allowNetwork = tr
     version,
     allowNetwork,
     bootTimeoutMs,
+    registryUrl,
+    fetcher,
     env: { MCP_GATEWAY_DATA_DIR: HOME },
   });
   if (!r.available) { return r; }
