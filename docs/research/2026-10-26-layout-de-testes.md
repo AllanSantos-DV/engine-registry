@@ -13,3 +13,8 @@
 ## Seguimento (2026-10-26)
 - Pin do neural-link: a release `neural-link-v0.7.15` existe no GitHub (2026-10-21) e `npm run verify-release -- neural-link` deu sha256 OK + assinatura OK, então o manifest estava certo e o `DEFAULT_PIN` atrasado. Pin subiu para 0.7.15; o teste de alinhamento entrou no `npm test` (144 OK, 8 TUDO VERDE).
 - CI: `.github/workflows/test.yml` roda `npm test` (ubuntu e windows, Node 22); `test:network` e `test:e2e` ficam fora.
+
+## Versões do manifest e do README (2026-10-26)
+- Fonte de verdade: `gh release list` (maior tag por motor). Só o `vox-engine` divergia: manifest 0.23.6, release 0.28.7 (publicada em 2026-10-26). Os demais batiam: embed-house 1.0.5, mcp-gateway 0.15.0, neural-link 0.7.15, vxk 0.18.0, cerne 0.4.10.
+- Atualizado com `kit/update-manifest.mjs vox-engine --version 0.28.7` (mesma chave pública; diff de uma linha) e conferido por `npm run verify-release -- vox-engine`: sha256 OK e assinatura ed25519 OK. O manifest não guarda sha256 (vem do sidecar da release).
+- A tabela do README estava atrás em quatro motores; `tests/test-readme-versions.mjs` agora falha se ela divergir do manifest.

@@ -26,10 +26,10 @@ vive num lugar só e o consumidor apenas **declara a dependência**.
 | Motor | Versão | Tipo | O que faz |
 |---|---|---|---|
 | `embed-house` | 1.0.5 | `daemon` (http) | Casa de embeddings (MiniLM-L6-v2, 384-dim): carrega o modelo uma vez e serve vetores a N consumidores. |
-| `vox-engine` | 0.23.6 | `daemon` (pipe), **self-managed** | Motor de voz (STT/TTS) compartilhado, com auto-unload quando ocioso. Traz o próprio instalador e updater. |
-| `mcp-gateway` | 0.13.9 | `daemon` (http) | Agregador MCP: conecta uma vez em cada servidor MCP e reexpõe tudo num endpoint único. |
-| `neural-link` | 0.7.14 | `cli` | Dispatcher adaptativo de hooks: recebe o evento por stdin, pontua os handlers e devolve uma decisão composta. |
-| `vxk` | 0.15.0 | `cli` | Explicações visuais animadas e narradas como servidor MCP (stdio): devolve UM HTML autocontido e offline. A narração vem do `vox-engine`. |
+| `vox-engine` | 0.28.7 | `daemon` (pipe), **self-managed** | Motor de voz (STT/TTS) compartilhado, com auto-unload quando ocioso. Traz o próprio instalador e updater. |
+| `mcp-gateway` | 0.15.0 | `daemon` (http) | Agregador MCP: conecta uma vez em cada servidor MCP e reexpõe tudo num endpoint único. |
+| `neural-link` | 0.7.15 | `cli` | Dispatcher adaptativo de hooks: recebe o evento por stdin, pontua os handlers e devolve uma decisão composta. |
+| `vxk` | 0.18.0 | `cli` | Explicações visuais animadas e narradas como servidor MCP (stdio): devolve UM HTML autocontido e offline. A narração vem do `vox-engine`. |
 | `cerne` | 0.4.10 | `daemon`, **self-managed** | Leitura ativa de vídeo (captura, quadros, transcrição, tradução) exposta via MCP. Instalador Inno por usuário, Windows. |
 
 **Todos** são publicados aqui, assinados com Ed25519 e verificados antes de instalar.
