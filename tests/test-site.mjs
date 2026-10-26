@@ -3,7 +3,7 @@
 //
 //   node tests/test-site.mjs                  # o que a suíte confere (mídia de apresentação ausente só é avisada)
 //   node tests/test-site.mjs --require-media  # portão de publicação: exige o vídeo e o pôster em site/media/
-import { readFileSync, existsSync, statSync } from "node:fs";
+import { readFileSync, existsSync, statSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 
@@ -93,6 +93,21 @@ check("o mapa tem 7 passos e a cena do mapa revela um por frase", maxPasso === 7
 const faltam = [...MIDIA].filter((m) => !existsSync(join(SITE, m)) || statSync(join(SITE, m)).size === 0);
 if (requireMedia) { check("mídia de apresentação presente (vídeo e pôster em site/media/)", faltam.length === 0, `faltam: ${faltam.join(", ")}`); }
 else if (faltam.length) { console.log(`  (pendente) mídia de apresentação ainda não entregue: ${faltam.join(", ")} — o portão de publicação (--require-media) exige`); }
+
+// ---- 7) narração: a voz é a do Vox Engine (áudio gravado), nunca a do navegador ----------------------------------------------
+const assetsTexto = readdirSync(join(SITE, "assets")).filter((f) => /\.(js|html|css)$/.test(f)).map((f) => ({ f, t: read(join(SITE, "assets", f)) }));
+const usaVozDoNavegador = [...assetsTexto, { f: "index.html", t: html }].filter(({ t }) => /speechSynthesis|SpeechSynthesisUtterance/i.test(t)).map(({ f }) => f);
+check("nenhum speechSynthesis / SpeechSynthesisUtterance em site/ (a voz do navegador não é usada)", usaVozDoNavegador.length === 0, usaVozDoNavegador.join(", "));
+const CENAS = new Function(`${js.slice(js.indexOf("const CENAS"), js.indexOf("const $ ="))}; return CENAS;`)();
+const audios = CENAS.flatMap((c, i) => c.partes.map((_, j) => `media/narracao/c${String(i + 1).padStart(2, "0")}-p${j + 1}.mp3`));
+const semAudio = audios.filter((a) => !existsSync(join(SITE, a)) || statSync(join(SITE, a)).size < 2000);
+check(`cada fala de cada cena tem o seu áudio em site/media/narracao/ (${CENAS.length} cenas, ${audios.length} falas)`, semAudio.length === 0, `faltam: ${semAudio.join(", ")}`);
+const sobra = readdirSync(join(SITE, "media", "narracao")).filter((f) => f.endsWith(".mp3") && !audios.includes(`media/narracao/${f}`));
+check("nenhum áudio de narração órfão (sem fala correspondente no site.js)", sobra.length === 0, sobra.join(", "));
+check("site.js toca os áudios por arquivo (elemento audio) e avança pelo fim real do áudio", /new Audio\(\)/.test(js) && /media\/narracao\/c/.test(js) && /\.onended\s*=/.test(js) && /playbackRate/.test(js));
+const voz = JSON.parse(read(join(SITE, "media", "narracao", "narracao.voz.json")));
+check("narracao.voz.json: origem vox-engine, voz = padrão do motor, versão do motor e voz não pedida pelo dono",
+  voz.origem === "vox-engine" && !!voz.voz && voz.voz === voz.padraoDoMotor && /^\d+\.\d+\.\d+/.test(voz.motor) && voz.pedidaPeloDono === false && voz.falas === audios.length, JSON.stringify(voz));
 
 console.log(failures ? `\n== ${failures} FALHA(S) ==` : "\n== TUDO VERDE ==");
 process.exit(failures ? 1 : 0);

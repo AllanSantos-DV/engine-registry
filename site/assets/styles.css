@@ -137,6 +137,7 @@ pre{margin:12px 0 0;padding:12px 14px;border-radius:10px;background:var(--bg);bo
 .apres-barra i{display:block;height:100%;width:0;background:var(--menta);transition:width .4s ease}
 .apres-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 20px;border-top:1px solid var(--linha)}
 .apres-ctl .aviso{color:var(--fraco);font-size:13px;margin-left:auto}
+.apres-indice{min-height:40px;max-width:100%;padding:8px 12px;border-radius:10px;border:1px solid var(--linha);background:var(--bg3);color:var(--txt);font:600 14px var(--f-txt)}
 
 @media (max-width:860px){
   .hero{grid-template-columns:1fr}

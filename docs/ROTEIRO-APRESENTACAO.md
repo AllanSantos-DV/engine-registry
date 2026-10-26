@@ -1,8 +1,8 @@
 # Roteiro da apresentação do engine-registry
 
 Texto narrado do modo **Apresentar** do site (`site/assets/site.js`) e roteiro do vídeo de apresentação. O vídeo e a
-versão narrada com a voz do motor são produzidos pela sessão dona do VXK; o site já publica as mesmas cenas, narradas pela
-voz do navegador. `tests/test-site.mjs` confere que toda fala do site consta aqui, igual: mudou o texto, muda nos dois.
+versão narrada com a voz do motor são produzidos pela sessão dona do VXK; o site publica as mesmas cenas, narradas em áudio gerado pelo Vox Engine
+(voz padrão do motor, `site/media/narracao/`). `tests/test-site.mjs` confere que toda fala do site consta aqui, igual: mudou o texto, muda nos dois.
 
 ## Entrega esperada da sessão visual
 

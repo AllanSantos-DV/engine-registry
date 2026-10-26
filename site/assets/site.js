@@ -1,6 +1,7 @@
 // engine-registry — vitrine. Modo Apresentar (cenas com narração e diagrama revelado aos poucos) e leitura do vídeo.
-// Sem dependências nem rede. A voz é a do navegador (speechSynthesis, pt-BR); sem voz disponível, as legendas e as setas
-// conduzem a apresentação. As mesmas cenas ficam em docs/ROTEIRO-APRESENTACAO.md para a versão em vídeo.
+// Sem dependências nem rede. A voz é a do Vox Engine (voz padrão do motor), gravada em media/narracao/cNN-pN.mp3 por
+// tools/gerar-audio-apresentacao.mjs: uma fala por arquivo, e a cena avança pela duração real do áudio. Sem o áudio, só as
+// legendas e as setas conduzem; o site nunca usa a voz do navegador. As mesmas cenas ficam em docs/ROTEIRO-APRESENTACAO.md.
 (() => {
   "use strict";
 
@@ -67,13 +68,12 @@
   // ---- modo Apresentar -------------------------------------------------------------------------------------------------
   const abrir = document.querySelectorAll("[data-apresentar]");
   if (!abrir.length) { return; }
-  const temVoz = "speechSynthesis" in window && typeof SpeechSynthesisUtterance === "function";
+  const AVISO = "Narração pela voz do Vox Engine. Setas ← → navegam; Espaço pausa; Esc sai.";
+  const AVISO_SEM_AUDIO = "Narração em áudio indisponível: acompanhe pelas legendas e use as setas ← →. Esc sai.";
+  const VELOCIDADES = [0.85, 1, 1.15, 1.3];
+  const rotuloVel = (v) => `Velocidade: ${String(v).replace(".", ",")}×`;
+  const srcAudio = (i, j) => `media/narracao/c${String(i + 1).padStart(2, "0")}-p${j + 1}.mp3`;
   let ap = null;   // estado da apresentação aberta
-
-  const vozPt = () => {
-    const vozes = temVoz ? speechSynthesis.getVoices() : [];
-    return vozes.find((v) => /^pt-BR/i.test(v.lang)) || vozes.find((v) => /^pt/i.test(v.lang)) || null;
-  };
 
   function montarVisual(cena, destino) {
     destino.replaceChildren();
@@ -108,23 +108,29 @@
     const feitas = CENAS.slice(0, i).reduce((s, c) => s + c.partes.length, 0) + j + 1;
     ap.barra.style.width = `${(feitas / total) * 100}%`;
     ap.pos.textContent = `${i + 1} / ${CENAS.length}`;
+    ap.indice.value = String(i);
   }
 
-  function parar() { ap.ficha += 1; clearTimeout(ap.timer); if (temVoz) { speechSynthesis.cancel(); } }
+  function parar() { ap.ficha += 1; clearTimeout(ap.timer); ap.audio.pause(); }
 
-  function falar() {
-    const cena = CENAS[ap.i], texto = cena.partes[ap.j], ficha = ++ap.ficha;
+  // sem áudio (arquivo ausente, som desligado ou reprodução negada): as legendas seguem pelo tempo de leitura
+  function porLegenda(seguir, texto) { ap.timer = setTimeout(seguir, Math.max(3500, texto.length * 65) / ap.vel); }
+
+  function falar(retomar = false) {
+    const cena = CENAS[ap.i], texto = cena.partes[ap.j], ficha = ap.ficha + (retomar ? 0 : 1);
+    ap.ficha = ficha;
     clearTimeout(ap.timer);
-    if (temVoz) { speechSynthesis.cancel(); }
-    const seguir = () => { if (ap && ap.ficha === ficha && ap.tocando) { setTimeout(() => ap && ap.ficha === ficha && avancar(true), 500); } };
-    if (temVoz && ap.som) {
-      const u = new SpeechSynthesisUtterance(texto);
-      u.lang = "pt-BR"; const v = vozPt(); if (v) { u.voice = v; }
-      u.onend = seguir; u.onerror = seguir;
-      speechSynthesis.speak(u);
-    } else {
-      ap.timer = setTimeout(seguir, Math.max(3500, texto.length * 65));
-    }
+    const seguir = () => { if (ap && ap.ficha === ficha && ap.tocando) { ap.timer = setTimeout(() => ap && ap.ficha === ficha && avancar(true), 400 / ap.vel); } };
+    if (!ap.som || ap.semAudio) { ap.audio.pause(); porLegenda(seguir, texto); return; }
+    const a = ap.audio, src = srcAudio(ap.i, ap.j);
+    if (!(retomar && a.getAttribute("src") === src && !a.ended)) { a.src = src; }
+    a.playbackRate = ap.vel;
+    a.onended = seguir;
+    a.onerror = () => { if (ap && ap.ficha === ficha) { ap.semAudio = true; ap.aviso.textContent = AVISO_SEM_AUDIO; porLegenda(seguir, texto); } };
+    a.play().catch((e) => {
+      if (!ap || ap.ficha !== ficha || e?.name === "AbortError") { return; }
+      ap.semAudio = true; ap.aviso.textContent = AVISO_SEM_AUDIO; porLegenda(seguir, texto);
+    });
   }
 
   function avancar(auto) {
@@ -148,11 +154,13 @@
     if (ap.botPausa.textContent === "Recomeçar") { ap.tocando = true; ap.botPausa.textContent = "Pausar"; mostrar(0, 0); falar(); return; }
     ap.tocando = !ap.tocando;
     ap.botPausa.textContent = ap.tocando ? "Pausar" : "Continuar";
-    if (ap.tocando) { falar(); } else { parar(); }
+    if (ap.tocando) { falar(true); } else { parar(); }
   }
 
+  function irPara(i) { ap.botPausa.textContent = ap.tocando ? "Pausar" : "Continuar"; mostrar(i, 0); if (ap.tocando) { falar(); } else { parar(); } }
+
   function fechar() {
-    parar();
+    parar(); ap.audio.removeAttribute("src"); ap.audio.load();
     ap.raiz.remove();
     document.querySelectorAll("header, main, footer").forEach((e) => { e.inert = false; });
     document.removeEventListener("keydown", teclas, true);
@@ -181,21 +189,26 @@
     const bt = (rotulo, fn, cls = "btn peq") => { const b = el("button", cls, rotulo); b.type = "button"; b.addEventListener("click", fn); return b; };
     const botPausa = bt("Pausar", alternar, "btn pri peq"), botSom = bt("Som: ligado", () => {
       ap.som = !ap.som; botSom.textContent = ap.som ? "Som: ligado" : "Som: desligado";
-      if (ap.tocando) { falar(); }
+      if (ap.tocando) { falar(); } else { parar(); }
     });
-    const aviso = el("span", "aviso", temVoz ? "Narração pela voz do navegador. Setas ← → navegam; Espaço pausa; Esc sai." : "Este navegador não tem voz de narração: use as setas ← → para avançar. Esc sai.");
-    ctl.append(bt("Anterior", voltar), botPausa, bt("Próxima", () => avancar(false)), botSom, bt("Sair", fechar), aviso);
+    let v = 1;
+    const botVel = bt(rotuloVel(1), () => {
+      v = VELOCIDADES[(VELOCIDADES.indexOf(v) + 1) % VELOCIDADES.length]; ap.vel = v; ap.audio.playbackRate = v; botVel.textContent = rotuloVel(v);
+    });
+    const indice = el("select", "apres-indice"); indice.setAttribute("aria-label", "Tópicos da apresentação");
+    CENAS.forEach((c, k) => { const o = el("option", "", `${k + 1}. ${c.t}`); o.value = String(k); indice.append(o); });
+    indice.addEventListener("change", () => { irPara(Number(indice.value)); raiz.focus(); });
+    const aviso = el("span", "aviso", AVISO);
+    ctl.append(bt("Anterior", voltar), botPausa, bt("Próxima", () => avancar(false)), indice, botSom, botVel, bt("Sair", fechar), aviso);
     raiz.append(topo, corpo, barra, ctl);
     document.body.append(raiz);
     document.querySelectorAll("header, main, footer").forEach((e) => { e.inert = true; });
-    ap = { raiz, titulo, texto, visual, barra: barraI, pos, botPausa, i: 0, j: 0, cenaMontada: -1, tocando: true, som: temVoz, ficha: 0, timer: 0, origem };
+    ap = { raiz, titulo, texto, visual, barra: barraI, pos, botPausa, aviso, indice, audio: new Audio(), vel: 1, i: 0, j: 0, cenaMontada: -1, tocando: true, som: true, semAudio: false, ficha: 0, timer: 0, origem };
     document.addEventListener("keydown", teclas, true);
-    if (!temVoz) { botSom.disabled = true; botSom.textContent = "Som: indisponível"; }
     mostrar(0, 0);
     raiz.focus();
     falar();
   }
 
   abrir.forEach((b) => b.addEventListener("click", () => abrirApresentacao(b)));
-  if (temVoz) { speechSynthesis.getVoices(); }   // dispara o carregamento das vozes antes do primeiro clique
 })();

@@ -1,0 +1,277 @@
+{
+  "medidoEm": "2026-10-26T21:25:29.619Z",
+  "resumo": {
+    "voz": "vits-piper-pt_BR-faber-medium",
+    "padraoDoMotor": "vits-piper-pt_BR-faber-medium",
+    "motor": "0.28.7",
+    "falas": 21,
+    "totalSeg": 101.88,
+    "maxSilencioInicioSeg": 0,
+    "maxSilencioFimSeg": 0,
+    "maxPausaInternaSeg": 0,
+    "menorCoberturaTranscricao": 0.63
+  },
+  "cenas": [
+    {
+      "cena": 1,
+      "titulo": "engine-registry",
+      "falasSeg": 6.5,
+      "cenaNaPaginaSeg": 6.5,
+      "fracaoFalada": 1
+    },
+    {
+      "cena": 2,
+      "titulo": "O que se repete hoje",
+      "falasSeg": 11.49,
+      "cenaNaPaginaSeg": 11.89,
+      "fracaoFalada": 0.966
+    },
+    {
+      "cena": 3,
+      "titulo": "Um motor para todos",
+      "falasSeg": 8.57,
+      "cenaNaPaginaSeg": 8.97,
+      "fracaoFalada": 0.955
+    },
+    {
+      "cena": 4,
+      "titulo": "Os seis motores",
+      "falasSeg": 22.21,
+      "cenaNaPaginaSeg": 24.21,
+      "fracaoFalada": 0.917
+    },
+    {
+      "cena": 5,
+      "titulo": "Como se conectam",
+      "falasSeg": 30.97,
+      "cenaNaPaginaSeg": 33.37,
+      "fracaoFalada": 0.928
+    },
+    {
+      "cena": 6,
+      "titulo": "Instalação confiável",
+      "falasSeg": 10.09,
+      "cenaNaPaginaSeg": 10.09,
+      "fracaoFalada": 1
+    },
+    {
+      "cena": 7,
+      "titulo": "Como usar",
+      "falasSeg": 12.03,
+      "cenaNaPaginaSeg": 12.43,
+      "fracaoFalada": 0.968
+    }
+  ],
+  "falas": [
+    {
+      "arquivo": "c01-p1.mp3",
+      "cena": 1,
+      "duracaoSeg": 6.5,
+      "silencioInicioSeg": 0,
+      "silencioFimSeg": 0,
+      "maiorPausaSeg": 0,
+      "coberturaTranscricao": 0.96,
+      "ouvido": "Esta é a casa dos motores locais. Você instala cada uma vez e todos os seus aplicativos e agentes passam a usar."
+    },
+    {
+      "arquivo": "c02-p1.mp3",
+      "cena": 2,
+      "duracaoSeg": 7.12,
+      "silencioInicioSeg": 0,
+      "silencioFimSeg": 0,
+      "maiorPausaSeg": 0,
+      "coberturaTranscricao": 1,
+      "ouvido": "Hoje, cada ferramenta de inteligência artificial costuma carregar o próprio modelo, o próprio servidor e o próprio processo."
+    },
+    {
+      "arquivo": "c02-p2.mp3",
+      "cena": 2,
+      "duracaoSeg": 4.38,
+      "silencioInicioSeg": 0,
+      "silencioFimSeg": 0,
+      "maiorPausaSeg": 0,
+      "coberturaTranscricao": 1,
+      "ouvido": "Com várias sessões abertas, o computador repete o mesmo trabalho muitas vezes."
+    },
+    {
+      "arquivo": "c03-p1.mp3",
+      "cena": 3,
+      "duracaoSeg": 3.37,
+      "silencioInicioSeg": 0,
+      "silencioFimSeg": 0,
+      "maiorPausaSeg": 0,
+      "coberturaTranscricao": 0.91,
+      "ouvido": "o motor faz o trabalho pesado uma única vez nesta máquina."
+    },
+    {
+      "arquivo": "c03-p2.mp3",
+      "cena": 3,
+      "duracaoSeg": 5.2,
+      "silencioInicioSeg": 0,
+      "silencioFimSeg": 0,
+      "maiorPausaSeg": 0,
+      "coberturaTranscricao": 0.84,
+      "ouvido": "Cloud Code, o Codex, o Copilote, o Cursor e os seus kits pedem a ele o que precisam."
+    },
+    {
+      "arquivo": "c04-p1.mp3",
+      "cena": 4,
+      "duracaoSeg": 2.94,
+      "silencioInicioSeg": 0,
+      "silencioFimSeg": 0,
+      "maiorPausaSeg": 0,
+      "coberturaTranscricao": 0.63,
+      "ouvido": "O Voxingine edita, transcreve, traduz e fala."
+    },
+    {
+      "arquivo": "c04-p2.mp3",
+      "cena": 4,
+      "duracaoSeg": 3.75,
+      "silencioInicioSeg": 0,
+      "silencioFimSeg": 0,
+      "maiorPausaSeg": 0,
+      "coberturaTranscricao": 0.94,
+      "ouvido": "Cerney lê um vídeo e guarda o que importa numa memória que dá para pesquisar."
+    },
+    {
+      "arquivo": "c04-p3.mp3",
+      "cena": 4,
+      "duracaoSeg": 3.99,
+      "silencioInicioSeg": 0,
+      "silencioFimSeg": 0,
+      "maiorPausaSeg": 0,
+      "coberturaTranscricao": 1,
+      "ouvido": "O VXK transforma o roteiro do agente numa explicação animada e narrada."
+    },
+    {
+      "arquivo": "c04-p4.mp3",
+      "cena": 4,
+      "duracaoSeg": 3.81,
+      "silencioInicioSeg": 0,
+      "silencioFimSeg": 0,
+      "maiorPausaSeg": 0,
+      "coberturaTranscricao": 0.91,
+      "ouvido": "O MCP-GATY reúne todos os servidores MCP num endereço só."
+    },
+    {
+      "arquivo": "c04-p5.mp3",
+      "cena": 4,
+      "duracaoSeg": 4.08,
+      "silencioInicioSeg": 0,
+      "silencioFimSeg": 0,
+      "maiorPausaSeg": 0,
+      "coberturaTranscricao": 0.87,
+      "ouvido": "O Embedose serve os vetores de busca sem repetir o modelo em cada sessão."
+    },
+    {
+      "arquivo": "c04-p6.mp3",
+      "cena": 4,
+      "duracaoSeg": 3.65,
+      "silencioInicioSeg": 0,
+      "silencioFimSeg": 0,
+      "maiorPausaSeg": 0,
+      "coberturaTranscricao": 0.67,
+      "ouvido": "e o Neuralink devolve uma decisão única para cada evento de updoagente."
+    },
+    {
+      "arquivo": "c05-p1.mp3",
+      "cena": 5,
+      "duracaoSeg": 2.73,
+      "silencioInicioSeg": 0,
+      "silencioFimSeg": 0,
+      "maiorPausaSeg": 0,
+      "coberturaTranscricao": 1,
+      "ouvido": "Tudo começa nos seus agentes e aplicativos."
+    },
+    {
+      "arquivo": "c05-p2.mp3",
+      "cena": 5,
+      "duracaoSeg": 4.91,
+      "silencioInicioSeg": 0,
+      "silencioFimSeg": 0,
+      "maiorPausaSeg": 0,
+      "coberturaTranscricao": 0.87,
+      "ouvido": "Eles se conectam ao NCP-GAT-Y, uma conexão por servidor e um endereço para todos."
+    },
+    {
+      "arquivo": "c05-p3.mp3",
+      "cena": 5,
+      "duracaoSeg": 4.69,
+      "silencioInicioSeg": 0,
+      "silencioFimSeg": 0,
+      "maiorPausaSeg": 0,
+      "coberturaTranscricao": 0.94,
+      "ouvido": "Por trás dele ficam o Vox Engine, o CERN e o VXK, cada um com a sua ferramenta."
+    },
+    {
+      "arquivo": "c05-p4.mp3",
+      "cena": 5,
+      "duracaoSeg": 5.86,
+      "silencioInicioSeg": 0,
+      "silencioFimSeg": 0,
+      "maiorPausaSeg": 0,
+      "coberturaTranscricao": 0.95,
+      "ouvido": "O VXC usa o Vox para narrar as explicações. Sem o Vox, ele avisa em vez de gerar uma página muda."
+    },
+    {
+      "arquivo": "c05-p5.mp3",
+      "cena": 5,
+      "duracaoSeg": 4.08,
+      "silencioInicioSeg": 0,
+      "silencioFimSeg": 0,
+      "maiorPausaSeg": 0,
+      "coberturaTranscricao": 0.85,
+      "ouvido": "O MB12 atende o agente direto, entregando vetores sem repetir o modelo."
+    },
+    {
+      "arquivo": "c05-p6.mp3",
+      "cena": 5,
+      "duracaoSeg": 4.1,
+      "silencioInicioSeg": 0,
+      "silencioFimSeg": 0,
+      "maiorPausaSeg": 0,
+      "coberturaTranscricao": 0.8,
+      "ouvido": "Neuralink também atende direto, recebe o evento de U e devolve uma decisão."
+    },
+    {
+      "arquivo": "c05-p7.mp3",
+      "cena": 5,
+      "duracaoSeg": 4.6,
+      "silencioInicioSeg": 0,
+      "silencioFimSeg": 0,
+      "maiorPausaSeg": 0,
+      "coberturaTranscricao": 1,
+      "ouvido": "Embaixo de tudo, o Engine Kit instala, verifica e mantém vivo cada motor."
+    },
+    {
+      "arquivo": "c06-p1.mp3",
+      "cena": 6,
+      "duracaoSeg": 10.09,
+      "silencioInicioSeg": 0,
+      "silencioFimSeg": 0,
+      "maiorPausaSeg": 0,
+      "coberturaTranscricao": 0.95,
+      "ouvido": "Antes de instalar, cada motor passa por duas conferências, o SHA-256 e a assinatura E25519. Se alguma falhar, nada é instalado."
+    },
+    {
+      "arquivo": "c07-p1.mp3",
+      "cena": 7,
+      "duracaoSeg": 4.38,
+      "silencioInicioSeg": 0,
+      "silencioFimSeg": 0,
+      "maiorPausaSeg": 0,
+      "coberturaTranscricao": 0.85,
+      "ouvido": "Para começar, escolha o motor. Instale pelo que te use nos seus aplicativos."
+    },
+    {
+      "arquivo": "c07-p2.mp3",
+      "cena": 7,
+      "duracaoSeg": 7.65,
+      "silencioInicioSeg": 0,
+      "silencioFimSeg": 0,
+      "maiorPausaSeg": 0,
+      "coberturaTranscricao": 0.92,
+      "ouvido": "Quando o motor é atualizado, todos os aplicativos recebem a nova versão ao mesmo tempo. Engine e registre. Instale uma vez. Use em qualquer lugar."
+    }
+  ]
+}
