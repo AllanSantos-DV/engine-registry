@@ -9,3 +9,6 @@ docs/maps/session-*-snapshot.md
 
 # Estado efemero de ferramenta local
 .token-guard/
+
+# Perfis temporarios de navegador usados ao conferir o site
+.probe.tmp/

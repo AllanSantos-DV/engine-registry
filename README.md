@@ -189,6 +189,8 @@ kit/
   publish-base.ps1    # publicação de motor: identidade do gh → assina → release → manifest → prova
 consumers/
   mcp-gateway.mjs  # adaptador pronto: handshake + token + shutdown do agregador MCP
+site/               # vitrine de produto dos motores (estática); processo em docs/PAGES.md
+tools/              # pages-branch.mjs: publica site/ na gh-pages
 tests/
   smoke.mjs          # contratos do kit: node tests/smoke.mjs
   test-*.mjs         # contratos hermeticos (assinatura, trust, tar, apps, cache, doctor, gateway)

@@ -1,0 +1,46 @@
+# Site do engine-registry (pasta site/, estático, sem build): publica na branch gh-pages e confere a página no ar.
+# Fonte do Pages = "Deploy from a branch", gh-pages, "/": sem artefato do Actions (a cota mensal de armazenamento da conta
+# bloqueia o deploy-pages). O push usa a chave de deploy PAGES_DEPLOY_KEY (push com GITHUB_TOKEN não dispara a
+# publicação). Só roda por disparo manual: publicar é decisão do dono. Processo e reversão: docs/PAGES.md.
+# Runner Windows: o push por ssh exige o cliente ssh. Com CI_RUNNER definido o job vai para o runner self-hosted Windows;
+# sem ele, para o windows-latest.
+
+name: pages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ${{ vars.CI_RUNNER != '' && fromJSON('["self-hosted","Windows"]') || 'windows-latest' }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Suíte (inclui o site e o publicador)
+        run: npm test
+
+      - name: Site completo, com a mídia de apresentação
+        run: node tests/test-site.mjs --require-media
+
+      - name: Publicar o site na gh-pages
+        env:
+          PAGES_DEPLOY_KEY: ${{ secrets.PAGES_DEPLOY_KEY }}
+        run: node tools/pages-branch.mjs publish --message "Site engine-registry ${GITHUB_SHA::7}"
+
+      - name: A página no ar serve este site
+        run: node tools/pages-branch.mjs verify --stamp "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
