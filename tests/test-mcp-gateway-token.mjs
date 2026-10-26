@@ -50,7 +50,7 @@ try {
     execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", protect], {
       input: "tok-cofre", windowsHide: true, env: { ...process.env, T_VAULT: vault },
     });
-    const env = { VAULT_DIR: vault };
+    const env = { ...process.env, VAULT_DIR: vault };   // process.env: o powershell precisa de SystemRoot/PATH (no runner do CI, sem eles o Unprotect estoura o timeout)
     check("produção: lê o token do cofre DPAPI (caso do defeito)", readToken({ home: prod, defaultHome: prod, env, platform: "win32" }) === "tok-cofre");
     check("cofre vence um MCP_GATEWAY_TOKEN velho no ambiente", readToken({ home: prod, defaultHome: prod, env: { ...env, MCP_GATEWAY_TOKEN: "tok-velho" }, platform: "win32" }) === "tok-cofre");
 
