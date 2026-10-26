@@ -9,3 +9,7 @@
 - Prova: `npm test` antes e depois = 141 linhas `OK`, 7 `TUDO VERDE`, exit 0. Fora do `npm test`: alignment (4 OK) e instructions (13 OK)
   verdes antes e depois; `test-neural-link-alignment` falha igual antes e depois (pin 0.7.14 ≠ manifest 0.7.15, no BACKLOG).
 - Não há workflows de CI no repo; nada a ajustar. `.token-guard/` (estado efêmero de ferramenta) passou para o `.gitignore`.
+
+## Seguimento (2026-10-26)
+- Pin do neural-link: a release `neural-link-v0.7.15` existe no GitHub (2026-10-21) e `npm run verify-release -- neural-link` deu sha256 OK + assinatura OK, então o manifest estava certo e o `DEFAULT_PIN` atrasado. Pin subiu para 0.7.15; o teste de alinhamento entrou no `npm test` (144 OK, 8 TUDO VERDE).
+- CI: `.github/workflows/test.yml` roda `npm test` (ubuntu e windows, Node 22); `test:network` e `test:e2e` ficam fora.

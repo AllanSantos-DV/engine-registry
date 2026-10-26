@@ -25,8 +25,3 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
   `publicKey` do manifest. Não confiar no npm como raiz de confiança dos motores.
 - **Não pesquisado/aberto:** nome final do pacote no npm (disponibilidade) e se o manifest embarcado no pacote ou o
   publicado no GitHub é a fonte da chave pública. Decisão do Allan: nome do comando e publicar no npm público.
-
-- **`tests/test-neural-link-alignment.mjs` falha desde antes da reorganização** (não está no `npm test`): `DEFAULT_PIN` em
-  `consumers/neural-link.mjs` é `0.7.14`, o manifest publica `0.7.15`. Achado em 2026-10-26; sem mudança de comportamento
-  na reorganização. Decisão: subir o pin do consumidor (ou o teste passar a ler o pin do manifest) e incluir o teste no `npm test`.
-- **Sem CI neste repo** (não há `.github/workflows`): o `npm test` roda só local. Avaliar um workflow que rode `npm test`.
