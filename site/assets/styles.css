@@ -95,10 +95,10 @@ td .sem{color:var(--fraco)}
 .mapa.prog [data-s]{opacity:0}
 .mapa.prog [data-s].on{opacity:1}
 
-/* vídeo */
-.video{margin-top:28px;border:1px solid var(--linha);border-radius:18px;background:var(--bg2);overflow:hidden}
-.video video{display:block;width:100%;max-height:70vh;background:#000}
-.video .legenda{padding:14px 18px;color:var(--mut);font-size:14px;border-top:1px solid var(--linha)}
+/* vídeo: 16:9 de verdade, sem faixas pretas; a largura acompanha a altura da janela para o vídeo e os controles caberem inteiros */
+.video{margin:28px auto 0;width:min(100%,max(640px,calc((100vh - 400px)*16/9)),1040px);min-width:min(100%,320px);border:1px solid var(--linha);border-radius:18px;background:var(--bg2);overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.35)}
+.video video{display:block;width:100%;aspect-ratio:16/9;object-fit:contain;background:#000}
+.video .legenda{padding:12px 18px;color:var(--mut);font-size:14px;border-top:1px solid var(--linha);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .video .vazio{padding:46px 20px;text-align:center;color:var(--mut)}
 
 /* como usar */
@@ -110,7 +110,7 @@ td .sem{color:var(--fraco)}
 pre{margin:12px 0 0;padding:12px 14px;border-radius:10px;background:var(--bg);border:1px solid var(--linha);overflow-x:auto;font:500 13.5px/1.5 var(--f-mono);color:var(--menta)}
 
 /* métricas */
-.metricas{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:28px}
+.metricas{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:28px}
 .metrica{background:var(--bg2);border:1px solid var(--linha);border-radius:14px;padding:22px}
 .metrica b{display:block;font:700 40px/1 var(--f-tit);color:var(--menta);margin-bottom:8px}
 .metrica span{color:var(--mut);font-size:14.5px}
@@ -143,6 +143,12 @@ pre{margin:12px 0 0;padding:12px 14px;border-radius:10px;background:var(--bg);bo
   .apres-corpo{grid-template-columns:1fr;overflow-y:auto;align-items:start}
   .fichas{grid-template-columns:repeat(2,1fr)}
   .nav{display:none}
+  .metricas{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:520px){
+  .metricas{grid-template-columns:1fr}
+  .grade{grid-template-columns:1fr}
+  .video .legenda span:last-child{display:none}
 }
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
