@@ -8,7 +8,7 @@ import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
-const manifest = readFileSync(new URL("./manifest.json", import.meta.url), "utf8");
+const manifest = readFileSync(new URL("../manifest.json", import.meta.url), "utf8");
 const server = createServer((_q, res) => res.writeHead(200, { "content-type": "application/json" }).end(manifest));
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const registryUrl = `http://127.0.0.1:${server.address().port}/manifest.json`;
@@ -19,7 +19,7 @@ const check = (name, cond, detail = "") => { if (!cond) failures++; console.log(
 
 const run = (extra) => new Promise((resolve) => {
   const p = spawn(process.execPath, ["kit/doctor.mjs", "--registry-url", registryUrl, ...extra], {
-    cwd: new URL(".", import.meta.url), windowsHide: true,
+    cwd: new URL("..", import.meta.url), windowsHide: true,
     env: { ...process.env, HOME, USERPROFILE: HOME },
   });
   let out = "", err = "";

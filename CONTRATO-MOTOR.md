@@ -138,7 +138,7 @@ polui o histórico e obriga todo consumidor a decidir se atualiza — para desco
 [ ] release publicada no engine-registry com .tgz + .sig + .sha256
 [ ] manifest.json com publicKey, signatureAlgorithm, signatureRequired:true, repo=engine-registry
 [ ] node kit/verify-release.mjs <motor>  → verde
-[ ] node e2e-install.mjs --local          → instala e sobe num HOME isolado
+[ ] node tests/e2e-install.mjs --local          → instala e sobe num HOME isolado
 [ ] o motor PUBLICA o ponteiro do CLI (<raiz>/cli.json) no arranque — nada de o consumidor adivinhar
 [ ] nenhum consumidor tem caminho de instalação escrito à mão (grep por "Scripts" nos conectores)
 [ ] o defeito foi reproduzido pelo caminho REAL do consumidor, não só na peça isolada

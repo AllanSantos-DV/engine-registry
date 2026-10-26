@@ -189,22 +189,22 @@ kit/
   publish-base.ps1    # publicação de motor: identidade do gh → assina → release → manifest → prova
 consumers/
   mcp-gateway.mjs  # adaptador pronto: handshake + token + shutdown do agregador MCP
-smoke.mjs          # contratos do kit: node smoke.mjs
-test-signature.mjs # contrato de assinatura (inclui o ataque com .sha256 recalculado)
-test-apps.mjs      # catálogo de apps: schema, update-manifest --app e verificação (hermético)
-e2e-install.mjs    # instalação real de um motor do zero: node e2e-install.mjs
+tests/
+  smoke.mjs          # contratos do kit: node tests/smoke.mjs
+  test-*.mjs         # contratos hermeticos (assinatura, trust, tar, apps, cache, doctor, gateway)
+  e2e-*.mjs          # instalacao real de um motor do zero: node tests/e2e-install.mjs
 ```
 
 ## Verificar
 
 ```sh
-node smoke.mjs                     # contratos, offline
-node smoke.mjs --network           # resolvendo do registry remoto
-node test-signature.mjs            # contrato de assinatura (hermético)
-node test-signature.mjs --network  # + interop com uma release REAL do vox-engine
-node test-apps.mjs                 # catálogo de apps (hermético)
-node e2e-install.mjs               # baixa e sobe o mcp-gateway num HOME isolado (prova real)
-node e2e-install.mjs --local       # idem, mas usando o manifest.json que você vai publicar
+node tests/smoke.mjs                     # contratos, offline
+node tests/smoke.mjs --network           # resolvendo do registry remoto
+node tests/test-signature.mjs            # contrato de assinatura (hermético)
+node tests/test-signature.mjs --network  # + interop com uma release REAL do vox-engine
+node tests/test-apps.mjs                 # catálogo de apps (hermético)
+node tests/e2e-install.mjs               # baixa e sobe o mcp-gateway num HOME isolado (prova real)
+node tests/e2e-install.mjs --local       # idem, mas usando o manifest.json que você vai publicar
 ```
 
 ## Publicar um motor

@@ -2,7 +2,7 @@
 // injetados) mesmo com um `tar` QUEBRADO na frente do PATH (caso real: GNU tar do Git Bash lendo
 // "C:\..." como host remoto). No Windows o kit usa %SystemRoot%\System32\tar.exe; nos demais, o do PATH.
 //
-//   node test-gateway-provision.mjs
+//   node tests/test-gateway-provision.mjs
 import { createServer } from "node:http";
 import { mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, copyFileSync } from "node:fs";
 import { join, delimiter } from "node:path";
@@ -24,8 +24,8 @@ process.env.USERPROFILE = FAKE_HOME;
 process.env.HOME = FAKE_HOME;
 process.env.MCP_GATEWAY_DATA_DIR = join(FAKE_HOME, ".mcp-gateway");
 
-const { ensureGateway } = await import("./consumers/mcp-gateway.mjs");
-const { tarBinary } = await import("./kit/provision.mjs");
+const { ensureGateway } = await import("../consumers/mcp-gateway.mjs");
+const { tarBinary } = await import("../kit/provision.mjs");
 
 // artefato mínimo
 const pkg = join(ROOT, "pkg");

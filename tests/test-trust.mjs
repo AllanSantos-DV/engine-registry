@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
-const KIT = pathToFileURL(join(import.meta.dirname, "kit", "trust.mjs")).href;
+const KIT = pathToFileURL(join(import.meta.dirname, "..", "kit", "trust.mjs")).href;
 let fail = 0;
 const check = (name, cond, detail = "") => {
   console.log(`  ${cond ? "OK  " : "FALHOU"} ${name}${cond ? "" : ` — ${detail}`}`);

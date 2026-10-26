@@ -7,9 +7,9 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { provision, tarBinary } from "./kit/provision.mjs";
-import { readFreshRuntime, lifecycle } from "./kit/lifecycle.mjs";
-import { resolve } from "./kit/resolve.mjs";
+import { provision, tarBinary } from "../kit/provision.mjs";
+import { readFreshRuntime, lifecycle } from "../kit/lifecycle.mjs";
+import { resolve } from "../kit/resolve.mjs";
 
 let failures = 0;
 const check = (name, cond, detail = "") => {

@@ -6,3 +6,6 @@ node_modules/
 # engano e nao pertence ao registry: e estado efemero de uma maquina, nao artefato
 # publicado. Ignorar aqui e o que impede a reincidencia.
 docs/maps/session-*-snapshot.md
+
+# Estado efemero de ferramenta local
+.token-guard/

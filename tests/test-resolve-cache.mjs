@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 const HOME = mkdtempSync(join(tmpdir(), "resolve-cache-"));
 process.env.HOME = HOME;
 process.env.USERPROFILE = HOME; // homedir() é lido no import do resolve.mjs
-const { resolve } = await import("./kit/resolve.mjs");
+const { resolve } = await import("../kit/resolve.mjs");
 
 const manifestFor = (version) => ({
   engines: [{ name: "x", version, home: "~/.x", install: { repo: "o/r", tag: "x-v{version}", asset: "x.tgz", checksum: "{asset}.sha256" } }],

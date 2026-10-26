@@ -2,9 +2,9 @@
 // sem nenhum boot.mjs copiado dentro de um consumidor. Roda offline por padrão (usa o
 // manifest local) e só toca a rede se você passar --network.
 //
-//   node smoke.mjs            # valida resolve + contratos (offline)
-//   node smoke.mjs --network  # idem, resolvendo do registry remoto
-import { resolve, provision, lifecycle, satisfiesPin, ensureEngine } from "./kit/index.mjs";
+//   node tests/smoke.mjs            # valida resolve + contratos (offline)
+//   node tests/smoke.mjs --network  # idem, resolvendo do registry remoto
+import { resolve, provision, lifecycle, satisfiesPin, ensureEngine } from "../kit/index.mjs";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -30,7 +30,7 @@ check("0.7.9 NÃO satisfaz 0.7.10 (numérico, não string)", !satisfiesPin("0.7.
 
 // 2) resolve: monta URLs a partir do manifest
 console.log("\n2) resolve");
-const manifest = JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8"));
+const manifest = JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8"));
 const names = manifest.engines.map((e) => e.name);
 check("manifest tem motores registrados", manifest.engines.length > 0, names.join(", "));
 // Um motor sem assinatura é aceito pelo kit (compatibilidade), mas aqui é regressão: a casa

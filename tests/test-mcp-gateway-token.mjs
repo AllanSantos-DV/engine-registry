@@ -5,12 +5,12 @@
 // lia o arquivo e devolvia gw.token === null. Aqui o cofre é REAL (DPAPI do usuário, num
 // VAULT_DIR temporário) — um cofre simulado não provaria o formato. Nenhum token real é lido.
 //
-//   node test-mcp-gateway-token.mjs
+//   node tests/test-mcp-gateway-token.mjs
 import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
-import { readToken } from "./consumers/mcp-gateway.mjs";
+import { readToken } from "../consumers/mcp-gateway.mjs";
 
 let failures = 0;
 const check = (name, cond, detail = "") => {

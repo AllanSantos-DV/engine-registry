@@ -4,8 +4,8 @@
 // registro REAL (`source:"companion"`) no `neural-link.config.json` do sandbox. Segunda chamada
 // reusa sem rebaixar.
 //
-//   node e2e-consumer-neural-link.mjs
-import { ensureNeuralLink } from "./consumers/neural-link.mjs";
+//   node tests/e2e-consumer-neural-link.mjs
+import { ensureNeuralLink } from "../consumers/neural-link.mjs";
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";

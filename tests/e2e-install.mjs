@@ -3,12 +3,12 @@
 // verificação SHA256 + assinatura Ed25519) → lifecycle (daemon vivo respondendo). Usa um HOME
 // isolado para não tocar a instalação da máquina.
 //
-//   node e2e-install.mjs           # resolve do registry PUBLICADO (o que os consumidores veem)
-//   node e2e-install.mjs --local   # resolve do manifest.json LOCAL (o que você está prestes a publicar)
+//   node tests/e2e-install.mjs           # resolve do registry PUBLICADO (o que os consumidores veem)
+//   node tests/e2e-install.mjs --local   # resolve do manifest.json LOCAL (o que você está prestes a publicar)
 //
 // O `--local` existe porque "publiquei o asset" e "o manifest que aponta para ele está no ar" são
 // dois estados diferentes: testar só o remoto esconde o descritor novo até depois do push.
-import { resolve, provision, lifecycle } from "./kit/index.mjs";
+import { resolve, provision, lifecycle } from "../kit/index.mjs";
 import { mkdirSync, existsSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -31,7 +31,7 @@ const cache = join(process.env.USERPROFILE ?? process.env.HOME, ".engine-kit", "
 if (!useLocal && existsSync(cache)) { rmSync(cache, { force: true }); }
 
 const localManifest = useLocal
-  ? JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8"))
+  ? JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8"))
   : undefined;
 
 const r = await resolve("mcp-gateway", { allowNetwork: true, manifest: localManifest });

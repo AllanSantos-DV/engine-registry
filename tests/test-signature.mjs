@@ -8,14 +8,14 @@
 // Hermético: nada de rede. O `fetcher` do provision é injetado e serve tudo de memória, mas o
 // artefato é um .tgz de verdade (o `tar` roda), então a extração e o swap são exercitados.
 //
-//   node test-signature.mjs
-import { provision, lifecycle, generateKeyPairHex, signBlob, verifyBlob } from "./kit/index.mjs";
+//   node tests/test-signature.mjs
+import { provision, lifecycle, generateKeyPairHex, signBlob, verifyBlob } from "../kit/index.mjs";
 
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
-import { tarBinary } from "./kit/provision.mjs";   // tar nativo no Windows (o GNU tar do Git Bash não aceita C:\)
+import { tarBinary } from "../kit/provision.mjs";   // tar nativo no Windows (o GNU tar do Git Bash não aceita C:\)
 import { tmpdir } from "node:os";
 
 let failures = 0;
@@ -199,7 +199,7 @@ check("chave de outro motor não valida", !verifyBlob(good, goodSig, generateKey
 if (process.argv.includes("--network")) {
   console.log("\nJ) interop: release REAL do vox-engine (assinada em Python) verificada pelo kit");
   try {
-    const mani = JSON.parse(readFileSync(join(import.meta.dirname, "manifest.json"), "utf8"));
+    const mani = JSON.parse(readFileSync(join(import.meta.dirname, "..", "manifest.json"), "utf8"));
     const vox = mani.engines.find((e) => e.name === "vox-engine");
     if (!vox) { throw new Error("vox-engine não está no manifest.json"); }
     const VOX_PUB = vox.install.publicKey;

@@ -6,7 +6,7 @@
 // a nova quando o cache do manifest expirar. Se o pin passa do manifest, o pin nunca é
 // satisfeito e o provision tenta reinstalar a cada chamada.
 //
-//   node test-neural-link-alignment.mjs
+//   node tests/test-neural-link-alignment.mjs
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -16,11 +16,11 @@ const check = (name, cond, detail = "") => {
   console.log(`${cond ? "  OK  " : " FALHA"} ${name}${detail ? ` — ${detail}` : ""}`);
 };
 
-const manifest = JSON.parse(readFileSync(join(import.meta.dirname, "manifest.json"), "utf8"));
+const manifest = JSON.parse(readFileSync(join(import.meta.dirname, "..", "manifest.json"), "utf8"));
 const entry = (Array.isArray(manifest.engines) ? manifest.engines : []).find((e) => e?.name === "neural-link");
 check("existe uma entrada 'neural-link' no manifest", Boolean(entry));
 
-const source = readFileSync(join(import.meta.dirname, "consumers", "neural-link.mjs"), "utf8");
+const source = readFileSync(join(import.meta.dirname, "..", "consumers", "neural-link.mjs"), "utf8");
 const pin = source.match(/^const DEFAULT_PIN = "(\d+\.\d+\.\d+)";$/m)?.[1];
 check("consumers/neural-link.mjs declara DEFAULT_PIN x.y.z", Boolean(pin), `encontrado: ${pin}`);
 

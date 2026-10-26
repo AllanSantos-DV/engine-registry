@@ -17,13 +17,13 @@
 // (4), de ponta a ponta e SEM pular, que o mcp-gateway.tgz publicado de verdade contém o
 // arquivo nesse layout. Qualquer host pode chamar essa função no próprio setup.
 //
-//   node test-mcp-gateway-instructions.mjs
+//   node tests/test-mcp-gateway-instructions.mjs
 import { readFileSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
-import { resolve } from "./kit/resolve.mjs";
-import { fetchArtifact, tarBinary } from "./kit/provision.mjs";
+import { resolve } from "../kit/resolve.mjs";
+import { fetchArtifact, tarBinary } from "../kit/provision.mjs";
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -34,7 +34,7 @@ const check = (name, cond, detail = "") => {
 console.log("== contrato: agent instructions do mcp-gateway ==\n");
 
 // --- 1) schema.json declara o campo no contrato do motor -------------------------------
-const SCHEMA_PATH = join(import.meta.dirname, "schema.json");
+const SCHEMA_PATH = join(import.meta.dirname, "..", "schema.json");
 let schema;
 try {
   schema = JSON.parse(readFileSync(SCHEMA_PATH, "utf8"));
@@ -52,7 +52,7 @@ if (schema) {
 }
 
 // --- 2) manifest.json: a entrada 'mcp-gateway' aponta o caminho dentro do artefato -----
-const MANIFEST_PATH = join(import.meta.dirname, "manifest.json");
+const MANIFEST_PATH = join(import.meta.dirname, "..", "manifest.json");
 let manifest;
 try {
   manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"));
@@ -85,7 +85,7 @@ if (entry) {
 // --- 3) consumers/mcp-gateway.mjs expõe uma função PURA de leitura, sem rede -----------
 // Import dinâmico: se o módulo ainda não exportar os símbolos, o teste falha aqui mesmo
 // (RED), sem exceção não tratada escondendo o motivo real.
-const mod = await import("./consumers/mcp-gateway.mjs");
+const mod = await import("../consumers/mcp-gateway.mjs");
 
 check(
   "consumers/mcp-gateway.mjs exporta 'instructionsPath' (função pura)",

@@ -9,14 +9,14 @@
 // do .tgz publicado (baixado e verificado pelo caminho do consumidor). Offline, confere só a
 // forma da entrada.
 //
-//   node test-mcp-gateway-alignment.mjs            # offline
-//   node test-mcp-gateway-alignment.mjs --network  # + versão do manifest == package.json do .tgz
+//   node tests/test-mcp-gateway-alignment.mjs            # offline
+//   node tests/test-mcp-gateway-alignment.mjs --network  # + versão do manifest == package.json do .tgz
 import { readFileSync, mkdtempSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { resolve } from "./kit/resolve.mjs";
-import { fetchArtifact, tarBinary } from "./kit/provision.mjs";
+import { resolve } from "../kit/resolve.mjs";
+import { fetchArtifact, tarBinary } from "../kit/provision.mjs";
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -24,7 +24,7 @@ const check = (name, cond, detail = "") => {
   console.log(`${cond ? "  OK  " : " FALHA"} ${name}${detail ? ` — ${detail}` : ""}`);
 };
 
-const MANIFEST_PATH = join(import.meta.dirname, "manifest.json");
+const MANIFEST_PATH = join(import.meta.dirname, "..", "manifest.json");
 
 let manifest;
 try {

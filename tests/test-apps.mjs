@@ -1,6 +1,6 @@
 // test-apps.mjs — catálogo de APLICATIVOS (manifest.apps): schema, kit e verificação.
 //
-//   node test-apps.mjs
+//   node tests/test-apps.mjs
 //
 // Hermético: nada de rede. Prova (1) que o schema aceita a entrada que o WhatsApp Bridge vai
 // publicar e recusa as erradas, (2) que o manifest.json inteiro continua válido, (3) que
@@ -11,8 +11,8 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { generateKeyPairHex, signBlob } from "./kit/signature.mjs";
-import { findApp, appAssetUrls, verifyAppRelease } from "./kit/app-release.mjs";
+import { generateKeyPairHex, signBlob } from "../kit/signature.mjs";
+import { findApp, appAssetUrls, verifyAppRelease } from "../kit/app-release.mjs";
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -21,8 +21,8 @@ const check = (name, cond, detail = "") => {
 };
 
 const here = import.meta.dirname;
-const schema = JSON.parse(readFileSync(join(here, "schema.json"), "utf8"));
-const manifest = JSON.parse(readFileSync(join(here, "manifest.json"), "utf8"));
+const schema = JSON.parse(readFileSync(join(here, "..", "schema.json"), "utf8"));
+const manifest = JSON.parse(readFileSync(join(here, "..", "manifest.json"), "utf8"));
 
 // --- validador draft-07 MÍNIMO: só as palavras-chave que o schema.json usa -----------------
 // Sem dependência nova no pacote. Os casos negativos abaixo provam que ele não aprova tudo.
@@ -155,7 +155,7 @@ const dir = mkdtempSync(join(tmpdir(), "apps-test-"));
 try {
   const tmp = join(dir, "manifest.json");
   writeFileSync(tmp, JSON.stringify({ ...manifest, apps: [templated] }, null, 2));
-  const run = (...a) => execFileSync(process.execPath, [join(here, "kit", "update-manifest.mjs"), ...a, "--manifest", tmp], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  const run = (...a) => execFileSync(process.execPath, [join(here, "..", "kit", "update-manifest.mjs"), ...a, "--manifest", tmp], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   const k = generateKeyPairHex();
   run("--app", "whatsapp-bridge", "--version", "0.3.1", "--public-key", k.publicKeyHex,
       "--asset", "whatsapp-bridge-setup-{version}-win32-x64.exe=win32-x64");
@@ -173,7 +173,7 @@ try {
   try { run("--app", "whatsapp-bridge", "--asset", "sem-plataforma"); } catch (e) { badAsset = /inválido/.test(String(e.stderr)); }
   check("--asset sem '=<plataforma>' → falha alto", badAsset);
   let cliRefused = false;
-  try { execFileSync(process.execPath, [join(here, "kit", "verify-release.mjs"), "--app", "nao-existe", "--manifest", tmp], { stdio: ["ignore", "pipe", "pipe"] }); }
+  try { execFileSync(process.execPath, [join(here, "..", "kit", "verify-release.mjs"), "--app", "nao-existe", "--manifest", tmp], { stdio: ["ignore", "pipe", "pipe"] }); }
   catch (e) { cliRefused = e.status === 1 && /não existe em manifest\.apps/.test(String(e.stderr)); }
   check("verify-release --app com app inexistente → exit 1 com razão", cliRefused);
 } finally {

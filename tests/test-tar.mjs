@@ -5,7 +5,7 @@ import { mkdirSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
-import { tarBinary } from "./kit/provision.mjs";
+import { tarBinary } from "../kit/provision.mjs";
 
 let failures = 0;
 const check = (name, cond, detail = "") => { if (!cond) failures++; console.log(`${cond ? "  OK  " : " FALHA"} ${name}${detail ? ` — ${detail}` : ""}`); };

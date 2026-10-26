@@ -6,8 +6,8 @@
 // Se o swap trocasse o home inteiro, cada atualização apagaria esse aprendizado em silêncio.
 // Aqui o home ganha um `weights/learned.json` ANTES da instalação e é conferido depois.
 //
-//   node e2e-neural-link.mjs
-import { resolve, provision, lifecycle } from "./kit/index.mjs";
+//   node tests/e2e-neural-link.mjs
+import { resolve, provision, lifecycle } from "../kit/index.mjs";
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import { tmpdir } from "node:os";
@@ -22,7 +22,7 @@ const check = (name, cond, detail = "") => {
 console.log("== e2e: instalar o neural-link (kind=cli) do zero via engine-kit ==\n");
 console.log(`HOME isolado: ${HOME}\n`);
 
-const manifest = JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8"));
+const manifest = JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8"));
 const r = await resolve("neural-link", { manifest });
 check("resolve", r.ok, r.ok ? r.engine.assetUrl : r.reason);
 if (!r.ok) { process.exit(1); }
