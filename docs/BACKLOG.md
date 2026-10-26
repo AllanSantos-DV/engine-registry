@@ -4,7 +4,7 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
 
 ## Decisão do dono (negócio)
 
-- **Como quem não usa o Copilot instala um motor: novo canal de distribuição do `engine-kit`.** Hoje só quem clona o repo
+- **Decidido (Jarvis, 26/10): o canal npm é item separado, fora da publicação do site; não toca o site; fica com o dono.** Como quem não usa o Copilot instala um motor: novo canal de distribuição do `engine-kit`. Hoje só quem clona o repo
   instala (`node kit/doctor.mjs --fix --engine vxk`); quem usa Claude Code, Cursor ou Codex precisa de um comando de uma
   linha, sem clone. Escolher o canal e o nome do comando muda como as pessoas instalam, por isso é decisão do dono.
   - **Recomendação (pesquisa de 2026-10-21):** publicar o kit no npm público, para rodar `npx engine-kit ensure vxk`.
