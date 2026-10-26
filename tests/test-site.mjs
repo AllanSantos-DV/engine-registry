@@ -1,11 +1,15 @@
 // test-site.mjs — a vitrine estática (site/) abre sem rede, não quebra link, diz só o que é verdade sobre o produto e
-// não vaza assunto interno. Hermético: lê arquivos locais, não abre porta nem rede.
+// não vaza assunto interno. As checagens do HTML só leem arquivos locais (sem porta nem rede); o verificador abaixo é a exceção.
 //
 //   node tests/test-site.mjs                  # o que a suíte confere (mídia de apresentação ausente só é avisada)
-//   node tests/test-site.mjs --require-media  # portão de publicação: exige o vídeo e o pôster em site/media/
+//   node tests/test-site.mjs --require-media  # portão de publicação: exige o vídeo, o pôster e as legendas em site/media/
+//
+// O verificador de página de produto do orquestrador (vídeo primeiro, três caminhos, diálogo modal, uma voz) roda quando está
+// nesta máquina (ORQ_PAGE_CHECK ou ../orchestrador/tools/product-page-check.mjs); ele abre um navegador sem janela e uma porta
+// local. Onde não está (CI), as mesmas regras de ordem, posição do vídeo e voz única são conferidas no HTML, sem navegador.
 import { readFileSync, existsSync, statSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 
 const REPO = join(import.meta.dirname, "..");
 const SITE = join(REPO, "site");
@@ -26,7 +30,7 @@ const manifest = JSON.parse(read(join(REPO, "manifest.json")));
 const engines = manifest.engines.map((e) => e.name);
 
 // ---- 1) referências locais existem; âncoras apontam para ids reais -----------------------------------------------------
-const MIDIA = new Set(["media/apresentacao.mp4", "media/apresentacao-poster.jpg"]);
+const MIDIA = new Set(["media/apresentacao.mp4", "media/apresentacao-poster.jpg", "media/apresentacao.vtt"]);
 const refs = [...html.matchAll(/(?:href|src|poster)="([^"#][^"]*)"/g)].map((m) => m[1]).filter((r) => !/^(https?:|data:|mailto:)/.test(r));
 const quebradas = refs.filter((r) => !MIDIA.has(r) && !existsSync(join(SITE, r)));
 check("toda referência local de index.html existe (fora a mídia de apresentação)", quebradas.length === 0, quebradas.join(", "));
@@ -91,7 +95,7 @@ check("o mapa tem 7 passos e a cena do mapa revela um por frase", maxPasso === 7
 
 // ---- 6) mídia de apresentação (entregue pela sessão visual) ---------------------------------------------------------------
 const faltam = [...MIDIA].filter((m) => !existsSync(join(SITE, m)) || statSync(join(SITE, m)).size === 0);
-if (requireMedia) { check("mídia de apresentação presente (vídeo e pôster em site/media/)", faltam.length === 0, `faltam: ${faltam.join(", ")}`); }
+if (requireMedia) { check("mídia de apresentação presente (vídeo, pôster e legendas em site/media/)", faltam.length === 0, `faltam: ${faltam.join(", ")}`); }
 else if (faltam.length) { console.log(`  (pendente) mídia de apresentação ainda não entregue: ${faltam.join(", ")} — o portão de publicação (--require-media) exige`); }
 
 // ---- 7) narração: a voz é a do Vox Engine (áudio gravado), nunca a do navegador ----------------------------------------------
@@ -108,6 +112,43 @@ check("site.js toca os áudios por arquivo (elemento audio) e avança pelo fim r
 const voz = JSON.parse(read(join(SITE, "media", "narracao", "narracao.voz.json")));
 check("narracao.voz.json: origem vox-engine, voz = padrão do motor, versão do motor e voz não pedida pelo dono",
   voz.origem === "vox-engine" && !!voz.voz && voz.voz === voz.padraoDoMotor && /^\d+\.\d+\.\d+/.test(voz.motor) && voz.pedidaPeloDono === false && voz.falas === audios.length, JSON.stringify(voz));
+
+// ---- 8) página de produto: vídeo primeiro, três caminhos, Apresentar no topo, uma voz ----------------------------------------
+const mainHtml = html.slice(html.indexOf("<main"), html.indexOf("</main>"));
+const primeiroBloco = mainHtml.match(/<section[\s\S]*?<\/section>/)?.[0] ?? "";
+check("o vídeo do produto está no primeiro bloco do <main> e é a primeira mídia", /<video[^>]*id="apresentacao"/.test(primeiroBloco) && !/<(audio|iframe|video)/.test(mainHtml.slice(0, mainHtml.indexOf("<video"))));
+const textoAntes = mainHtml.slice(0, mainHtml.indexOf("<video")).replace(/<svg[\s\S]*?<\/svg>/g, " ").replace(/<[^>]+>/g, " ");
+const palavrasAntes = (textoAntes.match(/[\p{L}\p{N}]+/gu) ?? []).length;
+check("no máximo 60 palavras antes do vídeo", palavrasAntes <= 60, `${palavrasAntes} palavras`);
+const cabecalho = html.match(/<header[\s\S]*?<\/header>/)?.[0] ?? "";
+check("botão Apresentar no cabeçalho", /<button[^>]*data-apresentar[^>]*>[\s\S]*?Apresentar<\/button>/.test(cabecalho));
+const caminhos = primeiroBloco.slice(0, primeiroBloco.indexOf("<video"));
+check("três caminhos antes do vídeo: Assistir (toca o vídeo), Apresentar (abre o diálogo) e Ver o que o produto faz (rola)",
+  /data-assistir[^>]*>[\s\S]*?Assistir ao vídeo/.test(caminhos) && /data-apresentar[^>]*>Apresentar/.test(caminhos) && /href="#motores">Ver o que o produto faz</.test(caminhos)
+  && mainHtml.indexOf('id="motores"') > mainHtml.indexOf("<video"));
+const tagVideo = html.match(/<video[^>]*>/)?.[0] ?? "";
+check("vídeo com pôster, sem loading=lazy, sem autoplay e com legendas (<track kind=captions>)",
+  /poster="media\/apresentacao-poster\.jpg"/.test(tagVideo) && !/loading="lazy"|autoplay/.test(tagVideo) && /<track kind="captions" src="media\/apresentacao\.vtt"/.test(html));
+check("Apresentar deixa inerte tudo fora do diálogo, inclusive o link Pular para o conteúdo", /\[\.\.\.document\.body\.children\]\.filter\(\(e\) => e !== raiz/.test(js));
+check("prefers-reduced-motion desliga transições e a rolagem suave", /prefers-reduced-motion:reduce\)\{[\s\S]*?scroll-behavior:auto[\s\S]*?transition:none/.test(read(join(SITE, "assets", "styles.css"))));
+const legendas = existsSync(join(SITE, "media", "apresentacao.vtt")) ? read(join(SITE, "media", "apresentacao.vtt")).split("\n").filter((l) => l && !/-->|^\d+$|^WEBVTT/.test(l)).join(" ") : "";
+if (legendas) { const ach = proibidas(legendas); check("legendas do vídeo falam só de produto", ach.length === 0, ach.join(", ")); }
+const vozVideoArq = join(SITE, "media", "apresentacao.voz.json");
+if (existsSync(join(SITE, "media", "apresentacao.mp4")) || requireMedia) {
+  const vv = existsSync(vozVideoArq) ? JSON.parse(read(vozVideoArq)) : {};
+  check("apresentacao.voz.json ao lado do mp4: vox-engine, voz padrão do motor, versão, fala cabe no vídeo",
+    vv.origem === "vox-engine" && !!vv.voz && vv.voz === vv.padraoDoMotor && /^\d+\.\d+\.\d+/.test(vv.motor ?? "") && vv.audioSeg > 0 && vv.audioSeg <= vv.videoSeg && vv.falas > 0, JSON.stringify(vv));
+  check("uma só voz na página: vídeo e narração do Apresentar com a mesma voz do Vox", vv.voz === voz.voz, `vídeo ${vv.voz} x narração ${voz.voz}`);
+}
+const verificador = process.env.ORQ_PAGE_CHECK || join(REPO, "..", "orchestrador", "tools", "product-page-check.mjs");
+if (existsSync(verificador)) {
+  const r = spawnSync(process.execPath, [verificador, "--page", join(SITE, "index.html")], { encoding: "utf8", windowsHide: true, timeout: 180000 });
+  let saida = null; try { saida = JSON.parse(r.stdout.trim().split("\n").pop()); } catch { /* saída não-JSON: a checagem falhou e o detalhe vai abaixo */ }
+  check(`verificador de página de produto ok:true (${saida?.janelas?.map((j) => `${j.tamanho}: vídeo a ${j.video?.top}px, ${j.palavrasAntes} palavras antes`).join("; ") ?? "sem saída"})`,
+    saida?.ok === true, saida ? (saida.falhas ?? [saida.falha]).join(" | ") : `${r.status} ${r.stderr || r.stdout}`.slice(0, 400));
+} else {
+  console.log(`  (info) verificador de página de produto não está nesta máquina (${verificador}); as regras acima cobrem ordem, posição e voz no HTML`);
+}
 
 console.log(failures ? `\n== ${failures} FALHA(S) ==` : "\n== TUDO VERDE ==");
 process.exit(failures ? 1 : 0);

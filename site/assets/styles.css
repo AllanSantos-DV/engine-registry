@@ -47,10 +47,12 @@ p{margin:0}
 .eyebrow{font:600 12px/1.2 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--menta);margin-bottom:12px}
 .secao h2{font-size:clamp(28px,4vw,40px);margin-bottom:14px}
 .lead{color:var(--mut);font-size:18px;max-width:68ch}
-.hero{padding:72px 0 24px;display:grid;grid-template-columns:1.15fr .85fr;gap:40px;align-items:center}
-.hero h1{font-size:clamp(34px,5.4vw,58px);margin-bottom:18px}
+.hero{padding:40px 0 24px;display:grid;grid-template-columns:.8fr 1.2fr;gap:36px;align-items:center}
+.hero h1{font-size:clamp(32px,4.2vw,50px);margin-bottom:16px}
+.hero .video{margin:0;width:100%;min-width:0}
+.intro-motor{display:grid;grid-template-columns:1.1fr .9fr;gap:32px;align-items:center;margin:8px 0 28px}
 .hero h1 em{font-style:normal;color:var(--menta)}
-.acoes{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
+.acoes{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px}
 .hero-art{border:1px solid var(--linha);border-radius:18px;background:var(--bg2);padding:14px}
 .hero-art svg{display:block;width:100%;height:auto}
 
@@ -137,10 +139,12 @@ pre{margin:12px 0 0;padding:12px 14px;border-radius:10px;background:var(--bg);bo
 .apres-barra i{display:block;height:100%;width:0;background:var(--menta);transition:width .4s ease}
 .apres-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 20px;border-top:1px solid var(--linha)}
 .apres-ctl .aviso{color:var(--fraco);font-size:13px;margin-left:auto}
+.apres-ctl .aviso.falha{color:var(--tinta);background:var(--coral);padding:6px 10px;border-radius:8px;font-weight:700}
 .apres-indice{min-height:40px;max-width:100%;padding:8px 12px;border-radius:10px;border:1px solid var(--linha);background:var(--bg3);color:var(--txt);font:600 14px var(--f-txt)}
 
 @media (max-width:860px){
-  .hero{grid-template-columns:1fr}
+  .hero{grid-template-columns:1fr;padding-top:28px;gap:24px}
+  .intro-motor{grid-template-columns:1fr}
   .apres-corpo{grid-template-columns:1fr;overflow-y:auto;align-items:start}
   .fichas{grid-template-columns:repeat(2,1fr)}
   .nav{display:none}
@@ -154,4 +158,5 @@ pre{margin:12px 0 0;padding:12px 14px;border-radius:10px;background:var(--bg);bo
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
   .mapa [data-s],.ficha,.apres-barra i{transition:none}
+  .ficha{transform:none}
 }

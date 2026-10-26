@@ -8,11 +8,11 @@ projeto, revisões, testes internos, backlog, veredito ou PR (`tests/test-site.m
 
 ```
 site/                         # tudo que vai ao ar; estático, sem build, sem rede
-  index.html                  # hero, seis cards, tabela e mapa de correlação, vídeo, como usar, números
+  index.html                  # primeira tela com o vídeo, seis cards, tabela e mapa de correlação, como usar, números
   assets/styles.css           # identidade do índice de produtos (verde-tinta, menta como sinal)
   assets/site.js              # modo Apresentar (cenas, narração, mapa revelado em passos) e aviso de vídeo ausente
   assets/mark.svg
-  media/                      # apresentacao.mp4 e apresentacao-poster.jpg (entrega da sessão visual do VXK)
+  media/                      # apresentacao.mp4, -poster.jpg, .vtt e .voz.json (entrega do VXK Motion); narracao/ (áudio do Apresentar)
 tools/pages-branch.mjs        # publish e verify da branch gh-pages (mesmo publicador do pages-index)
 tests/test-site.mjs           # links, âncoras, CSP, cards x manifest, números x fonte, texto só de produto, roteiro
 tests/test-pages-branch.mjs   # publicador e workflow (remoto bare e servidor local; nada é publicado)
@@ -35,7 +35,13 @@ recursos do próprio site, então não há fonte, script ou imagem externos; as 
 - **Números:** 6 motores, 147 MB, `< 27 KB` e 3 sistemas são conferidos contra o manifest e o limite do kill-switch do kit.
 - **Apresentar:** cenas em `CENAS` (`site.js`), narradas pela voz padrão do Vox Engine, em áudio (`site/media/narracao/cNN-pN.mp3`, um por fala, com `narracao.voz.json`); a cena avança pelo fim real do áudio. Sem o áudio só as legendas e as setas conduzem; o site nunca usa a voz do navegador. Regerar: `node tools/gerar-audio-apresentacao.mjs` (motor no ar); medir: `node tools/medir-audio-apresentacao.mjs`. Toda fala precisa
   constar igual em `docs/ROTEIRO-APRESENTACAO.md`, que é também o roteiro do vídeo.
-- **Vídeo:** `<video>` lê `media/apresentacao.mp4`; sem o arquivo, o site mostra um aviso no lugar do player.
+- **Ordem:** cabeçalho com Apresentar; primeira tela com a promessa curta, os três caminhos (Assistir ao vídeo, Apresentar com
+  narração, Ver o que o produto faz) e o vídeo como primeiro bloco, com no máximo 60 palavras antes dele; o resto vem depois para
+  quem rola. `tests/test-site.mjs` confere no HTML e, quando está na máquina, roda o verificador de página de produto do
+  orquestrador (`product-page-check.mjs`, 1280x720 e 390x844).
+- **Vídeo:** `<video>` lê `media/apresentacao.mp4`, com pôster, sem autoplay, legendas gravadas no quadro e a faixa
+  `apresentacao.vtt` (CC). `apresentacao.voz.json` fica ao lado do mp4; a voz é a mesma do áudio do Apresentar (uma voz na
+  página). Sem o arquivo, o site mostra um aviso no lugar do player.
 
 ## Verificar localmente
 

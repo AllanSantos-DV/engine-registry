@@ -1,0 +1,173 @@
+WEBVTT
+
+1
+00:00:00.450 --> 00:00:02.774
+Esta é a casa dos motores locais: você
+
+2
+00:00:02.774 --> 00:00:05.107
+instala cada um uma vez e todos os seus
+
+3
+00:00:05.107 --> 00:00:07.514
+aplicativos e agentes passam a usar.
+
+4
+00:00:08.450 --> 00:00:11.655
+Hoje, cada ferramenta de inteligência artificial costuma
+
+5
+00:00:11.655 --> 00:00:14.423
+carregar o próprio modelo, o próprio servidor e o
+
+6
+00:00:14.423 --> 00:00:17.079
+próprio processo. Com várias sessões abertas, o
+
+7
+00:00:17.079 --> 00:00:19.958
+computador repete o mesmo trabalho muitas vezes. Um
+
+8
+00:00:19.958 --> 00:00:23.418
+motor faz o trabalho pesado uma única vez, nesta máquina.
+
+9
+00:00:24.450 --> 00:00:27.126
+O Claude Code, o Codex, o Copilot, o Cursor e
+
+10
+00:00:27.126 --> 00:00:29.888
+os seus scripts pedem a ele o que precisam.
+
+11
+00:00:30.950 --> 00:00:34.079
+Aqui vivem seis motores locais que fazem esse trabalho
+
+12
+00:00:34.079 --> 00:00:36.934
+uma única vez por máquina e atendem o Claude Code,
+
+13
+00:00:36.934 --> 00:00:39.871
+o Codex, o Copilot, o Cursor e os seus scripts.
+
+14
+00:00:40.950 --> 00:00:43.689
+O Vox Engine dita, transcreve, traduz e fala. O
+
+15
+00:00:43.689 --> 00:00:46.266
+Cerne lê um vídeo e guarda o que importa numa
+
+16
+00:00:46.266 --> 00:00:49.067
+memória que dá para pesquisar. O VXK transforma o
+
+17
+00:00:49.067 --> 00:00:52.286
+roteiro do agente numa explicação animada e narrada.
+
+18
+00:00:52.950 --> 00:00:56.124
+O mcp-gateway reúne todos os servidores MCP num endereço
+
+19
+00:00:56.124 --> 00:00:59.193
+só. O embed-house serve os vetores de busca sem repetir
+
+20
+00:00:59.193 --> 00:01:02.097
+o modelo em cada sessão. E o neural-link devolve uma
+
+21
+00:01:02.097 --> 00:01:05.087
+decisão única para cada evento de hook do agente.
+
+22
+00:01:05.950 --> 00:01:09.098
+Tudo começa nos seus agentes e aplicativos. Eles se
+
+23
+00:01:09.098 --> 00:01:12.195
+conectam ao mcp-gateway: uma conexão por servidor e
+
+24
+00:01:12.195 --> 00:01:15.174
+um endereço para todos. Por trás dele ficam o Vox
+
+25
+00:01:15.174 --> 00:01:18.700
+Engine, o Cerne e o VXK, cada um com a sua ferramenta.
+
+26
+00:01:19.450 --> 00:01:22.363
+O VXK usa o Vox para narrar as explicações. Sem o
+
+27
+00:01:22.363 --> 00:01:25.283
+Vox, ele avisa, em vez de gerar uma página muda. O
+
+28
+00:01:25.283 --> 00:01:28.568
+embed-house e o neural-link atendem o agente direto.
+
+29
+00:01:29.450 --> 00:01:33.210
+E embaixo de tudo, o engine-kit instala, verifica e
+
+30
+00:01:33.210 --> 00:01:37.062
+mantém vivo cada motor. Antes de instalar, cada motor
+
+31
+00:01:37.062 --> 00:01:40.915
+passa por duas conferências: o SHA-256 e a assinatura
+
+32
+00:01:40.915 --> 00:01:44.375
+Ed25519. Se alguma falhar, nada é instalado.
+
+33
+00:01:45.450 --> 00:01:47.761
+Para começar, escolha o motor, instale
+
+34
+00:01:47.761 --> 00:01:50.157
+pelo kit e use nos seus aplicativos.
+
+35
+00:01:50.950 --> 00:01:54.172
+São seis motores, cento e quarenta e sete megabytes
+
+36
+00:01:54.172 --> 00:01:56.979
+de modelo carregados uma vez, e três sistemas
+
+37
+00:01:56.979 --> 00:02:00.462
+atendidos: Windows, Linux e macOS, conforme o motor.
+
+38
+00:02:01.450 --> 00:02:04.159
+O cliente de instalação, o engine-kit, tem menos
+
+39
+00:02:04.159 --> 00:02:07.035
+de vinte e sete quilobytes de código, e cada release
+
+40
+00:02:07.035 --> 00:02:09.836
+passa por duas conferências antes de instalar.
+
+41
+00:02:10.950 --> 00:02:13.641
+Quando um motor é atualizado, todos os aplicativos
+
+42
+00:02:13.641 --> 00:02:16.489
+recebem a nova versão ao mesmo tempo. Engine-registry:
+
+43
+00:02:16.489 --> 00:02:18.810
+instale uma vez, use em qualquer lugar.

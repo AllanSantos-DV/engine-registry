@@ -1,0 +1,12 @@
+{
+  "origem": "vox-engine",
+  "voz": "vits-piper-pt_BR-faber-medium",
+  "motor": "0.28.7",
+  "padraoDoMotor": "vits-piper-pt_BR-faber-medium",
+  "pedidaPeloDono": false,
+  "formato": "opus",
+  "falas": 13,
+  "audioSeg": 123.22,
+  "videoSeg": 140.5,
+  "geradoEm": "2026-10-26T20:07:57.355Z"
+}

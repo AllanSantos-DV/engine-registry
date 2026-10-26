@@ -63,6 +63,10 @@
     video.addEventListener("error", falhou);
     // o erro da <source> pode disparar antes deste script rodar: confere o estado também depois do carregamento
     window.addEventListener("load", () => { if (video.networkState === HTMLMediaElement.NETWORK_NO_SOURCE) { falhou(); } });
+    // "Assistir ao vídeo": só por clique (com som, que o clique libera); nada toca sozinho ao abrir a página
+    document.querySelectorAll("[data-assistir]").forEach((b) => b.addEventListener("click", () => {
+      video.scrollIntoView({ block: "center" }); video.focus({ preventScroll: true }); video.play();
+    }));
   }
 
   // ---- modo Apresentar -------------------------------------------------------------------------------------------------
@@ -126,10 +130,10 @@
     if (!(retomar && a.getAttribute("src") === src && !a.ended)) { a.src = src; }
     a.playbackRate = ap.vel;
     a.onended = seguir;
-    a.onerror = () => { if (ap && ap.ficha === ficha) { ap.semAudio = true; ap.aviso.textContent = AVISO_SEM_AUDIO; porLegenda(seguir, texto); } };
+    a.onerror = () => { if (ap && ap.ficha === ficha) { ap.semAudio = true; ap.aviso.textContent = AVISO_SEM_AUDIO; ap.aviso.classList.add("falha"); porLegenda(seguir, texto); } };
     a.play().catch((e) => {
       if (!ap || ap.ficha !== ficha || e?.name === "AbortError") { return; }
-      ap.semAudio = true; ap.aviso.textContent = AVISO_SEM_AUDIO; porLegenda(seguir, texto);
+      ap.semAudio = true; ap.aviso.textContent = AVISO_SEM_AUDIO; ap.aviso.classList.add("falha"); porLegenda(seguir, texto);
     });
   }
 
@@ -162,7 +166,7 @@
   function fechar() {
     parar(); ap.audio.removeAttribute("src"); ap.audio.load();
     ap.raiz.remove();
-    document.querySelectorAll("header, main, footer").forEach((e) => { e.inert = false; });
+    ap.inertes.forEach((e) => { e.inert = false; });
     document.removeEventListener("keydown", teclas, true);
     const voltarPara = ap.origem; ap = null;
     voltarPara?.focus();
@@ -178,6 +182,7 @@
 
   function abrirApresentacao(origem) {
     if (ap) { return; }
+    video?.pause();   // uma voz por vez: o vídeo não segue falando por baixo da narração
     const raiz = el("div", "apres"); raiz.setAttribute("role", "dialog"); raiz.setAttribute("aria-modal", "true"); raiz.setAttribute("aria-label", "Apresentação do engine-registry"); raiz.tabIndex = -1;
     const topo = el("div", "apres-topo"), pos = el("span", "pos");
     topo.append(el("strong", "", "engine-registry · apresentação"), pos);
@@ -202,8 +207,9 @@
     ctl.append(bt("Anterior", voltar), botPausa, bt("Próxima", () => avancar(false)), indice, botSom, botVel, bt("Sair", fechar), aviso);
     raiz.append(topo, corpo, barra, ctl);
     document.body.append(raiz);
-    document.querySelectorAll("header, main, footer").forEach((e) => { e.inert = true; });
-    ap = { raiz, titulo, texto, visual, barra: barraI, pos, botPausa, aviso, indice, audio: new Audio(), vel: 1, i: 0, j: 0, cenaMontada: -1, tocando: true, som: true, semAudio: false, ficha: 0, timer: 0, origem };
+    const inertes = [...document.body.children].filter((e) => e !== raiz && !e.inert);   // o link de pular é filho do body: também fica inerte
+    inertes.forEach((e) => { e.inert = true; });
+    ap = { inertes, raiz, titulo, texto, visual, barra: barraI, pos, botPausa, aviso, indice, audio: new Audio(), vel: 1, i: 0, j: 0, cenaMontada: -1, tocando: true, som: true, semAudio: false, ficha: 0, timer: 0, origem };
     document.addEventListener("keydown", teclas, true);
     mostrar(0, 0);
     raiz.focus();
