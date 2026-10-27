@@ -31,6 +31,7 @@ const { tarBinary } = await import("../kit/provision.mjs");
 const pkg = join(ROOT, "pkg");
 mkdirSync(pkg, { recursive: true });
 writeFileSync(join(pkg, "mcp-gateway.mjs"), "process.exit(0);\n");
+writeFileSync(join(pkg, "package.json"), JSON.stringify({ name: "mcp-gateway", version: "9.9.9" }));
 const TGZ = join(ROOT, "mcp-gateway.tgz");
 execFileSync(tarBinary(), ["-czf", TGZ, "-C", pkg, "."], { stdio: "ignore" });
 const sha = createHash("sha256").update(readFileSync(TGZ)).digest("hex");

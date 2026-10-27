@@ -48,6 +48,26 @@ E pode declarar `status: "self-managed"`: o motor traz o **próprio instalador/u
 qual a chave, qual a versão — e o `provision` recusa com razão explícita em vez de tentar extrair
 um instalador como se fosse um tarball.
 
+## Instalar um motor com um comando
+
+Sem clonar o repositório, com Node 18 ou mais:
+
+```sh
+npx engine-kit ensure vxk                     # instala ou atualiza; reusa se já estiver em dia
+npx engine-kit ensure vxk --version 0.18.0    # pin de versão
+```
+
+O `npx` baixa o kit do npm e o kit baixa o motor da release, confere o **sha256**, a **assinatura Ed25519**
+e a **versão** do artefato; qualquer divergência aborta sem instalar nada. A chave pública do primeiro contato
+vem do `manifest.json` que viaja **dentro do pacote** (publicado no npm por publicação confiável, com
+proveniência): se o registry servir outra chave, é ABORT já na primeira instalação. Motor que o pacote não
+conhece é recusado (`npx engine-kit@latest ensure <motor>` traz o kit novo). Motores `self-managed`
+(`vox-engine`, `cerne`) seguem pelo próprio instalador.
+
+Publicar o kit: tag `engine-kit-v<versão do package.json>` criada na `main`; o workflow `.github/workflows/publish.yml`
+roda a suíte e publica por OIDC (sem token guardado). Conferir a proveniência: `npm audit signatures` num projeto
+que dependa do `engine-kit`, ou o selo "Provenance" na página do pacote.
+
 ## Conciliar a máquina
 
 ```sh
@@ -160,6 +180,7 @@ assim:
 |---|---|---|
 | **TOFU** (padrão, automático) | a chave do 1º contato é gravada em `~/.engine-kit/trust.json`; qualquer troca depois = **ABORT** | repo comprometido **depois** da adoção — o caso realista |
 | **Pin do consumidor** | `ensureEngine(nome, { trustedKeys: { "<motor>": "<hex>" } })`; divergência = **ABORT** já no 1º contato | não depende do registry em momento nenhum (padrão do `vox-engine`) |
+| **Chave no pacote** (`npx engine-kit ensure`) | o comando fixa a chave do `manifest.json` embarcado no pacote do npm | registry comprometido **antes** do 1º contato: trocar a chave exige publicar um engine-kit novo, e a publicação deixa proveniência pública |
 
 Rotação legítima é **ato explícito**: apagar a entrada em `~/.engine-kit/trust.json`.
 
@@ -179,6 +200,8 @@ kit/
   resolve.mjs      # descobre o motor no registry (cache 6h, degrada p/ cache obsoleto)
   provision.mjs    # baixa/atualiza: SHA256 + assinatura fail-closed, lock e swap atômico
   lifecycle.mjs    # garante o processo vivo (daemon) ou entrega o binário (cli)
+  cli.mjs          # comando `engine-kit` (bin do pacote): `npx engine-kit ensure <motor>`
+  ensure.mjs       # ensure: resolve → provision com a chave do manifest embarcado no pacote
   signature.mjs    # contrato ed25519-sha256-raw — assinar e verificar na MESMA fonte
   keystore.mjs     # onde moram as chaves privadas (~/.engine-signing)
   gen-key.mjs      # gera o par de UM motor (com auto-prova)

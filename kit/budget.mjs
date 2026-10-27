@@ -37,9 +37,12 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-10-23 adapter 4000 → 5000: o token do mcp-gateway passou ao cofre DPAPI (0.13.8) e o
 //   adaptador precisa lê-lo (cofre → env → arquivo, a regra do daemon), +1.4 KB. Não é gordura:
 //   é o contrato de autenticação do motor, que só o adaptador do motor pode conhecer.
+//   2026-10-27 tooling 24000 → 27000 (loc 800 → 900): canal npm aprovado pelo dono — cli.mjs e ensure.mjs
+//   (`npx engine-kit ensure <motor>`), +3.1 KB. Escopo novo (comando de instalação), rodado pela mão de
+//   quem instala, nunca importado por consumidor: o caminho do `import "engine-kit"` não mudou.
 const BUDGETS = {
   runtime: { codeBytes: 27000, baseline: 24519, loc: 900 },
-  tooling: { codeBytes: 24000, baseline: 16420, loc: 800 },
+  tooling: { codeBytes: 27000, baseline: 16420, loc: 900 },
   adapter: { codeBytes: 5000, baseline: 1859, loc: 150 },
 };
 

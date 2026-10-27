@@ -1,0 +1,51 @@
+# Publica o pacote engine-kit no npm por publicação confiável (OIDC): sem token de longa duração em segredo nenhum,
+# e a proveniência (Sigstore, registro público) sai sozinha porque o repositório e o pacote são públicos.
+# Dispara só com a tag engine-kit-v<versão>, criada a partir da main (regra do projeto: nunca tag de develop).
+# O nome deste arquivo (publish.yml) é o que o cadastro do publisher confiável no npmjs.com aponta: renomear quebra.
+# Runner hospedado pelo GitHub de propósito: a proveniência do npm não aceita runner self-hosted.
+
+name: publish
+
+on:
+  push:
+    tags: ['engine-kit-v*']
+
+permissions:
+  id-token: write   # OIDC da publicação confiável
+  contents: read
+
+concurrency:
+  group: publish-npm
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      # Publicação confiável exige npm 11.5.1 ou mais.
+      - name: npm 11
+        run: |
+          npm install -g npm@11
+          node -e "const [a,b,c]=process.argv[1].split('.').map(Number);if(a<11||(a===11&&(b<5||(b===5&&c<1)))){console.error('npm '+process.argv[1]+' < 11.5.1');process.exit(1)}" "$(npm --version)"
+
+      - name: Tag = versão do package.json, commit na main
+        run: |
+          v="$(node -p "require('./package.json').version")"
+          test "$GITHUB_REF_NAME" = "engine-kit-v$v" || { echo "tag $GITHUB_REF_NAME não corresponde à versão $v do package.json"; exit 1; }
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "o commit da tag não está na main"; exit 1; }
+
+      - name: Suíte
+        run: npm test
+
+      - name: Publicar com proveniência
+        run: npm publish --access public --provenance

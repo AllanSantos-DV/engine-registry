@@ -133,7 +133,10 @@ async function verifyAuthenticity(engine, blob, { log, fetcher, trustedKeys }) {
   // registry comprometido. Confronta com a raiz de confiança LOCAL antes de usá-la.
   const t = checkTrust(engine.name, publicKey, { trustedKeys });
   if (!t.ok) { return { ok: false, reason: t.reason }; }
-  if (t.tofu) { log(`[engine-kit] ${engine.name}: chave pública gravada na 1ª vez (TOFU) em ${trustPath()} — trocas futuras serão ABORT`); }
+  if (t.tofu) {
+    const how = trustedKeys?.[engine.name] ? "chave FIXADA pelo consumidor conferiu e foi gravada" : "chave pública gravada na 1ª vez (TOFU)";
+    log(`[engine-kit] ${engine.name}: ${how} em ${trustPath()} — trocas futuras serão ABORT`);
+  }
 
   let sig;
   try {
@@ -315,6 +318,16 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
     mkdirSync(staging, { recursive: true });
     const ex = extractTgz(tgz, staging);
     if (!ex.ok) { return { ok: false, reason: `${engine.name}: ${ex.reason}` }; }
+
+    // 4.5) VERSÃO — a assinatura prova QUEM publicou o artefato, não QUAL versão ele é. Uma release
+    //      antiga, legitimamente assinada, servida no lugar da nova (replay/downgrade) passaria pelo
+    //      sha256 e pela Ed25519. O package.json do artefato tem de dizer a versão que o registry pede.
+    const got = installedVersion(staging);
+    if (got !== engine.version) {
+      rmSync(staging, { recursive: true, force: true });
+      try { unlinkSync(tgz); } catch { /* ignore */ }
+      return { ok: false, reason: `${engine.name}: o artefato diz v${got ?? "? (package.json ausente/ilegível)"} e o registry pede v${engine.version} → ABORT (release trocada por outra versão?)` };
+    }
 
     if (existsSync(binDir)) {
       if (onBeforeReplace) { try { await onBeforeReplace(); } catch { /* best-effort */ } }
