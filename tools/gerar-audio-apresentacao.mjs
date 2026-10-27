@@ -16,7 +16,7 @@ const { VoxClient } = await import(pathToFileURL(sdkPath).href);
 
 const js = readFileSync(join(REPO, "site", "assets", "site.js"), "utf8");
 const CENAS = new Function(`${js.slice(js.indexOf("const CENAS"), js.indexOf("const $ ="))}; return CENAS;`)();
-const dur = (f) => Number(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f], { encoding: "utf8" }));
+const dur = (f) => Number(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f], { encoding: "utf8", windowsHide: true }));
 
 const client = await VoxClient.tryConnect();
 if (!client) { throw new Error("daemon do Vox Engine fora do ar: suba o motor e rode de novo (nada foi gerado)"); }
@@ -38,7 +38,7 @@ for (const [i, cena] of CENAS.entries()) {
     const nome = `c${String(i + 1).padStart(2, "0")}-p${j + 1}.mp3`, bruto = join(tmp, nome);
     writeFileSync(bruto, buf);
     // fala mono a 32 kbps: leve e sem perda de inteligibilidade (medida na entrega); toca em qualquer navegador
-    execFileSync("ffmpeg", ["-v", "error", "-y", "-i", bruto, "-ac", "1", "-c:a", "libmp3lame", "-b:a", "32k", join(SAIDA, nome)]);
+    execFileSync("ffmpeg", ["-v", "error", "-y", "-i", bruto, "-ac", "1", "-c:a", "libmp3lame", "-b:a", "32k", join(SAIDA, nome)], { windowsHide: true });
     total += dur(join(SAIDA, nome)); falas += 1;
     console.log(`OK ${nome}  ${dur(join(SAIDA, nome)).toFixed(2)} s`);
   }

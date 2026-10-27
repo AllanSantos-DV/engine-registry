@@ -44,7 +44,7 @@ function buildFixtureTgz(version) {
   writeFileSync(join(src, "package.json"), JSON.stringify({ name: "test-engine", version }));
   writeFileSync(join(src, "test-engine.mjs"), 'console.log(JSON.stringify({ ok: true }));\n');
   const tgz = join(RUN, `test-engine-${version}.tgz`);
-  execFileSync(tarBinary(), ["-czf", tgz, "-C", src, "."], { stdio: "ignore" });
+  execFileSync(tarBinary(), ["-czf", tgz, "-C", src, "."], { stdio: "ignore", windowsHide: true });
   return readFileSync(tgz);
 }
 

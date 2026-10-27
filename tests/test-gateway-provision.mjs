@@ -33,7 +33,7 @@ mkdirSync(pkg, { recursive: true });
 writeFileSync(join(pkg, "mcp-gateway.mjs"), "process.exit(0);\n");
 writeFileSync(join(pkg, "package.json"), JSON.stringify({ name: "mcp-gateway", version: "9.9.9" }));
 const TGZ = join(ROOT, "mcp-gateway.tgz");
-execFileSync(tarBinary(), ["-czf", TGZ, "-C", pkg, "."], { stdio: "ignore" });
+execFileSync(tarBinary(), ["-czf", TGZ, "-C", pkg, "."], { stdio: "ignore", windowsHide: true });
 const sha = createHash("sha256").update(readFileSync(TGZ)).digest("hex");
 
 // registry local: manifest com o motor, sem assinatura (o objeto aqui é a extração, não a autenticidade)

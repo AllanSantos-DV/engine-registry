@@ -24,6 +24,7 @@ function trust(home, args) {
     `process.stdout.write(JSON.stringify({ ...r, path: trustPath() }));`;
   const p = spawnSync(process.execPath, ["--input-type=module", "-e", code], {
     encoding: "utf8",
+    windowsHide: true,
     env: { ...process.env, ENGINE_KIT_HOME: home },
   });
   try { return JSON.parse(p.stdout); } catch { return { ok: false, reason: `saída inesperada: ${p.stdout}${p.stderr}` }; }

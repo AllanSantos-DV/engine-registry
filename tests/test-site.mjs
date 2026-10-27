@@ -7,7 +7,9 @@
 // O verificador de página de produto do orquestrador (vídeo primeiro, três caminhos, diálogo modal, uma voz) roda quando está
 // nesta máquina (ORQ_PAGE_CHECK ou ../orchestrador/tools/product-page-check.mjs); ele abre um navegador sem janela e uma porta
 // local. Onde não está (CI), as mesmas regras de ordem, posição do vídeo e voz única são conferidas no HTML, sem navegador.
-import { readFileSync, existsSync, statSync, readdirSync } from "node:fs";
+import { readFileSync, existsSync, statSync, readdirSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { pathToFileURL } from "node:url";
 import { join } from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 
@@ -46,7 +48,7 @@ check("CSP restringe tudo a 'self' (sem fonte, script ou imagem externos)", /Con
 check("sem <script>, <style> nem atributo style= ou on*= inline (a CSP bloquearia)", !/<script(?![^>]*\ssrc=)/.test(html) && !/<style/.test(html) && !/\sstyle="/.test(html) && !/\son[a-z]+="/.test(html));
 const externos = [...html.matchAll(/(?:src|poster)="(https?:[^"]+)"/g)].map((m) => m[1]);
 check("nenhum recurso externo carregado (só links de navegação saem do site)", externos.length === 0, externos.join(", "));
-check("assets/site.js tem sintaxe válida", (() => { try { execFileSync(process.execPath, ["--check", join(SITE, "assets", "site.js")], { stdio: "pipe" }); return true; } catch { return false; } })());
+check("assets/site.js tem sintaxe válida", (() => { try { execFileSync(process.execPath, ["--check", join(SITE, "assets", "site.js")], { stdio: "pipe", windowsHide: true }); return true; } catch { return false; } })());
 
 // ---- 3) um card por motor do manifest, com o link certo -----------------------------------------------------------------
 const cards = [...html.matchAll(/<article class="card c-[a-z]+" id="m-([^"]+)" data-motor="([^"]+)"[\s\S]*?<\/article>/g)].map((m) => ({ id: m[1], motor: m[2], html: m[0] }));
@@ -142,10 +144,18 @@ if (existsSync(join(SITE, "media", "apresentacao.mp4")) || requireMedia) {
 }
 const verificador = process.env.ORQ_PAGE_CHECK || join(REPO, "..", "orchestrador", "tools", "product-page-check.mjs");
 if (existsSync(verificador)) {
-  const r = spawnSync(process.execPath, [verificador, "--page", join(SITE, "index.html")], { encoding: "utf8", windowsHide: true, timeout: 180000 });
+  // O verificador clica em Assistir e em Apresentar: sem o preload, a narração sai na caixa de som (ver tests/silencio.mjs).
+  const navegadores = join(mkdtempSync(join(tmpdir(), "engine-site-")), "navegadores.jsonl");
+  const preload = pathToFileURL(join(import.meta.dirname, "mudo-navegador.mjs")).href;
+  const r = spawnSync(process.execPath, ["--import", preload, verificador, "--page", join(SITE, "index.html")],
+    { encoding: "utf8", windowsHide: true, timeout: 180000, env: { ...process.env, ENGINE_TEST_BROWSER_LOG: navegadores } });
   let saida = null; try { saida = JSON.parse(r.stdout.trim().split("\n").pop()); } catch { /* saída não-JSON: a checagem falhou e o detalhe vai abaixo */ }
   check(`verificador de página de produto ok:true (${saida?.janelas?.map((j) => `${j.tamanho}: vídeo a ${j.video?.top}px, ${j.palavrasAntes} palavras antes`).join("; ") ?? "sem saída"})`,
     saida?.ok === true, saida ? (saida.falhas ?? [saida.falha]).join(" | ") : `${r.status} ${r.stderr || r.stdout}`.slice(0, 400));
+  const subidas = existsSync(navegadores) ? readFileSync(navegadores, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)) : [];
+  check("todo navegador do verificador subiu mudo, headless e sem janela",
+    subidas.length > 0 && subidas.every((s) => s.args.includes("--mute-audio") && s.args.some((a) => /^--headless/.test(a)) && s.windowsHide === true),
+    `${subidas.length} subida(s)${subidas.length ? "" : ": o preload não viu o navegador — o verificador mudou o jeito de abrir o Edge?"}`);
 } else {
   console.log(`  (info) verificador de página de produto não está nesta máquina (${verificador}); as regras acima cobrem ordem, posição e voz no HTML`);
 }

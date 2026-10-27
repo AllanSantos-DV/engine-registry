@@ -38,12 +38,12 @@ export function tarBinary({ platform = process.platform, systemRoot = process.en
 function extractTgz(tgz, dest) {
   const tar = tarBinary();
   try {
-    execFileSync(tar, ["--version"], { stdio: "ignore" });
+    execFileSync(tar, ["--version"], { stdio: "ignore", windowsHide: true });
   } catch {
     return { ok: false, reason: "`tar` não encontrado no PATH — necessário para extrair o artefato (Windows 10 1803+, macOS e Linux já trazem). Instale-o e tente de novo." };
   }
   try {
-    execFileSync(tar, ["-xzf", tgz, "-C", dest], { stdio: "ignore" });
+    execFileSync(tar, ["-xzf", tgz, "-C", dest], { stdio: "ignore", windowsHide: true });
     return { ok: true };
   } catch (e) {
     return { ok: false, reason: `extração (tar) falhou: ${e?.message || e}` };

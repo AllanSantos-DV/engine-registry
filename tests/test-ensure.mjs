@@ -38,7 +38,7 @@ function tgzOf(version, body = 'console.log("ok");\n') {
   writeFileSync(join(src, "package.json"), JSON.stringify({ name: "fake-engine", version }));
   writeFileSync(join(src, "fake-engine.mjs"), body);
   const tgz = `${src}.tgz`;
-  execFileSync(tarBinary(), ["-czf", tgz, "-C", src, "."], { stdio: "ignore" });
+  execFileSync(tarBinary(), ["-czf", tgz, "-C", src, "."], { stdio: "ignore", windowsHide: true });
   return readFileSync(tgz);
 }
 

@@ -13,9 +13,9 @@ const { VoxClient } = await import(pathToFileURL(resolve(process.env.VOX_SDK || 
 const js = readFileSync(join(REPO, "site", "assets", "site.js"), "utf8");
 const CENAS = new Function(`${js.slice(js.indexOf("const CENAS"), js.indexOf("const $ ="))}; return CENAS;`)();
 
-const dur = (f) => Number(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f], { encoding: "utf8" }));
+const dur = (f) => Number(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f], { encoding: "utf8", windowsHide: true }));
 const silencios = (f) => {   // ffmpeg escreve o silencedetect no stderr
-  const r = spawnSync("ffmpeg", ["-v", "info", "-i", f, "-af", "silencedetect=noise=-40dB:d=0.25", "-f", "null", "-"], { encoding: "utf8" });
+  const r = spawnSync("ffmpeg", ["-v", "info", "-i", f, "-af", "silencedetect=noise=-40dB:d=0.25", "-f", "null", "-"], { encoding: "utf8", windowsHide: true });
   const ini = [...r.stderr.matchAll(/silence_start: (-?[\d.]+)/g)].map((m) => Number(m[1]));
   const fim = [...r.stderr.matchAll(/silence_end: ([\d.]+) \| silence_duration: ([\d.]+)/g)].map((m) => ({ fim: Number(m[1]), d: Number(m[2]) }));
   return { ini, fim };

@@ -155,7 +155,7 @@ const dir = mkdtempSync(join(tmpdir(), "apps-test-"));
 try {
   const tmp = join(dir, "manifest.json");
   writeFileSync(tmp, JSON.stringify({ ...manifest, apps: [templated] }, null, 2));
-  const run = (...a) => execFileSync(process.execPath, [join(here, "..", "kit", "update-manifest.mjs"), ...a, "--manifest", tmp], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  const run = (...a) => execFileSync(process.execPath, [join(here, "..", "kit", "update-manifest.mjs"), ...a, "--manifest", tmp], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
   const k = generateKeyPairHex();
   run("--app", "whatsapp-bridge", "--version", "0.3.1", "--public-key", k.publicKeyHex,
       "--asset", "whatsapp-bridge-setup-{version}-win32-x64.exe=win32-x64");
@@ -173,7 +173,7 @@ try {
   try { run("--app", "whatsapp-bridge", "--asset", "sem-plataforma"); } catch (e) { badAsset = /inválido/.test(String(e.stderr)); }
   check("--asset sem '=<plataforma>' → falha alto", badAsset);
   let cliRefused = false;
-  try { execFileSync(process.execPath, [join(here, "..", "kit", "verify-release.mjs"), "--app", "nao-existe", "--manifest", tmp], { stdio: ["ignore", "pipe", "pipe"] }); }
+  try { execFileSync(process.execPath, [join(here, "..", "kit", "verify-release.mjs"), "--app", "nao-existe", "--manifest", tmp], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true }); }
   catch (e) { cliRefused = e.status === 1 && /não existe em manifest\.apps/.test(String(e.stderr)); }
   check("verify-release --app com app inexistente → exit 1 com razão", cliRefused);
 } finally {

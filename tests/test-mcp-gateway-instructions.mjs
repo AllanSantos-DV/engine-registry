@@ -180,7 +180,7 @@ if (entry) {
         const extractDir = join(workDir, "extracted");
         mkdirSync(extractDir, { recursive: true });
         try {
-          execFileSync(tarBinary(), ["-xzf", fetched.path, "-C", extractDir], { stdio: "ignore" });
+          execFileSync(tarBinary(), ["-xzf", fetched.path, "-C", extractDir], { stdio: "ignore", windowsHide: true });
 
           const extractTo = entry.install.extractTo ?? "bin";
           const relInstructions = entry.install.agentInstructions;

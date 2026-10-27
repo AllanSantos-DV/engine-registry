@@ -49,7 +49,7 @@ if (entry) {
       const a = r.ok ? await fetchArtifact(r.engine, { destDir: tmp }) : r;
       check("release publicada baixa e passa sha256 + assinatura", a.ok, a.ok ? a.path : a.reason);
       if (a.ok) {
-        execFileSync(tarBinary(), ["-xzf", a.path, "-C", tmp, "package.json"], { stdio: "ignore" });
+        execFileSync(tarBinary(), ["-xzf", a.path, "-C", tmp, "package.json"], { stdio: "ignore", windowsHide: true });
         const pub = JSON.parse(readFileSync(join(tmp, "package.json"), "utf8")).version;
         check("versão do manifest == package.json de dentro do .tgz publicado", entry.version === pub,
           `manifest "${entry.version}", .tgz "${pub}"`);

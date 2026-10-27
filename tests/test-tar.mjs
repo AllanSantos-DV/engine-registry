@@ -22,13 +22,13 @@ if (process.platform === "win32" && existsSync(join(gitTar, "tar.exe"))) {
   mkdirSync(src, { recursive: true }); mkdirSync(dest);
   writeFileSync(join(src, "package.json"), JSON.stringify({ name: "x", version: "1.0.0" }));
   const tgz = join(root, "x.tgz");
-  execFileSync(tarBinary(), ["-czf", tgz, "-C", src, "."]);
+  execFileSync(tarBinary(), ["-czf", tgz, "-C", src, "."], { windowsHide: true });
   const env = { ...process.env, PATH: gitTar + ";" + process.env.PATH };
   let gnuFails = false;
-  try { execFileSync("tar", ["-xzf", tgz, "-C", dest], { env, stdio: "ignore" }); } catch { gnuFails = true; }
+  try { execFileSync("tar", ["-xzf", tgz, "-C", dest], { env, stdio: "ignore", windowsHide: true }); } catch { gnuFails = true; }
   check("cenário reproduzido: GNU tar do PATH falha com caminho C:\\", gnuFails);
   let ok = true;
-  try { execFileSync(tarBinary(), ["-xzf", tgz, "-C", dest], { env, stdio: "ignore" }); } catch { ok = false; }
+  try { execFileSync(tarBinary(), ["-xzf", tgz, "-C", dest], { env, stdio: "ignore", windowsHide: true }); } catch { ok = false; }
   check("tarBinary() extrai mesmo com o Git Bash na frente do PATH", ok && existsSync(join(dest, "package.json")));
   rmSync(root, { recursive: true, force: true });
 } else {
