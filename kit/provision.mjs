@@ -122,6 +122,11 @@ async function verifyAuthenticity(engine, blob, { log, fetcher, trustedKeys }) {
   const algorithm = engine.install?.signatureAlgorithm ?? DEFAULT_ALGORITHM;
 
   if (!publicKey) {
+    // Chave fixada pelo consumidor e registry sem chave: tirar a publicKey do manifest não pode
+    // ser o atalho para instalar sem assinatura.
+    if (trustedKeys?.[engine.name]) {
+      return { ok: false, reason: `${engine.name}: o consumidor fixou uma chave mas o registry não declara publicKey → ABORT (registry pode estar comprometido)` };
+    }
     if (required) {
       return { ok: false, reason: `${engine.name}: registry pede assinatura (signatureRequired) mas não declara publicKey → ABORT (manifesto inconsistente)` };
     }
@@ -326,18 +331,39 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
     if (got !== engine.version) {
       rmSync(staging, { recursive: true, force: true });
       try { unlinkSync(tgz); } catch { /* ignore */ }
-      return { ok: false, reason: `${engine.name}: o artefato diz v${got ?? "? (package.json ausente/ilegível)"} e o registry pede v${engine.version} → ABORT (release trocada por outra versão?)` };
+      return { ok: false, reason: `${engine.name}: o artefato diz v${got ?? "? (package.json ausente/ilegível)"} e o registry pede v${engine.version} → ABORT` };
     }
 
+    // A instalação atual sai do caminho por RENAME, não por rmSync: no Windows, com o motor em uso
+    // (sem shutdownPath, ou um host segurando o processo), o rmSync apagava metade da pasta antes do
+    // EPERM e deixava a máquina sem motor nenhum. O rename falha inteiro ou passa inteiro.
+    let aside = null;
     if (existsSync(binDir)) {
       if (onBeforeReplace) { try { await onBeforeReplace(); } catch { /* best-effort */ } }
-      rmSync(binDir, { recursive: true, force: true });
+      aside = `${binDir}.old-${process.pid}`;
+      rmSync(aside, { recursive: true, force: true });
+      try {
+        renameSync(binDir, aside);
+      } catch (e) {
+        rmSync(staging, { recursive: true, force: true });
+        try { unlinkSync(tgz); } catch { /* ignore */ }
+        return { ok: false, reason: `${engine.name}: não consegui trocar ${binDir} (${e.code || e.message}): arquivos em uso — feche quem usa o motor e rode de novo; a instalação atual ficou intacta` };
+      }
     }
     // `extractTo` pode ser ANINHADO (ex.: "runtimes/<motor>", quando o home guarda estado que
     // precisa sobreviver ao swap — pesos, logs). O rename exige o diretório-pai existente: sem
     // isto, funciona na máquina que já tem a pasta e falha justamente na máquina limpa.
     mkdirSync(dirname(binDir), { recursive: true });
-    renameSync(staging, binDir);
+    try {
+      renameSync(staging, binDir);
+    } catch (e) {
+      if (aside) { try { renameSync(aside, binDir); } catch { /* o reason abaixo diz onde ficou */ } }
+      return { ok: false, reason: `${engine.name}: swap falhou (${e.code || e.message})${aside && existsSync(aside) ? `; a instalação anterior está em ${aside}` : ""}` };
+    }
+    if (aside) {
+      try { rmSync(aside, { recursive: true, force: true }); }
+      catch (e) { log(`[engine-kit] ${engine.name}: instalado, mas a versão anterior ficou em ${aside} (${e.code || e.message})`); }
+    }
     try { unlinkSync(tgz); } catch { /* ignore */ }
 
     if (!existsSync(entryPath)) {

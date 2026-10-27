@@ -59,6 +59,10 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
       if (!s.ok) { log(`aviso: ${s.reason} — o swap pode falhar com o motor vivo`); }
     },
   });
-  if (!p.ok) { return { ok: false, reason: p.reason }; }
+  if (!p.ok) {
+    // Rotação legítima de chave chega ao registry antes de chegar a este pacote: a saída é o kit novo.
+    const hint = /FIXADA|não declara publicKey/.test(p.reason) ? ` — se a chave foi rotacionada de propósito, rode npx engine-kit@latest ensure ${name}` : "";
+    return { ok: false, reason: p.reason + hint };
+  }
   return { ok: true, entryPath: p.entryPath, version: p.version, kind: r.engine.kind, reused: p.reused === true, signed: p.signed };
 }

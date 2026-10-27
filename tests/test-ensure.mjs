@@ -9,8 +9,8 @@
 // Hermético: registry e downloads servidos de memória; o .tgz é real (o `tar` roda).
 //
 //   node tests/test-ensure.mjs
-import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
-import { execFileSync, spawnSync } from "node:child_process";
+import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync } from "node:fs";
+import { execFileSync, spawnSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -42,21 +42,24 @@ function tgzOf(version, body = 'console.log("ok");\n') {
   return readFileSync(tgz);
 }
 
-const BASE = "https://github.com/x/y/releases/download/fake-engine-v1.2.3";
-const URLS = { asset: `${BASE}/fake-engine.tgz`, sha: `${BASE}/fake-engine.tgz.sha256`, sig: `${BASE}/fake-engine.tgz.sig` };
+const urlsOf = (version) => {
+  const base = `https://github.com/x/y/releases/download/fake-engine-v${version}`;
+  return { asset: `${base}/fake-engine.tgz`, sha: `${base}/fake-engine.tgz.sha256`, sig: `${base}/fake-engine.tgz.sig` };
+};
 
 let homeSeq = 0;
 /** manifest de registry com um motor `fake-engine` v1.2.3 assinado com `publicKey`, home isolado. */
-function manifestWith(publicKey, version = "1.2.3") {
+function manifestWith(publicKey, version = "1.2.3", home = join(RUN, `home-${++homeSeq}`)) {
   return { engines: [{
-    name: "fake-engine", version, kind: "cli", summary: "fixture", home: join(RUN, `home-${++homeSeq}`),
+    name: "fake-engine", version, kind: "cli", summary: "fixture", home,
     install: { repo: "x/y", tag: "fake-engine-v{version}", asset: "fake-engine.tgz", checksum: "{asset}.sha256",
       extractTo: "bin", entry: "bin/fake-engine.mjs", publicKey, signatureAlgorithm: "ed25519-sha256-raw" },
   }] };
 }
 
 /** downloads de memória; URL fora do mapa = 404, como o GitHub. */
-const serve = (blob, sig) => {
+const serve = (blob, sig, version = "1.2.3") => {
+  const URLS = urlsOf(version);
   const map = { [URLS.asset]: blob, [URLS.sha]: Buffer.from(`${sha256(blob)}  fake-engine.tgz\n`), [URLS.sig]: sig };
   return async (url) => { if (!(url in map)) { const e = new Error("HTTP 404"); e.status = 404; throw e; } return map[url]; };
 };
@@ -107,7 +110,52 @@ console.log("== engine-kit ensure ==\n");
   const r = await ensureCommand("fake-engine", { bundled, manifest: remote, fetcher: serve(good, signBlob(good, attacker.privateKeyHex)) });
   check("recusou", !r.ok, r.ok ? "aceitou a chave do atacante!" : r.reason);
   check("razão acusa a chave fixada", !r.ok && /FIXADA/.test(r.reason));
+  check("razão aponta a saída de rotação legítima (kit novo)", !r.ok && /engine-kit@latest/.test(r.reason));
   check("nada instalado", !existsSync(join(remote.engines[0].home, "bin")));
+}
+
+{
+  console.log("\n-- registry sem publicKey não desliga a assinatura da chave embarcada --");
+  const bundled = manifestWith(owner.publicKeyHex);
+  const remote = manifestWith(undefined);
+  process.env.ENGINE_KIT_HOME = join(RUN, "trust-home-3");
+  const evil = tgzOf("1.2.3", 'console.log("sem assinatura");\n');
+  const r = await ensureCommand("fake-engine", { bundled, manifest: remote, fetcher: serve(evil, Buffer.alloc(0)) });
+  check("recusou", !r.ok, r.ok ? "instalou sem assinatura!" : r.reason);
+  check("razão acusa o registry sem chave", !r.ok && /não declara publicKey/.test(r.reason));
+  check("nada instalado", !existsSync(join(remote.engines[0].home, "bin")));
+}
+
+{
+  console.log("\n-- atualização troca a versão sem deixar a anterior no disco --");
+  process.env.ENGINE_KIT_HOME = join(RUN, "trust-home-4");
+  const home = join(RUN, "home-update");
+  const v1 = manifestWith(owner.publicKeyHex, "1.2.3", home);
+  const first = await ensureCommand("fake-engine", { bundled: v1, manifest: v1, fetcher: serve(good, goodSig) });
+  const next = tgzOf("1.2.4");
+  const v2 = manifestWith(owner.publicKeyHex, "1.2.4", home);
+  const r = await ensureCommand("fake-engine", { bundled: v2, manifest: v2, fetcher: serve(next, signBlob(next, owner.privateKeyHex), "1.2.4") });
+  check("instalou v1.2.3 e depois v1.2.4", first.ok && r.ok && r.version === "1.2.4", r.ok ? "" : r.reason);
+  check("package.json instalado diz 1.2.4", JSON.parse(readFileSync(join(home, "bin", "package.json"), "utf8")).version === "1.2.4");
+  check("sem pasta .old nem staging sobrando", readdirSync(home).every((f) => !f.startsWith("bin.old") && !f.startsWith("stage-")), readdirSync(home).join(","));
+}
+
+if (process.platform === "win32") {
+  console.log("\n-- motor em uso (Windows): recusa a troca e mantém a instalação atual --");
+  process.env.ENGINE_KIT_HOME = join(RUN, "trust-home-5");
+  const home = join(RUN, "home-busy");
+  const v1 = manifestWith(owner.publicKeyHex, "1.2.3", home);
+  await ensureCommand("fake-engine", { bundled: v1, manifest: v1, fetcher: serve(good, goodSig) });
+  // No Windows, a pasta que é o diretório corrente de um processo não pode ser renomeada nem apagada.
+  const holder = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], { cwd: join(home, "bin"), windowsHide: true, stdio: "ignore" });
+  await new Promise((ok) => setTimeout(ok, 500));
+  const next = tgzOf("1.2.4");
+  const v2 = manifestWith(owner.publicKeyHex, "1.2.4", home);
+  const r = await ensureCommand("fake-engine", { bundled: v2, manifest: v2, fetcher: serve(next, signBlob(next, owner.privateKeyHex), "1.2.4") });
+  holder.kill();
+  check("recusou com motivo acionável", !r.ok && /arquivos em uso/.test(r.reason), r.ok ? "trocou com a pasta em uso?" : r.reason);
+  check("instalação atual intacta (v1.2.3, entrypoint no disco)",
+    existsSync(join(home, "bin", "fake-engine.mjs")) && JSON.parse(readFileSync(join(home, "bin", "package.json"), "utf8")).version === "1.2.3");
 }
 
 {
