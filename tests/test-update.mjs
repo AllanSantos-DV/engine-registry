@@ -2,7 +2,8 @@
 // Hermético: a consulta ao npm e o relançamento são injetados.
 //
 //   node tests/test-update.mjs
-import { selfUpdate, isNewer, autoUpdateEnabled } from "../kit/update.mjs";
+import { join } from "node:path";
+import { selfUpdate, isNewer, autoUpdateEnabled, relaunchCommand } from "../kit/update.mjs";
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -58,6 +59,18 @@ check("versão menor não é mais nova", !isNewer("0.1.9", "0.2.0"));
   const logs = [], p = probe();
   const r = await selfUpdate(["ensure", "vxk"], { env: {}, current: "0.2.0", latest: async () => { throw new Error("HTTP 503"); }, run: p.run, log: (m) => logs.push(m) });
   check("npm fora do ar: segue com a versão atual e diz por quê", r.action === "none" && p.calls.length === 0 && logs.some((m) => /HTTP 503/.test(m)), logs.join(" | "));
+}
+
+{
+  const viaNpx = relaunchCommand("0.3.0", ["ensure", "vxk"], { env: { npm_execpath: "/npm/bin/npm-cli.js" }, execPath: "/node/node", exists: () => false });
+  check("rodado pelo npx: relança node + npm-cli.js, sem shell", viaNpx.file === "/node/node" && viaNpx.args[0] === "/npm/bin/npm-cli.js", JSON.stringify(viaNpx));
+  check("relança engine-kit@<versão> com os mesmos argumentos",
+    JSON.stringify(viaNpx.args.slice(1)) === JSON.stringify(["exec", "--yes", "--package=engine-kit@0.3.0", "--", "engine-kit", "ensure", "vxk"]));
+  const execPath = join("/node", "node");
+  const beside = relaunchCommand("0.3.0", ["ensure", "vxk"], { env: {}, execPath, exists: (p) => p === join("/node", "node_modules", "npm", "bin", "npm-cli.js") });
+  check("fora do npx: usa o npm-cli.js que acompanha o node", beside.file === execPath && beside.args[0] === join("/node", "node_modules", "npm", "bin", "npm-cli.js"));
+  const bare = relaunchCommand("0.3.0", ["ensure", "vxk"], { env: {}, execPath: "/node/node", exists: () => false });
+  check("sem npm-cli.js à vista: npx do PATH", bare.file === "npx" && bare.args.join(" ") === "--yes engine-kit@0.3.0 ensure vxk");
 }
 
 console.log(failures === 0 ? "\n== TUDO VERDE ==" : `\n== ${failures} FALHA(S) ==`);

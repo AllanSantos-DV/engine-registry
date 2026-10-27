@@ -8,7 +8,8 @@
 // ENGINE_KIT_NO_AUTO_UPDATE=1 desliga: o kit não se troca nem troca motor já instalado, só AVISA da versão nova.
 // ENGINE_KIT_UPDATED_FROM marca o processo relançado, para não entrar em laço.
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 export const LATEST_URL = "https://registry.npmjs.org/engine-kit/latest";
 
@@ -30,9 +31,21 @@ async function fetchLatest() {
   return (await res.json()).version;
 }
 
+/**
+ * Como relançar sem shell: npx no Windows é npx.cmd, e spawn de .cmd exige shell (argumentos concatenados, DEP0190
+ * no Node 24). Rodado pelo npx, `npm_execpath` aponta o npm-cli.js do npm em uso: node + esse arquivo não passa por shell.
+ * Fora do npx: o npm-cli.js que acompanha o node, ou o `npx` do PATH (Unix, sem shell).
+ */
+export function relaunchCommand(version, args, { env = process.env, execPath = process.execPath, exists = existsSync } = {}) {
+  const npmArgs = ["exec", "--yes", `--package=engine-kit@${version}`, "--", "engine-kit", ...args];
+  const bundled = join(dirname(execPath), "node_modules", "npm", "bin", "npm-cli.js");
+  const cli = /npm-cli\.js$/.test(env.npm_execpath ?? "") ? env.npm_execpath : exists(bundled) ? bundled : null;
+  return cli ? { file: execPath, args: [cli, ...npmArgs] } : { file: "npx", args: ["--yes", `engine-kit@${version}`, ...args] };
+}
+
 function runLatest(version, args, env) {
-  // npx no Windows é npx.cmd: o spawn de .cmd exige shell. Argumentos aqui são nome de motor e flags simples.
-  const r = spawnSync("npx", ["--yes", `engine-kit@${version}`, ...args], { stdio: "inherit", shell: process.platform === "win32", windowsHide: true, env });
+  const c = relaunchCommand(version, args, { env });
+  const r = spawnSync(c.file, c.args, { stdio: "inherit", windowsHide: true, env });
   return r.error ? { status: 1, error: r.error.message } : { status: r.status ?? 1 };
 }
 
