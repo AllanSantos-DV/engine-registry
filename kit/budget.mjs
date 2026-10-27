@@ -50,7 +50,9 @@ const BUDGETS = {
 // `split("\n")` num arquivo terminado em newline devolve um elemento vazio no fim — linha
 // fantasma. Sem o `replace`, cada arquivo inflava a conta em 1 e o kill-switch disparava
 // por medição errada (foi o que aconteceu na primeira execução deste arquivo).
-const linesOf = (f) => readFileSync(f, "utf8").replace(/\n$/, "").split("\n");
+// `\r?\n`: o checkout do Windows (autocrlf) traz CRLF, e o `\r` contaria 1 byte por linha — a mesma
+// árvore mediria diferente no Linux e no Windows.
+const linesOf = (f) => readFileSync(f, "utf8").replace(/\r?\n$/, "").split(/\r?\n/);
 const lines = (f) => linesOf(f).length;
 
 /** Bytes que não são linha em branco nem comentário de linha inteira. */
