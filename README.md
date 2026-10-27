@@ -64,6 +64,11 @@ proveniência): se o registry servir outra chave, é ABORT já na primeira insta
 conhece é recusado (`npx engine-kit@latest ensure <motor>` traz o kit novo). Motores `self-managed`
 (`vox-engine`, `cerne`) seguem pelo próprio instalador.
 
+Atualização automática, ligada por padrão: o kit consulta a última versão no npm e, se houver uma nova, roda o
+mesmo comando nela (o `npx` sem versão reusaria a da cache); o motor instalado é atualizado para a versão do
+registry, com o aviso `motor atualizado: <motor> vA → vB`. `ENGINE_KIT_NO_AUTO_UPDATE=1` desliga as duas trocas e
+deixa só o aviso de versão nova disponível. `--version` explícito sempre vale.
+
 Publicar o kit: tag `engine-kit-v<versão do package.json>` criada na `main`; o workflow `.github/workflows/publish.yml`
 roda a suíte e publica por OIDC (sem token guardado). Conferir a proveniência: `npm audit signatures` num projeto
 que dependa do `engine-kit`, ou o selo "Provenance" na página do pacote.
@@ -202,6 +207,7 @@ kit/
   lifecycle.mjs    # garante o processo vivo (daemon) ou entrega o binário (cli)
   cli.mjs          # comando `engine-kit` (bin do pacote): `npx engine-kit ensure <motor>`
   ensure.mjs       # ensure: resolve → provision com a chave do manifest embarcado no pacote
+  update.mjs       # o kit se atualiza (relança na última versão do npm); ENGINE_KIT_NO_AUTO_UPDATE=1 desliga
   signature.mjs    # contrato ed25519-sha256-raw — assinar e verificar na MESMA fonte
   keystore.mjs     # onde moram as chaves privadas (~/.engine-signing)
   gen-key.mjs      # gera o par de UM motor (com auto-prova)

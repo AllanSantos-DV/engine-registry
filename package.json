@@ -24,7 +24,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node kit/budget.mjs && node tests/smoke.mjs && node tests/test-edge.mjs && node tests/test-signature.mjs && node tests/test-ensure.mjs && node tests/test-trust.mjs && node tests/test-tar.mjs && node tests/test-apps.mjs && node tests/test-resolve-cache.mjs && node tests/test-doctor-exit.mjs && node tests/test-mcp-gateway-token.mjs && node tests/test-gateway-provision.mjs && node tests/test-neural-link-alignment.mjs && node tests/test-site.mjs && node tests/test-pages-branch.mjs && node tests/test-readme-versions.mjs",
+    "test": "node kit/budget.mjs && node tests/smoke.mjs && node tests/test-edge.mjs && node tests/test-signature.mjs && node tests/test-ensure.mjs && node tests/test-update.mjs && node tests/test-trust.mjs && node tests/test-tar.mjs && node tests/test-apps.mjs && node tests/test-resolve-cache.mjs && node tests/test-doctor-exit.mjs && node tests/test-mcp-gateway-token.mjs && node tests/test-gateway-provision.mjs && node tests/test-neural-link-alignment.mjs && node tests/test-site.mjs && node tests/test-pages-branch.mjs && node tests/test-readme-versions.mjs",
     "test:network": "node tests/smoke.mjs --network && node tests/test-signature.mjs --network",
     "test:e2e": "node tests/e2e-install.mjs",
     "gen-key": "node kit/gen-key.mjs",

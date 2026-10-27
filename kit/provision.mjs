@@ -98,7 +98,7 @@ async function fetchBuf(url, timeoutMs) {
 }
 
 /** Lê a versão instalada a partir do package.json do artefato (se houver). */
-function installedVersion(binDir) {
+export function installedVersion(binDir) {
   try { return JSON.parse(readFileSync(join(binDir, "package.json"), "utf8")).version; } catch { return null; }
 }
 

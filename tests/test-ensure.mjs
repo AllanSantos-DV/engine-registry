@@ -138,6 +138,23 @@ console.log("== engine-kit ensure ==\n");
   check("instalou v1.2.3 e depois v1.2.4", first.ok && r.ok && r.version === "1.2.4", r.ok ? "" : r.reason);
   check("package.json instalado diz 1.2.4", JSON.parse(readFileSync(join(home, "bin", "package.json"), "utf8")).version === "1.2.4");
   check("sem pasta .old nem staging sobrando", readdirSync(home).every((f) => !f.startsWith("bin.old") && !f.startsWith("stage-")), readdirSync(home).join(","));
+  check("retorno diz a versão substituída (aviso de motor atualizado)", r.previous === "1.2.3" && first.previous === undefined, `previous=${r.previous}`);
+}
+
+{
+  console.log("\n-- autoUpdate:false mantém o motor instalado e avisa a versão nova --");
+  process.env.ENGINE_KIT_HOME = join(RUN, "trust-home-6");
+  const home = join(RUN, "home-noauto");
+  const v1 = manifestWith(owner.publicKeyHex, "1.2.3", home);
+  await ensureCommand("fake-engine", { bundled: v1, manifest: v1, fetcher: serve(good, goodSig) });
+  const next = tgzOf("1.2.4");
+  const v2 = manifestWith(owner.publicKeyHex, "1.2.4", home);
+  const fetchNext = serve(next, signBlob(next, owner.privateKeyHex), "1.2.4");
+  const r = await ensureCommand("fake-engine", { bundled: v2, manifest: v2, fetcher: fetchNext, autoUpdate: false });
+  check("ficou na v1.2.3 e avisa a v1.2.4", r.ok && r.reused && r.version === "1.2.3" && r.available === "1.2.4", JSON.stringify(r));
+  check("disco continua na v1.2.3", JSON.parse(readFileSync(join(home, "bin", "package.json"), "utf8")).version === "1.2.3");
+  const pinned = await ensureCommand("fake-engine", { bundled: v2, manifest: v2, fetcher: fetchNext, autoUpdate: false, version: "1.2.4" });
+  check("--version explícito atualiza mesmo com autoUpdate:false", pinned.ok && pinned.version === "1.2.4" && pinned.previous === "1.2.3", pinned.ok ? "" : pinned.reason);
 }
 
 if (process.platform === "win32") {

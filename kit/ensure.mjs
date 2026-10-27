@@ -9,9 +9,10 @@
 // Motor que não está no manifest deste pacote é recusado: sem a chave embarcada não há primeiro contato
 // verificável, e cair no TOFU calado seria justamente o buraco que o pacote fecha. Saída: atualizar o kit.
 // NUNCA lança: devolve { ok, reason } para o cli decidir o exit code.
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import { resolve } from "./resolve.mjs";
-import { provision } from "./provision.mjs";
+import { provision, installedVersion, satisfiesPin } from "./provision.mjs";
 import { shutdown } from "./lifecycle.mjs";
 
 const BUNDLED_MANIFEST = new URL("../manifest.json", import.meta.url);
@@ -29,9 +30,12 @@ export function bundledManifest() {
  * @param {object=} opts.bundled manifest embarcado (default: o deste pacote; testes injetam).
  * @param {object=} opts.manifest manifest do registry já carregado (testes; pula rede e cache).
  * @param {Function=} opts.fetcher download injetável (testes).
- * @returns {Promise<{ok:true, entryPath:string, version:string, kind:string, reused?:boolean, signed?:boolean} | {ok:false, reason:string}>}
+ * @param {boolean=} opts.autoUpdate false = motor já instalado fica na versão dele e o retorno avisa a nova
+ *        (`available`). Default true. Um `version` explícito sempre vale: foi pedido.
+ * @returns {Promise<{ok:true, entryPath:string, version:string, kind:string, reused?:boolean, signed?:boolean,
+ *          previous?:string, available?:string} | {ok:false, reason:string}>} `previous` = versão substituída.
  */
-export async function ensureCommand(name, { version, registryUrl, bundled, manifest, fetcher, log = () => {} } = {}) {
+export async function ensureCommand(name, { version, registryUrl, bundled, manifest, fetcher, autoUpdate = true, log = () => {} } = {}) {
   let local;
   try { local = bundled ?? bundledManifest(); }
   catch (e) { return { ok: false, reason: `manifest embarcado ilegível: ${e.message}` }; }
@@ -49,6 +53,13 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
   const r = await resolve(name, { version, registryUrl, refresh: true, ...(manifest ? { manifest } : {}) });
   if (!r.ok) { return { ok: false, reason: r.reason }; }
 
+  const engine = r.engine;
+  const entryPath = join(engine.homeDir, engine.install.entry);
+  const previous = existsSync(entryPath) ? installedVersion(join(engine.homeDir, engine.install.extractTo ?? "bin")) : null;
+  if (!autoUpdate && !version && previous && !satisfiesPin(previous, engine.version)) {
+    return { ok: true, entryPath, version: previous, kind: engine.kind, reused: true, available: engine.version };
+  }
+
   const p = await provision(r.engine, {
     log,
     trustedKeys: { [name]: publicKey },
@@ -64,5 +75,8 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
     const hint = /FIXADA|não declara publicKey/.test(p.reason) ? ` — se a chave foi rotacionada de propósito, rode npx engine-kit@latest ensure ${name}` : "";
     return { ok: false, reason: p.reason + hint };
   }
-  return { ok: true, entryPath: p.entryPath, version: p.version, kind: r.engine.kind, reused: p.reused === true, signed: p.signed };
+  return {
+    ok: true, entryPath: p.entryPath, version: p.version, kind: engine.kind, reused: p.reused === true, signed: p.signed,
+    ...(p.installed && previous && previous !== p.version ? { previous } : {}),
+  };
 }
