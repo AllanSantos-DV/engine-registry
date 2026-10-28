@@ -2,7 +2,7 @@
 //
 // O shim stdio do vxk é `cli` (o kit não sobe nada), mas o daemon único que ele sobe segura a pasta bin: no Windows o
 // swap do `ensure` falharia com "arquivos em uso". O manifest declara `runtime` (run/daemon.json + POST /shutdown com
-// x-shutdown-token) para o kit derrubá-lo antes de trocar. Aqui o daemon é um fake com o mesmo contrato do real
+// x-shutdown-token) para o kit derrubá-lo antes de trocar; ocupado, ele responde 202 e só fecha quando o trabalho acaba. Aqui o daemon é um fake com o mesmo contrato do real
 // (visual: mcp/vxk-daemon.mjs), vivo com a pasta bin como diretório corrente, e o bloco `runtime` usado é o do
 // manifest.json de verdade — se alguém mexer na declaração, este teste enxerga.
 // Hermético: HOME/ENGINE_KIT_HOME em pasta temporária, downloads de memória, sem janela e sem áudio.
@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 import { generateKeyPairHex, signBlob } from "../kit/index.mjs";
 import { tarBinary } from "../kit/provision.mjs";
 import { ensureCommand } from "../kit/ensure.mjs";
+import { shutdown } from "../kit/lifecycle.mjs";
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -54,6 +55,8 @@ const home = process.env.FAKE_HOME, shutdownToken = 'tok-' + process.pid;
 const srv = http.createServer((req, res) => {
   if (req.url === '/shutdown' && req.method === 'POST') {
     if (req.headers['x-shutdown-token'] !== shutdownToken) { res.writeHead(401).end('token'); return; }
+    const ocupado = Number(process.env.FAKE_BUSY_MS || 0);
+    if (ocupado) { res.writeHead(202).end(JSON.stringify({ reciclar: true })); setTimeout(() => process.exit(0), ocupado); return; }
     res.writeHead(200).end('ok'); setTimeout(() => process.exit(0), 50); return;
   }
   res.writeHead(404).end();
@@ -88,12 +91,12 @@ const manifestWith = (version, home, runtime) => ({ engines: [{
 }] });
 
 /** instala a 1.2.3, sobe o daemon fake com a pasta bin como diretório corrente e espera o daemon.json. */
-async function instalarComDaemonVivo(home, runtime) {
+async function instalarComDaemonVivo(home, runtime, busyMs = 0) {
   const v1 = manifestWith("1.2.3", home, runtime);
   const blob = tgzOf("1.2.3");
   const first = await ensureCommand("fake-engine", { bundled: v1, manifest: v1, fetcher: serve(blob, signBlob(blob, owner.privateKeyHex), "1.2.3") });
   if (!first.ok) { throw new Error(`instalação inicial falhou: ${first.reason}`); }
-  const proc = spawn(process.execPath, [DAEMON], { cwd: join(home, "bin"), env: { ...process.env, FAKE_HOME: home }, windowsHide: true, stdio: "ignore" });
+  const proc = spawn(process.execPath, [DAEMON], { cwd: join(home, "bin"), env: { ...process.env, FAKE_HOME: home, FAKE_BUSY_MS: String(busyMs) }, windowsHide: true, stdio: "ignore" });
   const dj = join(home, "run", "daemon.json");
   for (let i = 0; i < 100 && !existsSync(dj); i++) { await sleep(100); }
   if (!existsSync(dj)) { proc.kill(); throw new Error("o daemon fake não anunciou o daemon.json"); }
@@ -118,6 +121,37 @@ const versaoNoDisco = (home) => JSON.parse(readFileSync(join(home, "bin", "packa
   for (let i = 0; i < 20 && vivo(pid); i++) { await sleep(100); }
   check("o daemon foi desligado antes do swap", !vivo(pid));
   proc.kill();
+}
+
+{
+  console.log("\n-- daemon ocupado (202): o ensure espera o fim do trabalho antes do swap --");
+  const home = join(RUN, "home-ocupado");
+  const { proc, pid } = await instalarComDaemonVivo(home, RUNTIME, 3000);
+  const r = await atualizar(home, RUNTIME);
+  check("atualizou 1.2.3 → 1.2.4 depois que o daemon ocupado saiu", r.ok && r.version === "1.2.4" && versaoNoDisco(home) === "1.2.4", r.ok ? "" : r.reason);
+  check("o daemon ocupado terminou", !vivo(pid));
+  proc.kill();
+}
+
+{
+  console.log("\n-- daemon ocupado além da espera: falha dita, sem fingir que parou --");
+  const home = join(RUN, "home-ocupado-longo");
+  const { proc, pid } = await instalarComDaemonVivo(home, RUNTIME, 8000);
+  const s = await shutdown({ name: "fake-engine", homeDir: home, runtime: RUNTIME }, { waitBusyMs: 2000 });
+  check("shutdown devolve ok:false com o motivo", s.ok === false && /segue ocupado/.test(s.reason), JSON.stringify(s));
+  check("o daemon ainda vive (o kit não o mata)", vivo(pid));
+  for (let i = 0; i < 100 && vivo(pid); i++) { await sleep(200); }
+  proc.kill();
+}
+
+{
+  console.log("\n-- sem daemon.json (nada vivo): o ensure segue e troca --");
+  const home = join(RUN, "home-sem-daemon");
+  const v1 = manifestWith("1.2.3", home, RUNTIME);
+  const b1 = tgzOf("1.2.3");
+  await ensureCommand("fake-engine", { bundled: v1, manifest: v1, fetcher: serve(b1, signBlob(b1, owner.privateKeyHex), "1.2.3") });
+  const r = await atualizar(home, RUNTIME);
+  check("atualizou sem daemon", r.ok && r.version === "1.2.4", r.ok ? "" : r.reason);
 }
 
 if (process.platform === "win32") {

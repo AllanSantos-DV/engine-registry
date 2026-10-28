@@ -65,6 +65,16 @@ async function findAlive(engine, healthCheck) {
   return health ? { runtime: rt, health } : null;
 }
 
+/** Espera o processo sair (até `ms`). true = saiu. */
+async function waitExit(pid, ms) {
+  const fim = Date.now() + ms;
+  while (Date.now() < fim) {
+    try { process.kill(pid, 0); } catch { return true; }
+    await sleep(500);
+  }
+  return false;
+}
+
 /**
  * Pede ao motor que se encerre, usando SÓ o que o registry declara.
  *
@@ -76,7 +86,7 @@ async function findAlive(engine, healthCheck) {
  *
  * @returns {Promise<{ok:true, stopped:boolean} | {ok:false, reason:string}>} nunca lança.
  */
-export async function shutdown(engine, { log = () => {}, timeoutMs = 5000 } = {}) {
+export async function shutdown(engine, { log = () => {}, timeoutMs = 5000, waitBusyMs = 120000 } = {}) {
   const path = engine.runtime?.shutdownPath;
   if (!path) { return { ok: true, stopped: false }; }
 
@@ -95,10 +105,16 @@ export async function shutdown(engine, { log = () => {}, timeoutMs = 5000 } = {}
     const res = await fetch(`http://127.0.0.1:${rt.port}${path}`, {
       method: "POST", headers, signal: AbortSignal.timeout(timeoutMs),
     });
-    if (!res.ok) { return { ok: false, reason: `${engine.name}: shutdown respondeu HTTP ${res.status}` }; }
-    log(`[engine-kit] ${engine.name}: shutdown pedido (pid ${rt.pid ?? "?"})`);
+    // 202 = aceito, mas o motor está ocupado e só fecha quando o trabalho em curso acabar (vxk com build rodando);
+    // 503 = já está fechando. Nos dois o swap só é seguro depois que o processo sair.
+    const adiado = res.status === 202 || res.status === 503;
+    if (!res.ok && !adiado) { return { ok: false, reason: `${engine.name}: shutdown respondeu HTTP ${res.status}` }; }
+    log(`[engine-kit] ${engine.name}: shutdown pedido (pid ${rt.pid ?? "?"}, HTTP ${res.status})`);
     // O motor responde ANTES de sair. Sem esta espera, o swap ainda encontra o arquivo em uso.
     await sleep(1500);
+    if (adiado && rt.pid && !(await waitExit(rt.pid, waitBusyMs))) {
+      return { ok: false, reason: `${engine.name}: o motor segue ocupado após ${Math.round(waitBusyMs / 1000)} s e vai fechar quando o trabalho em curso terminar — rode de novo depois` };
+    }
     return { ok: true, stopped: true };
   } catch (e) {
     return { ok: false, reason: `${engine.name}: shutdown falhou (${e?.message || e})` };
