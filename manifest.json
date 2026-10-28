@@ -7,7 +7,33 @@
     "url": "https://github.com/AllanSantos-DV"
   },
   "description": "Catálogo público de motores compartilhados e aplicativos distribuídos. engine-kit consome apenas engines; apps declara versões e downloads sem instalar aplicativos automaticamente.",
-  "apps": [],
+  "apps": [
+    {
+      "name": "agent-launcher",
+      "version": "1.2.4",
+      "summary": "Abre Claude Code, Codex e Copilot CLI nos seus projetos por qualquer host de modelos. Windows.",
+      "homepage": "https://allansantos-dv.github.io/agent-launcher/",
+      "license": "MIT",
+      "platforms": [
+        "win32-x64"
+      ],
+      "release": {
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "agent-launcher-v{version}",
+        "assets": [
+          {
+            "name": "agent-launcher-{version}-win32-x64.tgz",
+            "platform": "win32-x64",
+            "checksum": "{asset}.sha256",
+            "signature": "{asset}.sig"
+          }
+        ],
+        "publicKey": "bbfc8c1a639872d4e5fc44ac4172443886153b4579b4f3e0466220c02d09407a",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true
+      }
+    }
+  ],
   "engines": [
     {
       "name": "embed-house",
