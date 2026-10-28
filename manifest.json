@@ -177,6 +177,29 @@
       "platforms": [
         "win32-x64"
       ]
+    },
+    {
+      "name": "skill-engine",
+      "version": "0.1.0",
+      "kind": "cli",
+      "summary": "Skill Manager v2: motor portátil que gerencia skills de agentes fora de qualquer IDE — busca repositórios de skills em quarentena, varre com regras determinísticas e só ativa o que sai limpo, nas pastas que Claude Code, Codex, Copilot e OpenCode leem. CLI `skill-engine`, não é daemon.",
+      "home": "~/.skill-engine",
+      "install": {
+        "type": "github-release",
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "skill-engine-v{version}",
+        "asset": "skill-engine-any.tgz",
+        "checksum": "{asset}.sha256",
+        "extractTo": "runtimes/skill-engine",
+        "entry": "runtimes/skill-engine/bin/skill-engine.mjs",
+        "publicKey": "c34697186f45e8e91d0f49fa34d1c2d0055213aac2cdbe1490ac51eb2e42f704",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true
+      },
+      "platforms": [
+        "any"
+      ],
+      "notes": "kind=cli: o lifecycle entrega o binário e NÃO sobe processo. `extractTo` é aninhado como no neural-link: o home guarda ESTADO que sobrevive ao update, e só `runtimes/skill-engine` é trocado. Código-fonte no repo privado AllanSantos-DV/skill-engine; a release pública mora aqui."
     }
   ]
 }
