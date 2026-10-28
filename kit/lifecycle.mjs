@@ -8,7 +8,9 @@
 //   • daemon — processo longo que anuncia `runtime.json` e responde health. É o fluxo abaixo.
 //   • cli    — executável invocado POR EVENTO (ex.: o dispatcher de hooks): não há processo para
 //              manter vivo, nem runtime, nem health. Provisionar já é entregar. Forçar um daemon
-//              aqui seria inventar um ciclo de vida que o motor não tem.
+//              aqui seria inventar um ciclo de vida que o motor não tem. Exceção: o vxk é cli mas
+//              delega a um daemon próprio; o kit não o sobe, só o derruba (`shutdown`, via
+//              `runtime.shutdownPath`) antes de trocar a instalação.
 import { spawn } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";

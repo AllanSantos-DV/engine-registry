@@ -29,7 +29,7 @@ vive num lugar só e o consumidor apenas **declara a dependência**.
 | `vox-engine` | 0.28.7 | `daemon` (pipe), **self-managed** | Motor de voz (STT/TTS) compartilhado, com auto-unload quando ocioso. Traz o próprio instalador e updater. |
 | `mcp-gateway` | 0.16.4 | `daemon` (http) | Agregador MCP: conecta uma vez em cada servidor MCP e reexpõe tudo num endpoint único. |
 | `neural-link` | 0.7.15 | `cli` | Dispatcher adaptativo de hooks: recebe o evento por stdin, pontua os handlers e devolve uma decisão composta. |
-| `vxk` | 0.19.0 | `cli` | Explicações visuais animadas e narradas como servidor MCP (stdio): devolve UM HTML autocontido e offline. A narração vem do `vox-engine`. |
+| `vxk` | 0.19.0 | `cli` | Explicações visuais animadas e narradas como servidor MCP (stdio): devolve UM HTML autocontido e offline, ou o vídeo MP4 (preset, aplicativo real, Motion) e o PDF. Um daemon único por máquina atende os agentes. A narração vem do `vox-engine`. |
 | `cerne` | 0.4.10 | `daemon`, **self-managed** | Leitura ativa de vídeo (captura, quadros, transcrição, tradução) exposta via MCP. Instalador Inno por usuário, Windows. |
 | `skill-engine` | 0.1.0 | `cli` | Gerencia skills de agentes fora de qualquer IDE: busca repositórios em quarentena, varre com regras determinísticas e só ativa o que sai limpo. |
 
@@ -42,7 +42,10 @@ Um motor pode ser de dois tipos (`kind`):
 - **`cli`** — executável invocado **por evento** (ex.: um dispatcher de hooks). Não há processo
   para manter vivo: provisionar já é entregar. O `lifecycle` devolve o caminho do binário sem
   spawn, sem health e sem runtime — forçar um daemon aqui seria inventar um ciclo de vida que o
-  motor não tem.
+  motor não tem. Exceção: o `vxk` é `cli` (o host sobe um shim stdio por agente) mas esse shim delega a
+  um daemon único por máquina. O kit não sobe nem espera esse daemon, mas o manifest declara `runtime`
+  (`run/daemon.json`, `shutdownPath`, token) para o `ensure` pedir o desligamento antes de trocar a
+  instalação — no Windows um daemon vivo segura a pasta e o swap falharia com EPERM.
 
 E pode declarar `status: "self-managed"`: o motor traz o **próprio instalador/updater** (o caso do
 `vox-engine`, um app Python). A entrada aqui é o **descritor de registro** — onde está a release,

@@ -157,6 +157,9 @@ polui o histórico e obriga todo consumidor a decidir se atualiza — para desco
 | `embed-house` | daemon | `embed-house` | `engine-registry` ✅ | ✅ | `copilot-marketplace` |
 | `neural-link` | **cli** | `neural-link` | `engine-registry` ✅ | ✅ | `neural-link-runtime` (redirecionado) |
 | `vox-engine` | daemon (`pipe`), **self-managed** | `vox-engine` | `engine-registry` ✅ | ✅ | `copilot-marketplace` |
+| `vxk` | **cli** (shim stdio; daemon único próprio, desligado pelo `ensure` via `runtime.shutdownPath`) | `visual-explainer` | `engine-registry` ✅ | ✅ | — (nunca esteve lá) |
+| `cerne` | daemon, **self-managed** | `cerne` | `engine-registry` ✅ | ✅ | — (nunca esteve lá) |
+| `skill-engine` | **cli** | `skill-engine` | `engine-registry` ✅ | ✅ | — (nunca esteve lá) |
 
 Cada repo de motor tem o próprio `publish.ps1`, que **builda** o que é específico dele e **delega**
 ao `kit/publish-base.ps1` a parte comum (identidade do `gh`, assinatura, release, manifest, prova).

@@ -73,7 +73,7 @@
         <div class="chips"><span class="chip">explicação visual</span><span class="chip">qualquer sistema</span></div>
         <h3>VXK</h3>
         <p class="res">Seu agente escreve o roteiro; o VXK entrega a explicação pronta, em página animada e narrada que abre offline.</p>
-        <p class="para"><b>Para quem:</b> quem pede ao agente para explicar algo difícil com imagem e voz. <b>Como usa:</b> o agente chama o VXK por MCP e recebe um único arquivo HTML.</p>
+        <p class="para"><b>Para quem:</b> quem pede ao agente para explicar algo difícil com imagem e voz. <b>Como usa:</b> o agente chama o VXK por MCP e recebe um arquivo HTML, um vídeo MP4 ou um PDF.</p>
         <div class="acoes"><a class="btn pri peq" href="https://allansantos-dv.github.io/visual-explainer/" target="_blank" rel="noopener noreferrer">Página do produto<span class="sr"> (abre em nova aba)</span> ↗</a></div>
       </article>
       <article class="card c-menta" id="m-mcp-gateway" data-motor="mcp-gateway">
@@ -125,7 +125,7 @@
         <tbody>
           <tr><th scope="row">mcp-gateway</th><td>Um endereço único para as ferramentas de vários servidores MCP</td><td><span class="sem">Nenhum motor</span></td><td>VXK, Vox Engine e Cerne, que expõem as ferramentas por MCP</td></tr>
           <tr><th scope="row">Vox Engine</th><td>Voz: ditado, transcrição, tradução e fala</td><td><span class="sem">Nenhum motor</span></td><td>VXK, que usa a voz para narrar; mcp-gateway, que expõe a fala às sessões</td></tr>
-          <tr><th scope="row">VXK</th><td>Explicação visual animada e narrada, em um HTML offline</td><td>Vox Engine, para a narração (sem ele o VXK avisa, não gera mudo)</td><td>mcp-gateway, como servidor por trás do endereço único</td></tr>
+          <tr><th scope="row">VXK</th><td>Explicação visual animada e narrada, em HTML offline, vídeo MP4 ou PDF</td><td>Vox Engine, para a narração (sem ele o VXK avisa, não gera mudo)</td><td>mcp-gateway, como servidor por trás do endereço único</td></tr>
           <tr><th scope="row">Cerne</th><td>Leitura de vídeo: quadros-chave, transcrição, tradução e memória</td><td><span class="sem">Nenhum motor</span></td><td>mcp-gateway, para entregar a leitura a várias sessões</td></tr>
           <tr><th scope="row">embed-house</th><td>Vetores de significado para busca</td><td><span class="sem">Nenhum motor</span></td><td>Qualquer plugin ou agente que consulte o endereço local</td></tr>
           <tr><th scope="row">neural-link</th><td>Uma decisão composta para cada evento de hook</td><td><span class="sem">Nenhum motor</span></td><td>Os mesmos agentes que usam o mcp-gateway, sem depender dele</td></tr>

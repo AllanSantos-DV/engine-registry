@@ -70,7 +70,7 @@
         "kind": {
           "type": "string",
           "enum": ["daemon", "cli"],
-          "description": "daemon = processo longo que anuncia runtime.json e responde healthCheck. cli = executável invocado por evento (ex.: dispatcher de hooks): o lifecycle NÃO sobe processo, só devolve o caminho do binário."
+          "description": "daemon = processo longo que anuncia runtime.json e responde healthCheck. cli = executável invocado por evento (ex.: dispatcher de hooks): o lifecycle NÃO sobe processo, só devolve o caminho do binário. Um cli pode ter um daemon próprio gerido pelo motor (caso do vxk): o kit não o sobe, mas `runtime` com `shutdownPath` faz o ensure derrubá-lo antes do swap."
         },
         "summary": { "type": "string" },
         "pagesUrl": { "type": "string", "pattern": "^https://", "description": "Página de produto do motor, com o vídeo de apresentação. Nasce do repositório do próprio motor; este registro só aponta para ela (tests/test-pages-gate.mjs confere a ordem da página)." },
@@ -131,7 +131,7 @@
         },
         "runtime": {
           "type": "object",
-          "description": "Só faz sentido para kind=daemon. Um motor kind=cli não anuncia runtime nem responde health.",
+          "description": "Para kind=daemon descreve o que o kit sobe e espera. Um motor kind=cli não tem runtime a manter vivo, salvo quando o próprio motor gere um daemon (vxk): então só `runtimeFile` e `shutdownPath` (com o token) importam, para o ensure desligá-lo antes de trocar a instalação.",
           "properties": {
             "transport": { "type": "string", "enum": ["http", "pipe"] },
             "pipeName": { "type": "string", "description": "Nome do named pipe quando transport=pipe (ex.: 'vox')." },
@@ -160,8 +160,8 @@
         {
           "if": { "properties": { "kind": { "const": "cli" } }, "required": ["kind"] },
           "then": {
-            "not": { "required": ["runtime"] },
-            "description": "kind=cli não tem runtime: o lifecycle devolve o binário sem subir processo."
+            "properties": { "runtime": { "required": ["runtimeFile", "shutdownPath", "shutdownTokenField", "shutdownTokenHeader"] } },
+            "description": "kind=cli não tem runtime a manter vivo: o lifecycle devolve o binário sem subir processo. Só um cli que gere um daemon próprio (vxk) declara runtime, e então inteiro o bastante para o ensure desligá-lo (arquivo, caminho, token e cabeçalho)."
           }
         },
         {
