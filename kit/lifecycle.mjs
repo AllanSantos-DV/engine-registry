@@ -67,10 +67,8 @@ async function findAlive(engine, healthCheck) {
 
 /** Espera o processo sair (até `ms`). true = saiu. */
 async function waitExit(pid, ms) {
-  const fim = Date.now() + ms;
-  while (Date.now() < fim) {
+  for (const fim = Date.now() + ms; Date.now() < fim; await sleep(500)) {
     try { process.kill(pid, 0); } catch { return true; }
-    await sleep(500);
   }
   return false;
 }
@@ -113,7 +111,7 @@ export async function shutdown(engine, { log = () => {}, timeoutMs = 5000, waitB
     // O motor responde ANTES de sair. Sem esta espera, o swap ainda encontra o arquivo em uso.
     await sleep(1500);
     if (adiado && rt.pid && !(await waitExit(rt.pid, waitBusyMs))) {
-      return { ok: false, reason: `${engine.name}: o motor segue ocupado após ${Math.round(waitBusyMs / 1000)} s e vai fechar quando o trabalho em curso terminar — rode de novo depois` };
+      return { ok: false, reason: `${engine.name}: ainda ocupado após ${waitBusyMs / 1000} s (fecha ao fim do trabalho em curso); rode de novo depois` };
     }
     return { ok: true, stopped: true };
   } catch (e) {

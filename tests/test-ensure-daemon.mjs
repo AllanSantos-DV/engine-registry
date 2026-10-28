@@ -138,7 +138,7 @@ const versaoNoDisco = (home) => JSON.parse(readFileSync(join(home, "bin", "packa
   const home = join(RUN, "home-ocupado-longo");
   const { proc, pid } = await instalarComDaemonVivo(home, RUNTIME, 8000);
   const s = await shutdown({ name: "fake-engine", homeDir: home, runtime: RUNTIME }, { waitBusyMs: 2000 });
-  check("shutdown devolve ok:false com o motivo", s.ok === false && /segue ocupado/.test(s.reason), JSON.stringify(s));
+  check("shutdown devolve ok:false com o motivo", s.ok === false && /ainda ocupado/.test(s.reason), JSON.stringify(s));
   check("o daemon ainda vive (o kit não o mata)", vivo(pid));
   for (let i = 0; i < 100 && vivo(pid); i++) { await sleep(200); }
   proc.kill();
