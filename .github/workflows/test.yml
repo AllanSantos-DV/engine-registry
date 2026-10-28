@@ -22,3 +22,5 @@ jobs:
           node-version: 22
       # Só o `npm test` (herméticos, sem --network). test:network e test:e2e ficam fora do CI.
       - run: npm test
+      # Página de cada motor no ar, com vídeo e na ordem (precisa de rede; só um motor com pagesPendente é tolerado).
+      - run: npm run test:pages-live

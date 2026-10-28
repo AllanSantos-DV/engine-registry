@@ -133,6 +133,7 @@ polui o histórico e obriga todo consumidor a decidir se atualiza — para desco
 ```
 [ ] chave gerada em ~/.engine-signing/<motor>_ed25519_private.key
 [ ] entrada do motor existe no manifest.json (kind, home, install.entry, platforms)
+[ ] pagesUrl (página de produto com vídeo, nascida no repo do motor) ou pagesPendente com o motivo — tests/test-pages-gate.mjs
 [ ] build produz artefato self-contained, com package.json na versão certa
 [ ] publish-base.ps1 rodado em -DryRun sem erro
 [ ] release publicada no engine-registry com .tgz + .sig + .sha256

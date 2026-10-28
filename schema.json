@@ -73,6 +73,8 @@
           "description": "daemon = processo longo que anuncia runtime.json e responde healthCheck. cli = executável invocado por evento (ex.: dispatcher de hooks): o lifecycle NÃO sobe processo, só devolve o caminho do binário."
         },
         "summary": { "type": "string" },
+        "pagesUrl": { "type": "string", "pattern": "^https://", "description": "Página de produto do motor, com o vídeo de apresentação. Nasce do repositório do próprio motor; este registro só aponta para ela (tests/test-pages-gate.mjs confere a ordem da página)." },
+        "pagesPendente": { "type": "string", "minLength": 10, "description": "Motivo explícito de a página de produto ainda não existir ou não cumprir a ordem (vídeo primeiro). Enquanto presente, o portão ao vivo tolera a falha e mostra o motivo. Remova quando a página passar." },
         "home": { "type": "string", "description": "Diretório de instalação; '~' é expandido." },
         "status": { "type": "string", "enum": ["pending-release", "self-managed"], "description": "pending-release = ainda não consumível; provision aborta com razão explícita. self-managed = o motor traz o próprio instalador/updater e NÃO é provisionado pelo kit; a entrada existe como descritor de registro (release, chave, versão) e o provision aborta apontando o caminho certo." },
         "notes": { "type": "string" },
@@ -154,6 +156,7 @@
         }
       },
       "allOf": [
+        { "anyOf": [ { "required": ["pagesUrl"] }, { "required": ["pagesPendente"] } ], "description": "Nenhum motor sem página de produto: ou tem pagesUrl, ou declara pagesPendente com o motivo." },
         {
           "if": { "properties": { "kind": { "const": "cli" } }, "required": ["kind"] },
           "then": {

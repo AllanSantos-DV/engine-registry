@@ -14,6 +14,7 @@
       "version": "1.0.5",
       "kind": "daemon",
       "summary": "Casa de embeddings compartilhada (MiniLM-L6-v2, 384-dim): carrega o modelo UMA vez e serve vetores a N consumidores via 127.0.0.1, em vez de cada sessão carregar ~147 MB.",
+      "pagesPendente": "sem página de produto com vídeo; ela nasce do repositório do próprio motor e este registro só aponta para ela",
       "home": "~/.embed-house",
       "install": {
         "type": "github-release",
@@ -48,6 +49,8 @@
       "kind": "daemon",
       "status": "self-managed",
       "summary": "Motor de voz (STT/TTS) compartilhado: transcreve e sintetiza para N consumidores a partir de uma única instância, com auto-unload quando ocioso.",
+      "pagesUrl": "https://allansantos-dv.github.io/vox-engine/",
+      "pagesPendente": "a página no ar não tem o vídeo de apresentação nem o botão Apresentar no cabeçalho",
       "home": "~/.vox-engine",
       "install": {
         "type": "github-release",
@@ -80,6 +83,7 @@
       "version": "0.16.4",
       "kind": "daemon",
       "summary": "Agregador MCP: conecta UMA vez em cada servidor MCP e reexpõe todas as tools num endpoint Streamable HTTP único, com auth bearer, namespacing condicional, resiliência e auditoria. Mata a multiplicação de processos por sessão.",
+      "pagesPendente": "sem página de produto com vídeo; ela nasce do repositório do próprio motor e este registro só aponta para ela",
       "home": "~/.mcp-gateway",
       "install": {
         "type": "github-release",
@@ -112,6 +116,7 @@
       "version": "0.7.15",
       "kind": "cli",
       "summary": "Dispatcher adaptativo de hooks para agentes LLM: recebe o evento por stdin, pontua e executa os handlers registrados, e devolve UMA decisão composta. Não é daemon — é invocado a cada evento de hook, por qualquer host (Copilot CLI, VS Code, Claude Code).",
+      "pagesPendente": "sem página de produto com vídeo; ela nasce do repositório do próprio motor e este registro só aponta para ela",
       "home": "~/.copilot/neural-link",
       "install": {
         "type": "github-release",
@@ -135,6 +140,8 @@
       "version": "0.18.0",
       "kind": "cli",
       "summary": "VXK — explicações visuais animadas e narradas como servidor MCP (stdio): qualquer cliente MCP (Claude Code, Codex, Copilot) compõe a biblioteca de componentes, ícones e o controle único de reprodução e recebe UM HTML autocontido e offline. A narração é assada pelo motor vox-engine.",
+      "pagesUrl": "https://allansantos-dv.github.io/visual-explainer/",
+      "pagesPendente": "a página no ar não oferece o caminho Ver o que o produto faz antes do vídeo",
       "home": "~/.vxk",
       "install": {
         "type": "github-release",
@@ -159,6 +166,7 @@
       "kind": "daemon",
       "status": "self-managed",
       "summary": "Leitura ativa de vídeo por link ou arquivo: captura, seleção de quadros, transcrição, tradução e consolidação em memória, exposta via servidor MCP por um único daemon local (CerneEngine) compartilhado entre os consumidores.",
+      "pagesPendente": "sem página de produto com vídeo; ela nasce do repositório do próprio motor e este registro só aponta para ela",
       "home": "~/AppData/Local/Programs/Cerne",
       "install": {
         "type": "github-release",
@@ -183,6 +191,7 @@
       "version": "0.1.0",
       "kind": "cli",
       "summary": "Skill Manager v2: motor portátil que gerencia skills de agentes fora de qualquer IDE — busca repositórios de skills em quarentena, varre com regras determinísticas e só ativa o que sai limpo, nas pastas que Claude Code, Codex, Copilot e OpenCode leem. CLI `skill-engine`, não é daemon.",
+      "pagesPendente": "sem página de produto com vídeo; ela nasce do repositório do próprio motor e este registro só aponta para ela (a sessão do skill-manager a constrói)",
       "home": "~/.skill-engine",
       "install": {
         "type": "github-release",
