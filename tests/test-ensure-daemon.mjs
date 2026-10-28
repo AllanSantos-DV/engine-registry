@@ -15,7 +15,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { generateKeyPairHex, signBlob } from "../kit/index.mjs";
-import { tarBinary } from "../kit/provision.mjs";
+import { tarBinary, renameRetry } from "../kit/provision.mjs";
 import { ensureCommand } from "../kit/ensure.mjs";
 import { shutdown } from "../kit/lifecycle.mjs";
 
@@ -165,5 +165,29 @@ if (process.platform === "win32") {
   for (let i = 0; i < 20 && vivo(pid); i++) { await sleep(100); }
 }
 
-console.log(failures === 0 ? "\n== TUDO VERDE ==" : `\n== ${failures} FALHA(S) ==`);
+{
+  // Determinístico: um processo com a pasta como cwd (o handle que o daemon deixa) sai num instante marcado;
+  // no Windows o rename ocupado falha com EBUSY/EPERM até lá e o retry tem de absorver.
+  console.log("\n-- swap: rename ocupado repete com backoff e passa quando o handle solta --");
+  const seguro = (n) => { const d = join(RUN, n); mkdirSync(d, { recursive: true }); writeFileSync(join(d, "f.txt"), "x"); return d; };
+  const seguraAte = (d, ms) => spawn(process.execPath, ["-e", `setTimeout(() => {}, ${ms})`], { cwd: d, windowsHide: true, stdio: "ignore" });
+  const a = seguro("rn-a");
+  const h1 = seguraAte(a, 700);
+  await sleep(300);
+  let erro = null;
+  try { await renameRetry(a, `${a}-novo`); } catch (e) { erro = e; }
+  check("renameRetry passou depois que o handle soltou", !erro && existsSync(join(`${a}-novo`, "f.txt")), erro ? `${erro.code}` : "");
+
+  const b = seguro("rn-b");
+  const h2 = seguraAte(b, 20000);
+  await sleep(300);
+  erro = null;
+  try { await renameRetry(b, `${b}-novo`, 3); } catch (e) { erro = e; }
+  if (process.platform === "win32") {
+    check("handle que não solta: lança o erro do SO (visível), sem estado parcial", /^(EBUSY|EPERM|EACCES)$/.test(erro?.code) && existsSync(join(b, "f.txt")) && !existsSync(`${b}-novo`), `${erro?.code}`);
+  }
+  h1.kill(); h2.kill();
+}
+
+console.log(failures === 0 ? "\n== TUDO VERDE ==": `\n== ${failures} FALHA(S) ==`);
 process.exitCode = failures === 0 ? 0 : 1;

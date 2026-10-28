@@ -16,6 +16,16 @@ import { checkTrust, trustPath } from "./trust.mjs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// No Windows o handle de quem acabou de sair solta um instante depois: rename ocupado repete com backoff, depois lança.
+export async function renameRetry(a, b, tries = 8) {
+  for (let i = 1; ; await sleep(100 * i++)) {
+    try { return renameSync(a, b); } catch (e) { if (i >= tries || !/^(EBUSY|EPERM|EACCES)$/.test(e.code)) { throw e; } }
+  }
+}
+
+const dropFile = (p) => { try { unlinkSync(p); } catch { /* ignore */ } };
+const rmTree = (p) => rmSync(p, { recursive: true, force: true });
+
 /** Lock mais velho que isto é considerado ÓRFÃO (processo morreu antes do finally). */
 const LOCK_STALE_MS = 120000;
 
@@ -56,19 +66,13 @@ function extractTgz(tgz, dest) {
  * `openSync` e o `finally` travaria todos os consumidores para sempre.
  */
 function claimLock(lock) {
-  try {
+  const open = () => {
     const fd = openSync(lock, "wx");
     try { writeFileSync(lock, String(process.pid)); } catch { /* diagnóstico é best-effort */ }
     return fd;
-  } catch {
-    try {
-      if (Date.now() - statSync(lock).mtimeMs > LOCK_STALE_MS) {
-        unlinkSync(lock);
-        const fd = openSync(lock, "wx");
-        try { writeFileSync(lock, String(process.pid)); } catch { /* ignore */ }
-        return fd;
-      }
-    } catch { /* outro consumidor ganhou a corrida */ }
+  };
+  try { return open(); } catch {
+    try { if (Date.now() - statSync(lock).mtimeMs > LOCK_STALE_MS) { unlinkSync(lock); return open(); } } catch { /* outro consumidor ganhou a corrida */ }
     return null;
   }
 }
@@ -305,7 +309,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
     // 3) Integridade (mismatch = apaga + ABORT).
     const actual = sha256File(tgz);
     if (actual !== expected) {
-      try { unlinkSync(tgz); } catch { /* ignore */ }
+      dropFile(tgz);
       return { ok: false, reason: `${engine.name}: SHA256 mismatch (esperado ${expected.slice(0, 12)}…, obtido ${actual.slice(0, 12)}…) → ABORT` };
     }
 
@@ -313,13 +317,13 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
     //      final: se a assinatura não confere, o .tgz é apagado e nada é instalado.
     const auth = await verifyAuthenticity(engine, buf, { log, fetcher, trustedKeys });
     if (!auth.ok) {
-      try { unlinkSync(tgz); } catch { /* ignore */ }
+      dropFile(tgz);
       return { ok: false, reason: auth.reason };
     }
 
     // 4) Extrai em staging e faz o swap (com shutdown-first se já existe).
     const staging = join(home, `stage-${engine.version}`);
-    rmSync(staging, { recursive: true, force: true });
+    rmTree(staging);
     mkdirSync(staging, { recursive: true });
     const ex = extractTgz(tgz, staging);
     if (!ex.ok) { return { ok: false, reason: `${engine.name}: ${ex.reason}` }; }
@@ -329,8 +333,8 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
     //      sha256 e pela Ed25519. O package.json do artefato tem de dizer a versão que o registry pede.
     const got = installedVersion(staging);
     if (got !== engine.version) {
-      rmSync(staging, { recursive: true, force: true });
-      try { unlinkSync(tgz); } catch { /* ignore */ }
+      rmTree(staging);
+      dropFile(tgz);
       return { ok: false, reason: `${engine.name}: o artefato diz v${got ?? "? (package.json ausente/ilegível)"} e o registry pede v${engine.version} → ABORT` };
     }
 
@@ -341,12 +345,12 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
     if (existsSync(binDir)) {
       if (onBeforeReplace) { try { await onBeforeReplace(); } catch { /* best-effort */ } }
       aside = `${binDir}.old-${process.pid}`;
-      rmSync(aside, { recursive: true, force: true });
+      rmTree(aside);
       try {
-        renameSync(binDir, aside);
+        await renameRetry(binDir, aside);
       } catch (e) {
-        rmSync(staging, { recursive: true, force: true });
-        try { unlinkSync(tgz); } catch { /* ignore */ }
+        rmTree(staging);
+        dropFile(tgz);
         return { ok: false, reason: `${engine.name}: não consegui trocar ${binDir} (${e.code || e.message}): arquivos em uso — feche quem usa o motor e rode de novo; a instalação atual ficou intacta` };
       }
     }
@@ -355,16 +359,16 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
     // isto, funciona na máquina que já tem a pasta e falha justamente na máquina limpa.
     mkdirSync(dirname(binDir), { recursive: true });
     try {
-      renameSync(staging, binDir);
+      await renameRetry(staging, binDir);
     } catch (e) {
       if (aside) { try { renameSync(aside, binDir); } catch { /* o reason abaixo diz onde ficou */ } }
       return { ok: false, reason: `${engine.name}: swap falhou (${e.code || e.message})${aside && existsSync(aside) ? `; a instalação anterior está em ${aside}` : ""}` };
     }
     if (aside) {
-      try { rmSync(aside, { recursive: true, force: true }); }
+      try { rmTree(aside); }
       catch (e) { log(`[engine-kit] ${engine.name}: instalado, mas a versão anterior ficou em ${aside} (${e.code || e.message})`); }
     }
-    try { unlinkSync(tgz); } catch { /* ignore */ }
+    dropFile(tgz);
 
     if (!existsSync(entryPath)) {
       return { ok: false, reason: `${engine.name}: artefato extraído incompleto (sem ${engine.install.entry})` };
