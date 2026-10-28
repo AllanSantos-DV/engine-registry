@@ -270,7 +270,7 @@ plataforma, e a release mora aqui, no registry público, com download **sem logi
 
 | App | Versão | Plataformas | O que faz |
 |---|---|---|---|
-| `agent-launcher` | 1.2.5 | `win32-x64` | Abre Claude Code, Codex e Copilot CLI nos seus projetos por qualquer host de modelos. |
+| `agent-launcher` | 1.2.6 | `win32-x64` | Abre Claude Code, Codex e Copilot CLI nos seus projetos por qualquer host de modelos. |
 
 Um app só entra nesta tabela e em `manifest.apps` **depois** de a release pública existir e passar
 em `node kit/verify-release.mjs --app <nome>` (download anônimo de todos os assets, `.sha256` e
