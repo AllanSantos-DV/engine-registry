@@ -43,7 +43,7 @@ Um motor pode ser de dois tipos (`kind`):
 - **`cli`** — executável invocado **por evento** (ex.: um dispatcher de hooks). Não há processo
   para manter vivo: provisionar já é entregar. O `lifecycle` devolve o caminho do binário sem
   spawn, sem health e sem runtime — forçar um daemon aqui seria inventar um ciclo de vida que o
-  motor não tem. Exceção: o `vxk` é `cli` (o host sobe um shim stdio por agente) mas esse shim delega a
+  motor não tem. Exceção: `vxk` (shim stdio por agente) e `client-harness` são `cli` mas delegam a
   um daemon único por máquina. O kit não sobe nem espera esse daemon, mas o manifest declara `runtime`
   (`run/daemon.json`, `shutdownPath`, token) para o `ensure` pedir o desligamento antes de trocar a
   instalação — no Windows um daemon vivo segura a pasta e o swap falharia com EPERM.

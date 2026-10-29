@@ -160,6 +160,7 @@ polui o histórico e obriga todo consumidor a decidir se atualiza — para desco
 | `vxk` | **cli** (shim stdio; daemon único próprio, desligado pelo `ensure` via `runtime.shutdownPath`) | `visual-explainer` | `engine-registry` ✅ | ✅ | — (nunca esteve lá) |
 | `cerne` | daemon, **self-managed** | `cerne` | `engine-registry` ✅ | ✅ | — (nunca esteve lá) |
 | `skill-engine` | **cli** | `skill-engine` | `engine-registry` ✅ | ✅ | — (nunca esteve lá) |
+| `client-harness` | **cli** (daemon único próprio, desligado pelo `ensure` via `runtime.shutdownPath`) | `harness-padroes-cliente` | `engine-registry` ✅ | ✅ | — (nunca esteve lá) |
 
 Cada repo de motor tem o próprio `publish.ps1`, que **builda** o que é específico dele e **delega**
 ao `kit/publish-base.ps1` a parte comum (identidade do `gh`, assinatura, release, manifest, prova).

@@ -8,7 +8,7 @@ projeto, revisões, testes internos, backlog, veredito ou PR (`tests/test-site.m
 
 ```
 site/                         # tudo que vai ao ar; estático, sem build, sem rede
-  index.html                  # primeira tela com o vídeo, sete cards, tabela e mapa de correlação, como usar, números
+  index.html                  # primeira tela com o vídeo, oito cards, tabela e mapa de correlação, como usar, números
   assets/styles.css           # identidade do índice de produtos (verde-tinta, menta como sinal)
   assets/site.js              # modo Apresentar (cenas, narração, mapa revelado em passos) e aviso de vídeo ausente
   assets/mark.svg
