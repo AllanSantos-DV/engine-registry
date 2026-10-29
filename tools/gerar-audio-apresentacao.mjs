@@ -16,6 +16,9 @@ const { VoxClient } = await import(pathToFileURL(sdkPath).href);
 
 const js = readFileSync(join(REPO, "site", "assets", "site.js"), "utf8");
 const CENAS = new Function(`${js.slice(js.indexOf("const CENAS"), js.indexOf("const $ ="))}; return CENAS;`)();
+// Grafia falada: a voz lê nomes em inglês pelo som do português ("client-harness" saía "cliente Arnés"); a legenda e o roteiro mantêm o nome.
+const FALADO = [[/client-harness/g, "cláient rárness"], [/skill-engine/g, "skil engine"], [/\bhook\b/g, "rúque"]];
+const falado = (t) => FALADO.reduce((acc, [de, para]) => acc.replace(de, para), t);
 const dur = (f) => Number(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f], { encoding: "utf8", windowsHide: true }));
 
 const client = await VoxClient.tryConnect();
@@ -30,7 +33,7 @@ const tmp = mkdtempSync(join(tmpdir(), "vox-ap-"));
 let falas = 0, total = 0;
 for (const [i, cena] of CENAS.entries()) {
   for (const [j, texto] of cena.partes.entries()) {
-    const { header, audio } = await client.tts(texto, { voice: voz, speed: 1, format: "mp3" });
+    const { header, audio } = await client.tts(falado(texto), { voice: voz, speed: 1, format: "mp3" });
     if (header?.event === "error" || header?.error) { throw new Error(`motor falhou em c${i + 1}-p${j + 1}: ${header.error || header.event}`); }
     if (header?.voice && header.voice !== voz) { throw new Error(`voz errada em c${i + 1}-p${j + 1}: padrão "${voz}", motor usou "${header.voice}"`); }
     const buf = Buffer.from(audio);

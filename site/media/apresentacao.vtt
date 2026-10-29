@@ -1,173 +1,189 @@
 WEBVTT
 
 1
-00:00:00.450 --> 00:00:02.774
+00:00:00.450 --> 00:00:02.712
 Esta é a casa dos motores locais: você
 
 2
-00:00:02.774 --> 00:00:05.107
+00:00:02.712 --> 00:00:04.980
 instala cada um uma vez e todos os seus
 
 3
-00:00:05.107 --> 00:00:07.514
+00:00:04.980 --> 00:00:07.328
 aplicativos e agentes passam a usar.
 
 4
-00:00:08.450 --> 00:00:11.655
+00:00:08.450 --> 00:00:11.692
 Hoje, cada ferramenta de inteligência artificial costuma
 
 5
-00:00:11.655 --> 00:00:14.423
+00:00:11.692 --> 00:00:14.491
 carregar o próprio modelo, o próprio servidor e o
 
 6
-00:00:14.423 --> 00:00:17.079
+00:00:14.491 --> 00:00:17.179
 próprio processo. Com várias sessões abertas, o
 
 7
-00:00:17.079 --> 00:00:19.958
+00:00:17.179 --> 00:00:20.090
 computador repete o mesmo trabalho muitas vezes. Um
 
 8
-00:00:19.958 --> 00:00:23.418
+00:00:20.090 --> 00:00:23.588
 motor faz o trabalho pesado uma única vez, nesta máquina.
 
 9
-00:00:24.450 --> 00:00:27.126
+00:00:24.450 --> 00:00:27.096
 O Claude Code, o Codex, o Copilot, o Cursor e
 
 10
-00:00:27.126 --> 00:00:29.888
+00:00:27.096 --> 00:00:29.830
 os seus scripts pedem a ele o que precisam.
 
 11
-00:00:30.950 --> 00:00:34.079
-Aqui vivem seis motores locais que fazem esse trabalho
+00:00:30.950 --> 00:00:34.096
+Aqui vivem oito motores locais que fazem esse trabalho
 
 12
-00:00:34.079 --> 00:00:36.934
+00:00:34.096 --> 00:00:36.966
 uma única vez por máquina e atendem o Claude Code,
 
 13
-00:00:36.934 --> 00:00:39.871
+00:00:36.966 --> 00:00:39.918
 o Codex, o Copilot, o Cursor e os seus scripts.
 
 14
-00:00:40.950 --> 00:00:43.689
+00:00:40.950 --> 00:00:43.686
 O Vox Engine dita, transcreve, traduz e fala. O
 
 15
-00:00:43.689 --> 00:00:46.266
+00:00:43.686 --> 00:00:46.260
 Cerne lê um vídeo e guarda o que importa numa
 
 16
-00:00:46.266 --> 00:00:49.067
+00:00:46.260 --> 00:00:49.058
 memória que dá para pesquisar. O VXK transforma o
 
 17
-00:00:49.067 --> 00:00:52.286
+00:00:49.058 --> 00:00:52.274
 roteiro do agente numa explicação animada e narrada.
 
 18
-00:00:52.950 --> 00:00:56.124
+00:00:52.950 --> 00:00:56.131
 O mcp-gateway reúne todos os servidores MCP num endereço
 
 19
-00:00:56.124 --> 00:00:59.193
+00:00:56.131 --> 00:00:59.208
 só. O embed-house serve os vetores de busca sem repetir
 
 20
-00:00:59.193 --> 00:01:02.097
-o modelo em cada sessão. E o neural-link devolve uma
+00:00:59.208 --> 00:01:02.009
+o modelo em cada sessão. O neural-link devolve uma
 
 21
-00:01:02.097 --> 00:01:05.087
+00:01:02.009 --> 00:01:05.006
 decisão única para cada evento de hook do agente.
 
 22
-00:01:05.950 --> 00:01:09.098
-Tudo começa nos seus agentes e aplicativos. Eles se
+00:01:05.950 --> 00:01:08.378
+O skill-engine confere as skills de terceiros
 
 23
-00:01:09.098 --> 00:01:12.195
-conectam ao mcp-gateway: uma conexão por servidor e
+00:01:08.378 --> 00:01:10.808
+e só ativa o que sai limpo. E o client-harness
 
 24
-00:01:12.195 --> 00:01:15.174
-um endereço para todos. Por trás dele ficam o Vox
+00:01:10.808 --> 00:01:12.980
+faz o agente respeitar os padrões de cada
 
 25
-00:01:15.174 --> 00:01:18.700
-Engine, o Cerne e o VXK, cada um com a sua ferramenta.
+00:01:12.980 --> 00:01:15.091
+cliente, recusando antes de gravar.
 
 26
-00:01:19.450 --> 00:01:22.363
-O VXK usa o Vox para narrar as explicações. Sem o
+00:01:15.950 --> 00:01:19.194
+Tudo começa nos seus agentes e aplicativos. Eles se
 
 27
-00:01:22.363 --> 00:01:25.283
-Vox, ele avisa, em vez de gerar uma página muda. O
+00:01:19.194 --> 00:01:22.387
+conectam ao mcp-gateway: uma conexão por servidor e
 
 28
-00:01:25.283 --> 00:01:28.568
-embed-house e o neural-link atendem o agente direto.
+00:01:22.387 --> 00:01:25.458
+um endereço para todos. Por trás dele ficam o Vox
 
 29
-00:01:29.450 --> 00:01:33.210
-E embaixo de tudo, o engine-kit instala, verifica e
+00:01:25.458 --> 00:01:29.086
+Engine, o Cerne e o VXK, cada um com a sua ferramenta.
 
 30
-00:01:33.210 --> 00:01:37.062
-mantém vivo cada motor. Antes de instalar, cada motor
+00:01:29.950 --> 00:01:32.871
+O VXK usa o Vox para narrar as explicações. Sem o
 
 31
-00:01:37.062 --> 00:01:40.915
-passa por duas conferências: o SHA-256 e a assinatura
+00:01:32.871 --> 00:01:35.799
+Vox, ele avisa, em vez de gerar uma página muda. O
 
 32
-00:01:40.915 --> 00:01:44.375
-Ed25519. Se alguma falhar, nada é instalado.
+00:01:35.799 --> 00:01:39.092
+embed-house e o neural-link atendem o agente direto.
 
 33
-00:01:45.450 --> 00:01:47.761
-Para começar, escolha o motor, instale
+00:01:39.950 --> 00:01:43.615
+E embaixo de tudo, o engine-kit instala, verifica e
 
 34
-00:01:47.761 --> 00:01:50.157
-pelo kit e use nos seus aplicativos.
+00:01:43.615 --> 00:01:47.370
+mantém vivo cada motor. Antes de instalar, cada motor
 
 35
-00:01:50.950 --> 00:01:54.172
-São seis motores, cento e quarenta e sete megabytes
+00:01:47.370 --> 00:01:51.124
+passa por duas conferências: o SHA-256 e a assinatura
 
 36
-00:01:54.172 --> 00:01:56.979
-de modelo carregados uma vez, e três sistemas
+00:01:51.124 --> 00:01:54.503
+Ed25519. Se alguma falhar, nada é instalado.
 
 37
-00:01:56.979 --> 00:02:00.462
-atendidos: Windows, Linux e macOS, conforme o motor.
+00:01:55.450 --> 00:01:57.785
+Para começar, escolha o motor, instale
 
 38
-00:02:01.450 --> 00:02:04.159
-O cliente de instalação, o engine-kit, tem menos
+00:01:57.785 --> 00:02:00.203
+pelo kit e use nos seus aplicativos.
 
 39
-00:02:04.159 --> 00:02:07.035
-de vinte e sete quilobytes de código, e cada release
+00:02:00.950 --> 00:02:04.135
+São oito motores, cento e quarenta e sete megabytes
 
 40
-00:02:07.035 --> 00:02:09.836
-passa por duas conferências antes de instalar.
+00:02:04.135 --> 00:02:06.909
+de modelo carregados uma vez, e três sistemas
 
 41
-00:02:10.950 --> 00:02:13.641
-Quando um motor é atualizado, todos os aplicativos
+00:02:06.909 --> 00:02:10.354
+atendidos: Windows, Linux e macOS, conforme o motor.
 
 42
-00:02:13.641 --> 00:02:16.489
-recebem a nova versão ao mesmo tempo. Engine-registry:
+00:02:11.450 --> 00:02:14.183
+O cliente de instalação, o engine-kit, tem menos
 
 43
-00:02:16.489 --> 00:02:18.810
+00:02:14.183 --> 00:02:17.086
+de vinte e sete quilobytes de código, e cada release
+
+44
+00:02:17.086 --> 00:02:19.910
+passa por duas conferências antes de instalar.
+
+45
+00:02:20.950 --> 00:02:23.751
+Quando um motor é atualizado, todos os aplicativos
+
+46
+00:02:23.751 --> 00:02:26.717
+recebem a nova versão ao mesmo tempo. Engine-registry:
+
+47
+00:02:26.717 --> 00:02:29.125
 instale uma vez, use em qualquer lugar.

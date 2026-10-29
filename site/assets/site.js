@@ -13,6 +13,8 @@
     ["mcp-gateway", "um endereço para todos os servidores MCP", "#6ef2b5"],
     ["embed-house", "vetores de busca sem repetir o modelo", "#b79cff"],
     ["neural-link", "uma decisão para cada evento de hook", "#b8e86b"],
+    ["skill-engine", "skills de terceiros conferidas antes de ativar", "#ff8a5c"],
+    ["client-harness", "o agente respeita os padrões de cada cliente", "#eaf4ef"],
   ];
   const CENAS = [
     { t: "engine-registry", vis: "hero", partes: [
@@ -26,13 +28,15 @@
       "Um motor faz o trabalho pesado uma única vez, nesta máquina.",
       "O Claude Code, o Codex, o Copilot, o Cursor e os seus scripts pedem a ele o que precisam.",
     ] },
-    { t: "Os seis motores", vis: "fichas", partes: [
+    { t: "Os oito motores", vis: "fichas", partes: [
       "O Vox Engine dita, transcreve, traduz e fala.",
       "O Cerne lê um vídeo e guarda o que importa numa memória que dá para pesquisar.",
       "O VXK transforma o roteiro do agente numa explicação animada e narrada.",
       "O mcp-gateway reúne todos os servidores MCP num endereço só.",
       "O embed-house serve os vetores de busca sem repetir o modelo em cada sessão.",
-      "E o neural-link devolve uma decisão única para cada evento de hook do agente.",
+      "O neural-link devolve uma decisão única para cada evento de hook do agente.",
+      "O skill-engine confere as skills de terceiros e só ativa o que sai limpo.",
+      "E o client-harness faz o agente respeitar os padrões de cada cliente, recusando antes de gravar.",
     ] },
     { t: "Como se conectam", vis: "mapa", partes: [
       "Tudo começa nos seus agentes e aplicativos.",

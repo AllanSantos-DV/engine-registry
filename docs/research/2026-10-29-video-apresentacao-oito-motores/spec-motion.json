@@ -1,0 +1,267 @@
+{
+  "modo": "motion",
+  "tipo": "motion-apresentacao",
+  "titulo": "engine-registry: instale uma vez, use em qualquer lugar",
+  "slug": "engine-registry-apresentacao",
+  "estilo": "grade-tecnica",
+  "somenteVox": true,
+  "marca": {
+    "nome": "engine-registry",
+    "cor": "#6ef2b5",
+    "cor2": "#7cc4ff",
+    "icone": "network"
+  },
+  "paleta": {
+    "fundo": "#07110e",
+    "texto": "#eaf4ef",
+    "cor": "#6ef2b5",
+    "cor2": "#7cc4ff",
+    "cor3": "#ffd166"
+  },
+  "cenas": [
+    {
+      "cena": "abertura",
+      "kicker": "motores locais compartilhados",
+      "titulo": "Instale uma vez. Use em qualquer lugar.",
+      "subtitulo": "Oito motores locais para voz, vídeo, vetores, MCP, hooks e skills, compartilhados por todos os seus apps.",
+      "fala": "Esta é a casa dos motores locais: você instala cada um uma vez e todos os seus aplicativos e agentes passam a usar."
+    },
+    {
+      "cena": "comparacao",
+      "titulo": "Um motor, em vez de um por ferramenta",
+      "antes": {
+        "titulo": "Hoje",
+        "itens": [
+          "Um modelo por ferramenta",
+          "Um servidor por ferramenta",
+          "Um processo por ferramenta"
+        ]
+      },
+      "depois": {
+        "titulo": "Com o engine-registry",
+        "itens": [
+          "O trabalho pesado, uma única vez",
+          "Um motor por máquina",
+          "Todos os apps pedem a ele"
+        ]
+      },
+      "fala": "Hoje, cada ferramenta de inteligência artificial costuma carregar o próprio modelo, o próprio servidor e o próprio processo. Com várias sessões abertas, o computador repete o mesmo trabalho muitas vezes. Um motor faz o trabalho pesado uma única vez, nesta máquina."
+    },
+    {
+      "cena": "impacto",
+      "frases": [
+        "Um motor.",
+        "Uma instalação.",
+        "Todos os apps."
+      ],
+      "fala": "O Claude Code, o Codex, o Copilot, o Cursor e os seus scripts pedem a ele o que precisam.",
+      "fala_fonetica": "O Clód Code, o Códex, o Copáilot, o Cúrsor e os seus scripts pedem a ele o que precisam."
+    },
+    {
+      "cena": "tela",
+      "titulo": "O site do engine-registry",
+      "imagem": "telas/topo.png",
+      "foco": {
+        "x": 0.05,
+        "y": 0.17,
+        "w": 0.52,
+        "h": 0.52
+      },
+      "rotulo": "Motores que você instala uma vez",
+      "endereco": "engine-registry",
+      "fala": "Aqui vivem oito motores locais que fazem esse trabalho uma única vez por máquina e atendem o Claude Code, o Codex, o Copilot, o Cursor e os seus scripts.",
+      "fala_fonetica": "Aqui vivem oito motores locais que fazem esse trabalho uma única vez por máquina e atendem o Clód Code, o Códex, o Copáilot, o Cúrsor e os seus scripts."
+    },
+    {
+      "cena": "lista",
+      "titulo": "Voz, vídeo e explicação",
+      "itens": [
+        {
+          "titulo": "Vox Engine",
+          "texto": "dita, transcreve, traduz e fala",
+          "icone": "mic"
+        },
+        {
+          "titulo": "Cerne",
+          "texto": "guarda o que importa de um vídeo, para pesquisar",
+          "icone": "database"
+        },
+        {
+          "titulo": "VXK",
+          "texto": "roteiro do agente vira explicação animada e narrada",
+          "icone": "film"
+        }
+      ],
+      "fala": "O Vox Engine dita, transcreve, traduz e fala. O Cerne lê um vídeo e guarda o que importa numa memória que dá para pesquisar. O VXK transforma o roteiro do agente numa explicação animada e narrada.",
+      "fala_fonetica": "O Vox Engine dita, transcreve, traduz e fala. O Cerne lê um vídeo e guarda o que importa numa memória que dá para pesquisar. O vê xis cá transforma o roteiro do agente numa explicação animada e narrada."
+    },
+    {
+      "cena": "lista",
+      "titulo": "Conexão, vetores e hooks",
+      "itens": [
+        {
+          "titulo": "mcp-gateway",
+          "texto": "todos os servidores MCP num endereço só",
+          "icone": "network"
+        },
+        {
+          "titulo": "embed-house",
+          "texto": "serve os vetores de busca sem repetir o modelo",
+          "icone": "binary"
+        },
+        {
+          "titulo": "neural-link",
+          "texto": "uma decisão única por evento de hook",
+          "icone": "zap"
+        }
+      ],
+      "fala": "O mcp-gateway reúne todos os servidores MCP num endereço só. O embed-house serve os vetores de busca sem repetir o modelo em cada sessão. O neural-link devolve uma decisão única para cada evento de hook do agente.",
+      "fala_fonetica": "O êmicêpê gateway reúne todos os servidores êmicêpê num endereço só. O embed house serve os vetores de busca sem repetir o modelo em cada sessão. O neural link devolve uma decisão única para cada evento de rúque do agente."
+    },
+    {
+      "cena": "lista",
+      "titulo": "Skills e padrões de cliente",
+      "itens": [
+        {
+          "titulo": "skill-engine",
+          "texto": "confere as skills de terceiros antes de ativar",
+          "icone": "shield"
+        },
+        {
+          "titulo": "client-harness",
+          "texto": "o agente respeita os padrões de cada cliente",
+          "icone": "shield-check"
+        }
+      ],
+      "fala": "O skill-engine confere as skills de terceiros e só ativa o que sai limpo. E o client-harness faz o agente respeitar os padrões de cada cliente, recusando antes de gravar.",
+      "fala_fonetica": "O skil engine confere as skills de terceiros e só ativa o que sai limpo. E o cláient rárness faz o agente respeitar os padrões de cada cliente, recusando antes de gravar."
+    },
+    {
+      "cena": "fluxo",
+      "titulo": "Como se conectam",
+      "etapas": [
+        {
+          "titulo": "Agentes e apps",
+          "icone": "bot",
+          "texto": "Claude Code, Codex, Cursor"
+        },
+        {
+          "titulo": "mcp-gateway",
+          "icone": "network",
+          "texto": "um endereço para todos"
+        },
+        {
+          "titulo": "Vox Engine",
+          "icone": "mic",
+          "texto": "voz"
+        },
+        {
+          "titulo": "Cerne",
+          "icone": "database",
+          "texto": "memória de vídeo"
+        },
+        {
+          "titulo": "VXK",
+          "icone": "film",
+          "texto": "explicação animada"
+        }
+      ],
+      "destaque": 1,
+      "fala": "Tudo começa nos seus agentes e aplicativos. Eles se conectam ao mcp-gateway: uma conexão por servidor e um endereço para todos. Por trás dele ficam o Vox Engine, o Cerne e o VXK, cada um com a sua ferramenta.",
+      "fala_fonetica": "Tudo começa nos seus agentes e aplicativos. Eles se conectam ao êmicêpê gateway: uma conexão por servidor e um endereço para todos. Por trás dele ficam o Vox Engine, o Cerne e o vê xis cá, cada um com a sua ferramenta."
+    },
+    {
+      "cena": "tela",
+      "titulo": "Quem precisa de quem",
+      "imagem": "telas/conexoes.png",
+      "foco": {
+        "x": 0.05,
+        "y": 0.5,
+        "w": 0.9,
+        "h": 0.46
+      },
+      "rotulo": "O VXK usa o Vox para narrar",
+      "endereco": "engine-registry",
+      "fala": "O VXK usa o Vox para narrar as explicações. Sem o Vox, ele avisa, em vez de gerar uma página muda. O embed-house e o neural-link atendem o agente direto.",
+      "fala_fonetica": "O vê xis cá usa o Vox para narrar as explicações. Sem o Vox, ele avisa, em vez de gerar uma página muda. O embed house e o neural link atendem o agente direto."
+    },
+    {
+      "cena": "terminal",
+      "titulo": "O engine-kit instala e confere",
+      "linhas": [
+        {
+          "cmd": "node kit/doctor.mjs --fix --engine vxk"
+        },
+        {
+          "out": "confere o SHA-256 e a assinatura Ed25519"
+        },
+        {
+          "out": "falhou? nada é instalado"
+        }
+      ],
+      "fala": "E embaixo de tudo, o engine-kit instala, verifica e mantém vivo cada motor. Antes de instalar, cada motor passa por duas conferências: o SHA-256 e a assinatura Ed25519. Se alguma falhar, nada é instalado.",
+      "fala_fonetica": "E embaixo de tudo, o engine kit instala, verifica e mantém vivo cada motor. Antes de instalar, cada motor passa por duas conferências: o ésse agá á dois cinco seis e a assinatura Ed 25519. Se alguma falhar, nada é instalado."
+    },
+    {
+      "cena": "tela",
+      "titulo": "Como usar",
+      "imagem": "telas/uso.png",
+      "foco": {
+        "x": 0.05,
+        "y": 0.33,
+        "w": 0.9,
+        "h": 0.4
+      },
+      "rotulo": "Três passos",
+      "endereco": "engine-registry",
+      "fala": "Para começar, escolha o motor, instale pelo kit e use nos seus aplicativos.",
+      "fala_fonetica": "Para começar, escolha o motor, instale pelo kit e use nos seus aplicativos."
+    },
+    {
+      "cena": "numeros",
+      "titulo": "Pouco para instalar, nada para duplicar",
+      "numeros": [
+        {
+          "valor": 8,
+          "rotulo": "motores no mesmo registro"
+        },
+        {
+          "valor": 147,
+          "sufixo": " MB",
+          "rotulo": "de modelo carregados uma vez"
+        },
+        {
+          "valor": 3,
+          "rotulo": "sistemas: Windows, Linux e macOS"
+        }
+      ],
+      "fala": "São oito motores, cento e quarenta e sete megabytes de modelo carregados uma vez, e três sistemas atendidos: Windows, Linux e macOS, conforme o motor."
+    },
+    {
+      "cena": "numeros",
+      "titulo": "Um kit pequeno e conferido",
+      "numeros": [
+        {
+          "valor": 27,
+          "prefixo": "< ",
+          "sufixo": " KB",
+          "rotulo": "de código no cliente engine-kit"
+        },
+        {
+          "valor": 2,
+          "rotulo": "conferências antes de instalar"
+        }
+      ],
+      "fala": "O cliente de instalação, o engine-kit, tem menos de vinte e sete quilobytes de código, e cada release passa por duas conferências antes de instalar.",
+      "fala_fonetica": "O cliente de instalação, o engine kit, tem menos de vinte e sete quilobáites de código, e cada release passa por duas conferências antes de instalar."
+    },
+    {
+      "cena": "fechamento",
+      "titulo": "engine-registry",
+      "subtitulo": "Instale uma vez, use em qualquer lugar.",
+      "cta": "escolha o motor, instale pelo engine-kit",
+      "fala": "Quando um motor é atualizado, todos os aplicativos recebem a nova versão ao mesmo tempo. Engine-registry: instale uma vez, use em qualquer lugar.",
+      "fala_fonetica": "Quando um motor é atualizado, todos os aplicativos recebem a nova versão ao mesmo tempo. Engine registry: instale uma vez, use em qualquer lugar."
+    }
+  ]
+}

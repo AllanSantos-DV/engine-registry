@@ -54,7 +54,8 @@ check("assets/site.js tem sintaxe válida", (() => { try { execFileSync(process.
 const cards = [...html.matchAll(/<article class="card c-[a-z]+" id="m-([^"]+)" data-motor="([^"]+)"[\s\S]*?<\/article>/g)].map((m) => ({ id: m[1], motor: m[2], html: m[0] }));
 check("um card por motor do manifest.json, nem a mais nem a menos", JSON.stringify(cards.map((c) => c.motor).sort()) === JSON.stringify([...engines].sort()),
   `cards: ${cards.map((c) => c.motor).join(", ")} | manifest: ${engines.join(", ")}`);
-const PAGES_PROPRIO = { "vox-engine": "https://allansantos-dv.github.io/vox-engine/", vxk: "https://allansantos-dv.github.io/visual-explainer/" };
+// a página do produto vem do manifest (pagesUrl): o card de quem tem Pages leva a ela, os demais à versão atual
+const PAGES_PROPRIO = Object.fromEntries(manifest.engines.filter((e) => e.pagesUrl).map((e) => [e.name, e.pagesUrl]));
 for (const c of cards) {
   const href = c.html.match(/class="btn pri peq" href="([^"]+)"/)?.[1] ?? "";
   const esperado = PAGES_PROPRIO[c.motor] ?? `https://github.com/AllanSantos-DV/engine-registry/releases?q=${c.motor}`;

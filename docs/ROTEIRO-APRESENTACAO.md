@@ -39,14 +39,16 @@ lima `#b8e86b`. Títulos em Bahnschrift, texto em Segoe UI, rótulos em Cascadia
 - Um motor faz o trabalho pesado uma única vez, nesta máquina.
 - O Claude Code, o Codex, o Copilot, o Cursor e os seus scripts pedem a ele o que precisam.
 
-### 4. Os seis motores — visual: uma ficha por motor, na cor dele, revelada a cada frase
+### 4. Os oito motores — visual: uma ficha por motor, na cor dele, revelada a cada frase
 
 - O Vox Engine dita, transcreve, traduz e fala.
 - O Cerne lê um vídeo e guarda o que importa numa memória que dá para pesquisar.
 - O VXK transforma o roteiro do agente numa explicação animada e narrada.
 - O mcp-gateway reúne todos os servidores MCP num endereço só.
 - O embed-house serve os vetores de busca sem repetir o modelo em cada sessão.
-- E o neural-link devolve uma decisão única para cada evento de hook do agente.
+- O neural-link devolve uma decisão única para cada evento de hook do agente.
+- O skill-engine confere as skills de terceiros e só ativa o que sai limpo.
+- E o client-harness faz o agente respeitar os padrões de cada cliente, recusando antes de gravar.
 
 ### 5. Como se conectam — visual: o mapa, revelado em sete passos (um por frase)
 
@@ -71,7 +73,7 @@ Uma fala por passo; a anotação entre parênteses diz o que aparece e não é n
 
 ## Fatos que a narração pode afirmar (fonte: `manifest.json` e README)
 
-- São seis motores: Vox Engine, VXK, mcp-gateway, Cerne, embed-house, neural-link.
+- São oito motores: Vox Engine, VXK, mcp-gateway, Cerne, embed-house, neural-link, skill-engine, client-harness.
 - O VXK precisa do Vox para narrar e avisa quando ele falta, em vez de gerar uma página muda.
 - O mcp-gateway reúne servidores MCP; Vox, Cerne e VXK expõem as ferramentas por MCP.
 - O embed-house evita carregar cerca de 147 MB de modelo a cada sessão.
