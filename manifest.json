@@ -244,6 +244,38 @@
         "any"
       ],
       "notes": "kind=cli: o lifecycle entrega o binário e NÃO sobe processo. `extractTo` é aninhado como no neural-link: o home guarda ESTADO que sobrevive ao update, e só `runtimes/skill-engine` é trocado. Código-fonte no repo privado AllanSantos-DV/skill-engine; a release pública mora aqui."
+    },
+    {
+      "name": "client-harness",
+      "version": "0.1.1",
+      "kind": "cli",
+      "summary": "Daemon local que faz o Claude Code e o Codex respeitarem os padrões de cada cliente: confere cada ação do agente (hooks) contra as regras do cliente da pasta e recusa antes de gravar, em cerca de 1 ms, com o motivo e o que usar no lugar.",
+      "pagesUrl": "https://allansantos-dv.github.io/harness-padroes-cliente/",
+      "home": "~/.client-harness",
+      "install": {
+        "type": "github-release",
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "client-harness-v{version}",
+        "asset": "client-harness-any.tgz",
+        "checksum": "{asset}.sha256",
+        "extractTo": "runtimes/client-harness",
+        "entry": "runtimes/client-harness/src/cli.mjs",
+        "publicKey": "b3624d289f9e026388ee0b2c1aba0b1e2328b546b607c7f283548e85972052c4",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true
+      },
+      "platforms": [
+        "any"
+      ],
+      "notes": "kind=cli: o lifecycle entrega o binário e NÃO sobe processo (`client-harness start` sobe o daemon, que os hooks dos agentes consultam; o hook de SessionStart gravado por `client-harness install` o sobe a cada sessão). `extractTo` é aninhado como no neural-link e no skill-engine: o home guarda ESTADO (token, eventos, run/) que sobrevive ao update, e só `runtimes/client-harness` é trocado. Daemon único por máquina e usuário: bind numa porta derivada do usuário (47000-47999, CLIENT_HARNESS_PORT troca), run/daemon.json com porta, pid e shutdownToken. O bloco `runtime` declara só o que o kit usa para trocar a instalação: POST /shutdown?relaunch=1 com x-shutdown-token antes do swap (no Windows o daemon vivo segura a pasta); com relaunch=1 o daemon deixa um runner que sobe o daemon novo depois da troca, então um update não deixa a máquina sem checagem. O motor publica ~/.client-harness/cli.json em toda invocação do CLI sem --data. Artefato cross-platform (Node puro, sem dependências). Código-fonte no repo AllanSantos-DV/harness-padroes-cliente; a release pública mora aqui.",
+      "runtime": {
+        "transport": "http",
+        "runtimeFile": "run/daemon.json",
+        "healthPath": "/health",
+        "shutdownPath": "/shutdown?relaunch=1",
+        "shutdownTokenField": "shutdownToken",
+        "shutdownTokenHeader": "x-shutdown-token"
+      }
     }
   ]
 }

@@ -32,6 +32,7 @@ vive num lugar só e o consumidor apenas **declara a dependência**.
 | `vxk` | 0.19.0 | `cli` | Explicações visuais animadas e narradas como servidor MCP (stdio): devolve UM HTML autocontido e offline, ou o vídeo MP4 (preset, aplicativo real, Motion) e o PDF. Um daemon único por máquina atende os agentes. A narração vem do `vox-engine`. |
 | `cerne` | 0.4.10 | `daemon`, **self-managed** | Leitura ativa de vídeo (captura, quadros, transcrição, tradução) exposta via MCP. Instalador Inno por usuário, Windows. |
 | `skill-engine` | 0.1.0 | `cli` | Gerencia skills de agentes fora de qualquer IDE: busca repositórios em quarentena, varre com regras determinísticas e só ativa o que sai limpo. |
+| `client-harness` | 0.1.1 | `cli` | Daemon local que faz o Claude Code e o Codex respeitarem os padrões de cada cliente: confere cada ação do agente contra as regras da pasta e recusa antes de gravar, com o motivo. |
 
 **Todos** são publicados aqui, assinados com Ed25519 e verificados antes de instalar.
 

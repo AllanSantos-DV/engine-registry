@@ -45,7 +45,7 @@
     <p class="eyebrow">Os motores</p>
     <h2 id="h-motores">Sete motores, cada um com a sua tarefa.</h2>
     <div class="intro-motor">
-      <p class="lead">Cada ferramenta de IA costuma carregar o próprio modelo, o próprio servidor, o próprio processo. Aqui vivem sete motores locais que fazem esse trabalho uma única vez por máquina e atendem o Claude Code, o Codex, o Copilot, o Cursor e os seus scripts.</p>
+      <p class="lead">Cada ferramenta de IA costuma carregar o próprio modelo, o próprio servidor, o próprio processo. Aqui vivem oito motores locais que fazem esse trabalho uma única vez por máquina e atendem o Claude Code, o Codex, o Copilot, o Cursor e os seus scripts.</p>
       <div class="hero-art" role="img" aria-label="Vários aplicativos à esquerda usam um único motor no centro, que serve todos ao mesmo tempo">
         <svg viewBox="0 0 420 300" aria-hidden="true">
           <g fill="none" stroke="#2a4a3e" stroke-width="2"><path d="M110 60 L205 150"/><path d="M110 110 L205 150"/><path d="M110 190 L205 150"/><path d="M110 240 L205 150"/><path d="M215 150 L310 80"/><path d="M215 150 L310 150"/><path d="M215 150 L310 220"/></g>
@@ -111,6 +111,13 @@
         <p class="para"><b>Para quem:</b> quem usa skills de terceiros no Claude Code, no Codex, no Copilot ou no OpenCode e quer conferir antes de ativar. <b>Como usa:</b> o comando <code>skill-engine</code> registra o repositório, verifica e ativa; ele não fica rodando em segundo plano.</p>
         <div class="acoes"><a class="btn pri peq" href="https://github.com/AllanSantos-DV/engine-registry/releases?q=skill-engine" target="_blank" rel="noopener noreferrer">Baixar a versão atual<span class="sr"> (abre em nova aba)</span> ↗</a></div>
       </article>
+      <article class="card c-coral" id="m-client-harness" data-motor="client-harness">
+        <div class="chips"><span class="chip">padrões do cliente</span><span class="chip">qualquer sistema</span></div>
+        <h3>client-harness</h3>
+        <p class="res">Confere cada ação do agente contra as regras do cliente da pasta e recusa antes de gravar, com o motivo e o que usar no lugar.</p>
+        <p class="para"><b>Para quem:</b> quem trabalha para vários clientes com o Claude Code ou o Codex e precisa que cada pasta siga o padrão do seu cliente. <b>Como usa:</b> o comando <code>client-harness start</code> sobe o serviço local que os hooks do agente consultam; a checagem leva cerca de 1 ms.</p>
+        <div class="acoes"><a class="btn pri peq" href="https://github.com/AllanSantos-DV/engine-registry/releases?q=client-harness" target="_blank" rel="noopener noreferrer">Baixar a versão atual<span class="sr"> (abre em nova aba)</span> ↗</a></div>
+      </article>
     </div>
   </section>
 
@@ -165,7 +172,7 @@
     <p class="eyebrow">Em números</p>
     <h2 id="h-numeros">Pouco para instalar, nada para duplicar.</h2>
     <div class="metricas">
-      <div class="metrica"><b>7</b><span>motores no mesmo registro: voz, vídeo, embeddings, MCP, hooks, skills e explicações visuais</span></div>
+      <div class="metrica"><b>8</b><span>motores no mesmo registro: voz, vídeo, embeddings, MCP, hooks, skills, padrões de cliente e explicações visuais</span></div>
       <div class="metrica"><b>1</b><span>instalação por máquina atende todos os apps e agentes</span></div>
       <div class="metrica"><b>147 MB</b><span>de modelo de embeddings carregados uma vez, não a cada sessão</span></div>
       <div class="metrica"><b>2</b><span>conferências antes de instalar: SHA-256 e assinatura Ed25519; se falhar, nada é instalado</span></div>
