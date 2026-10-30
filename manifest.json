@@ -163,7 +163,7 @@
     },
     {
       "name": "vxk",
-      "version": "0.19.0",
+      "version": "0.20.0",
       "kind": "cli",
       "summary": "VXK — explicações visuais animadas e narradas como servidor MCP (stdio): qualquer cliente MCP (Claude Code, Codex, Copilot) compõe a biblioteca de componentes, ícones e o controle único de reprodução e recebe UM HTML autocontido e offline, ou o vídeo MP4 da mesma explicação (por preset, do aplicativo real ou em Motion) e o PDF. A narração é assada pelo motor vox-engine.",
       "pagesUrl": "https://allansantos-dv.github.io/visual-explainer/",

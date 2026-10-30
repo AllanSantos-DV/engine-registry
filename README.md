@@ -29,7 +29,7 @@ vive num lugar só e o consumidor apenas **declara a dependência**.
 | `vox-engine` | 0.28.7 | `daemon` (pipe), **self-managed** | Motor de voz (STT/TTS) compartilhado, com auto-unload quando ocioso. Traz o próprio instalador e updater. |
 | `mcp-gateway` | 0.16.4 | `daemon` (http) | Agregador MCP: conecta uma vez em cada servidor MCP e reexpõe tudo num endpoint único. |
 | `neural-link` | 0.7.15 | `cli` | Dispatcher adaptativo de hooks: recebe o evento por stdin, pontua os handlers e devolve uma decisão composta. |
-| `vxk` | 0.19.0 | `cli` | Explicações visuais animadas e narradas como servidor MCP (stdio): devolve UM HTML autocontido e offline, ou o vídeo MP4 (preset, aplicativo real, Motion) e o PDF. Um daemon único por máquina atende os agentes. A narração vem do `vox-engine`. |
+| `vxk` | 0.20.0 | `cli` | Explicações visuais animadas e narradas como servidor MCP (stdio): devolve UM HTML autocontido e offline, ou o vídeo MP4 (preset, aplicativo real, Motion) e o PDF. Um daemon único por máquina atende os agentes. A narração vem do `vox-engine`. |
 | `cerne` | 0.4.10 | `daemon`, **self-managed** | Leitura ativa de vídeo (captura, quadros, transcrição, tradução) exposta via MCP. Instalador Inno por usuário, Windows. |
 | `skill-engine` | 0.1.0 | `cli` | Gerencia skills de agentes fora de qualquer IDE: busca repositórios em quarentena, varre com regras determinísticas e só ativa o que sai limpo. |
 | `client-harness` | 0.1.1 | `cli` | Daemon local que faz o Claude Code e o Codex respeitarem os padrões de cada cliente: confere cada ação do agente contra as regras da pasta e recusa antes de gravar, com o motivo. |
@@ -59,7 +59,7 @@ Sem clonar o repositório, com Node 18 ou mais:
 
 ```sh
 npx engine-kit ensure vxk                     # instala ou atualiza; reusa se já estiver em dia
-npx engine-kit ensure vxk --version 0.19.0    # pin de versão
+npx engine-kit ensure vxk --version 0.20.0    # pin de versão
 ```
 
 O `npx` baixa o kit do npm e o kit baixa o motor da release, confere o **sha256**, a **assinatura Ed25519**
