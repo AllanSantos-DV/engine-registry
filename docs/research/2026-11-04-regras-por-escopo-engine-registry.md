@@ -26,7 +26,10 @@ Mcp-memory vivo (3.0.0), regras publicadas no projeto `github.com/allansantos-dv
 - `2026-10-29-lente-feature-irma-client-harness.md` e `2026-11-03-lente-feature-irma-client-harness-013.md`: usei como modelo de registro e a lição da última (texto que descreve o que o código já mudou fica defasado): conferi que o README só diz "sem hooks" sobre os motores publicados, não sobre o repositório. Não rodei a lente em subagente porque não há release nesta entrega.
 - Skill `contextacao` (triagem média: 2-3 tecnologias, daemon externo, resultado reversível): suposições verificadas antes de escrever (URL do daemon em `~/.mcp-memory/run/daemon.json`, REST sem token, `documentId` aceito no POST, nenhuma regra `rule:` existia). O `additionalContext` do `PreToolUse` aparece junto do resultado da ferramenta, não antes dela (code.claude.com/docs/en/hooks, acesso em 2026-11-03): vale como entrega por sessão, não como bloqueio.
 
+## Prova em sessão real
+
+Sessão do Claude Code 2.1.316 (Sonnet 5.5) aberta pelo Agent Launcher, minimizada e sem foco, carregando este `.claude/settings.json`. Prompt: criar `kit/prova-sessao.txt` com Write e trocar o texto com Edit. Diário (`.claude/.regras-escopo/journal.jsonl`): `session-start` (source startup), `injetou` no Write (regra `rule:codigo:engine-registry-kit`, 360 caracteres), `ja-entregue` no Edit do mesmo escopo, sem injeção. Perguntada depois, a sessão citou a linha injetada, recebida como contexto adicional do `PreToolUse:Write` logo após o resultado do Write. A tela da sessão não exibe o `additionalContext`; a prova da injeção é o diário e a citação do modelo. Capturas em `2026-11-04-regras-por-escopo-sessao-real/` (pixels reais da tela, copiados com `CopyFromScreen` por `tools/capture-session-tab.ps1` do orchestrador, variante que escolhe a aba pelo índice porque a sessão de trabalho tem o mesmo título). O arquivo de prova foi apagado e a janela fechada.
+
 ## Fora desta fatia (backlog)
 
-- O hook ainda não foi exercitado dentro de uma sessão do Claude Code que carregou este `settings.json` (a sessão atual abriu antes dele existir); a prova real acima é o processo do hook com o payload.
 - `source` compact/clear não consta na página de hooks; vem da medição da investigação (Claude Code 2.1.316).
