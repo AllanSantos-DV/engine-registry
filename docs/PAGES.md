@@ -26,9 +26,9 @@ recursos do próprio site, então não há fonte, script ou imagem externos; as 
 
 ## Conteúdo
 
-- **Cards:** um por motor do `manifest.json`, com o link da página do produto (Vox Engine e VXK têm Pages) ou, onde ela ainda
+- **Cards:** um por motor do `manifest.json`, com o link da página do produto (Vox Engine, VXK e client-harness têm Pages) ou, onde ela ainda
   não existe, da versão atual (`releases?q=<motor>`). O teste exige um card por motor do manifest e o link certo; quando um
-  motor ganhar Pages próprio, troque o link em `index.html` e em `PAGES_PROPRIO` de `tests/test-site.mjs`.
+  motor ganhar `pagesUrl` no manifest, troque o link em `index.html`; `PAGES_PROPRIO` em `tests/test-site.mjs` sai do manifest.
 - **Tabela e mapa:** só afirmam ligações que estão no manifest e no README (VXK usa o Vox para narrar; o mcp-gateway reúne
   servidores MCP; embed-house e neural-link atendem o agente direto). Nova ligação entre motores: ajuste tabela, mapa,
   cenas e roteiro juntos.

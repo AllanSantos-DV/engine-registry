@@ -1,0 +1,12 @@
+ensure exit 0 
+ [engine-kit] baixando https://github.com/AllanSantos-DV/engine-registry/releases/download/client-harness-v0.1.3/client-harness-any.tgz …
+[engine-kit] client-harness: chave FIXADA pelo consumidor conferiu e foi gravada em C:\Users\allan\AppData\Local\Temp\ev-ch-home\.engine-kit\trust.json — trocas futuras serão ABORT
+[engine-kit] client-harness: assinatura Ed25519 CONFERE (ed25519-sha256-raw)
+[engine-kit] client-harness instalado em C:\Users\allan\AppData\Local\Temp\ev-ch-home\.client-harness\runtimes\client-harness (v0.1.3)
+OK client-harness v0.1.3 (assinatura Ed25519 conferida) em C:\Users\allan\AppData\Local\Temp\ev-ch-home\.client-harness\runtimes\client-harness\src\cli.mjs
+
+cli existe: true
+package.json version: 0.1.3
+cli --version: 2  uso: client-harness daemon [--port N] [--data DIR] [--patterns DIR] [--deny-write DIR1;DIR2]   (em primeiro plano)
+     client-harness start  [mesmas opções] [--hook]   daemon em segundo plano, sem janela; recicla um daemon de versão velha; --hook = silencioso (hook de início de sessão)
+     client-
