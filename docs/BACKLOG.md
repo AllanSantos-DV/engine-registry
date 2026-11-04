@@ -2,7 +2,7 @@
 
 Melhorias encontradas durante outro trabalho e deixadas para depois.
 
-Nenhum item aberto.
+- Exercitar `tools/regras-escopo.mjs` dentro de uma sessão do Claude Code aberta depois do `.claude/settings.json` (a prova atual é o processo do hook com payload real). Detalhes em `docs/research/2026-11-04-regras-por-escopo-engine-registry.md`.
 
 ## Decidido
 

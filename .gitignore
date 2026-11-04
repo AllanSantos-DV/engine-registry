@@ -12,3 +12,6 @@ docs/maps/session-*-snapshot.md
 
 # Perfis temporarios de navegador usados ao conferir o site
 .probe.tmp/
+
+# Estado do hook de regras por escopo (sessoes e diario)
+.claude/.regras-escopo/
