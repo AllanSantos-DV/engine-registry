@@ -2,8 +2,7 @@
 # Fonte do Pages = "Deploy from a branch", gh-pages, "/": sem artefato do Actions (a cota mensal de armazenamento da conta
 # bloqueia o deploy-pages). O push usa a chave de deploy PAGES_DEPLOY_KEY (push com GITHUB_TOKEN não dispara a
 # publicação). Só roda por disparo manual: publicar é decisão do dono. Processo e reversão: docs/PAGES.md.
-# Runner Windows: o push por ssh exige o cliente ssh. Com CI_RUNNER definido o job vai para o runner self-hosted Windows;
-# sem ele, para o windows-latest.
+# Runner Windows hospedado: o push por ssh exige o cliente ssh.
 
 name: pages
 
@@ -19,7 +18,7 @@ concurrency:
 
 jobs:
   publish:
-    runs-on: ${{ vars.CI_RUNNER != '' && fromJSON('["self-hosted","Windows"]') || 'windows-latest' }}
+    runs-on: windows-latest
     timeout-minutes: 20
     defaults:
       run:
