@@ -60,7 +60,7 @@ await ok('só disparo manual: sem push nem cron publicando sozinhos', () => {
 });
 await ok('runner Windows (o push por ssh exige o cliente ssh)', () => {
   const runsOn = WORKFLOW.split('\n').find((l) => l.includes('runs-on:')) ?? '';
-  assert.ok(runsOn.includes('"Windows"') && runsOn.includes('windows-latest'));
+  assert.ok(runsOn.includes('windows-latest') && !runsOn.includes('CI_RUNNER'));
   assert.ok(!/ubuntu|Linux|-eph/.test(runsOn));
 });
 await ok('ordem: npm test → site com mídia → publicar → verificar', () => {
