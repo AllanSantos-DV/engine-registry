@@ -10,8 +10,8 @@
   "apps": [
     {
       "name": "agent-launcher",
-      "version": "1.3.3",
-      "summary": "Abre Claude Code, Codex e Copilot CLI nos seus projetos por qualquer host de modelos. Windows.",
+      "version": "1.3.5",
+      "summary": "Abre Claude Code, Codex, Copilot CLI, VS Code e o Copilot app nos seus projetos por qualquer host de modelos. Leva só o launcher; cada ferramenta se instala pelo cartão dela. Windows.",
       "homepage": "https://allansantos-dv.github.io/agent-launcher/",
       "license": "MIT",
       "platforms": [
@@ -197,7 +197,7 @@
     },
     {
       "name": "cerne",
-      "version": "0.4.13",
+      "version": "0.4.12",
       "kind": "daemon",
       "status": "self-managed",
       "summary": "Leitura ativa de vídeo por link ou arquivo: captura, seleção de quadros, transcrição, tradução e consolidação em memória, exposta via servidor MCP por um único daemon local (CerneEngine) compartilhado entre os consumidores.",
