@@ -27,11 +27,11 @@ vive num lugar só e o consumidor apenas **declara a dependência**.
 |---|---|---|---|
 | `embed-house` | 1.0.5 | `daemon` (http) | Casa de embeddings (MiniLM-L6-v2, 384-dim): carrega o modelo uma vez e serve vetores a N consumidores. |
 | `vox-engine` | 0.28.7 | `daemon` (pipe), **self-managed** | Motor de voz (STT/TTS) compartilhado, com auto-unload quando ocioso. Traz o próprio instalador e updater. |
-| `mcp-gateway` | 0.17.1 | `daemon` (http) | Agregador MCP: conecta uma vez em cada servidor MCP e reexpõe tudo num endpoint único. |
+| `mcp-gateway` | 0.17.2 | `daemon` (http) | Agregador MCP: conecta uma vez em cada servidor MCP e reexpõe tudo num endpoint único. |
 | `neural-link` | 0.7.15 | `cli` | Dispatcher adaptativo de hooks: recebe o evento por stdin, pontua os handlers e devolve uma decisão composta. |
 | `vxk` | 0.21.0 | `cli` | Explicações visuais animadas e narradas como servidor MCP (stdio): devolve UM HTML autocontido e offline, ou o vídeo MP4 (preset, aplicativo real, Motion) e o PDF. Um daemon único por máquina atende os agentes. A narração vem do `vox-engine`. |
 | `cerne` | 0.4.14 | `daemon`, **self-managed** | Leitura ativa de vídeo (captura, quadros, transcrição, tradução) exposta via MCP. Instalador Inno por usuário, Windows. |
-| `skill-engine` | 0.1.0 | `cli` | Gerencia skills de agentes fora de qualquer IDE: busca repositórios em quarentena, varre com regras determinísticas e só ativa o que sai limpo. |
+| `skill-engine` | 0.2.1 | `cli` | Gerencia skills de agentes fora de qualquer IDE: busca repositórios em quarentena, varre com regras determinísticas e só ativa o que sai limpo. |
 | `client-harness` | 0.1.5 | `cli` | Daemon local que faz o Claude Code e o Codex respeitarem os padrões de cada cliente: confere cada ação do agente contra as regras da pasta e recusa antes de gravar, com o motivo. |
 
 **Todos** são publicados aqui, assinados com Ed25519 e verificados antes de instalar.

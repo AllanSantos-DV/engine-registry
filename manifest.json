@@ -3,7 +3,7 @@
   "registry": "engine-registry",
   "version": 1,
   "owner": {
-    "name": "Allan Santos",
+    "name": "The engine-registry maintainers",
     "url": "https://github.com/AllanSantos-DV"
   },
   "description": "Catálogo público de motores compartilhados e aplicativos distribuídos. engine-kit consome apenas engines; apps declara versões e downloads sem instalar aplicativos automaticamente.",
