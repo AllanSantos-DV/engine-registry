@@ -34,3 +34,7 @@ Quem publica o ponteiro é o próprio motor (CONTRATO-MOTOR §4: "o motor declar
 | 6 | Rollback declarado pelo registry (só com declaração assinada; depende do manifest assinado) | Médio | M | `rollbackReason`, `allowDowngrade`, `schema.json` |
 
 Orçamento: runtime em 26985/27000 B; os candidatos 1, 2 e 4 provavelmente estouram o ferramental (33141/34000 B), e 4 e 6 tocam o runtime.
+
+## Board para a decisão
+
+As quatro ideias de fluxo (1 a 4 da primeira tabela) foram levadas ao dono num board narrado, com uma decisão (opções A a E, recomendada: bundle offline e depois pin por motor). Fonte do board: `specs/registry-fluxos-engine-kit.gen.mjs` no projeto visual; saída `Desktop\visual-explanations\registry-fluxos-engine-kit.html`. Nada foi construído.
