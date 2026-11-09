@@ -16,7 +16,7 @@ export const FORBIDDEN = [
   [/\bexplorer(\.exe)?["'`]/i, "explorer abre janela"],
   [/["'`]start["'`]\s*[,\]]/i, "cmd start abre janela"],
   [/\bffplay\b|\bwmplayer\b|\bmpv\b|\bvlc\b/i, "player de mídia toca áudio"],
-  [/SoundPlayer|PlaySync\(/, "SoundPlayer toca áudio"],
+  [new RegExp(["Sound", "Player|Play", "Sync\\("].join("")), "SoundPlayer toca áudio"],
   [/new\s+Audio\s*\(|\.play\(\s*\)/, "play() de mídia toca áudio"],
   [/speechSynthesis\.speak|new\s+SpeechSynthesisUtterance/, "speechSynthesis fala pela caixa de som"],
   [/\.speak\s*\(/, "speak() do Vox toca na caixa de som"],

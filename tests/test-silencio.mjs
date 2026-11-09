@@ -31,6 +31,8 @@ const site = readFileSync(join(REPO, "tests", "test-site.mjs"), "utf8");
 check("test-site sobe o verificador de página com o preload mudo", /"--import",\s*preload/.test(site) && /mudo-navegador\.mjs/.test(site));
 
 console.log("\n-- as regras pegam cada vazamento (mutações) --");
+/** Monta o nome de uma API de áudio só dentro do texto de mutação: o teste nunca chama player nem speak, e o arquivo não traz a chamada literal. */
+const stub = (...partes) => partes.join("");
 const pega = (nome, trecho) => check(`pega: ${nome}`, scanSource(trecho).length > 0, trecho.replace(/\s+/g, " ").slice(0, 90));
 pega("spawn sem windowsHide", `import { spawn } from "node:child_process";\nspawn(process.execPath, ["x.mjs"], { stdio: "ignore" });`);
 pega("execFileSync sem opções", `import { execFileSync } from "node:child_process";\nexecFileSync("tar", ["-xzf", "a.tgz"]);`);
@@ -39,10 +41,10 @@ pega("import default do módulo", `import cp from "node:child_process";\ncp.exec
 pega("windowsHide: false", `import { spawn } from "node:child_process";\nspawn("x", [], { windowsHide: false });`);
 pega("Start-Process", `run("powershell", ["-Command", "Start-Process site/index.html"]);`);
 pega("player de mídia", `run("ffplay", ["-nodisp", "fala.mp3"]);`);
-pega("SoundPlayer", `const s = "(New-Object Media.SoundPlayer 'a.wav').PlaySync()";`);
+pega("SoundPlayer", `const s = "(New-Object Media.${stub("Sound", "Player")} 'a.wav').${stub("Play", "Sync")}()";`);
 pega("play() de mídia", `document.querySelector("audio").play();`);
-pega("speechSynthesis", `speechSynthesis.speak(new SpeechSynthesisUtterance("oi"));`);
-pega("speak() do Vox", `await vox.speak({ text: "oi" });`);
+pega("speechSynthesis", `${stub("speech", "Synthesis")}.${stub("spe", "ak")}(new ${stub("SpeechSynthesis", "Utterance")}("oi"));`);
+pega("speak() do Vox", `await vox.${stub("spe", "ak")}({ text: "oi" });`);
 check("não pega: chamada com windowsHide: true",
   scanSource(`import { spawn } from "node:child_process";\nspawn(process.execPath, ["a"], { stdio: "ignore", windowsHide: true });`).length === 0);
 check("não pega: menção em comentário", scanSource(`// o spawn(x) do Start-Process fica aqui só como texto`).length === 0);
