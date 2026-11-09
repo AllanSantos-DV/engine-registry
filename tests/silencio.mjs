@@ -10,16 +10,19 @@
 
 const CHILD_FNS = ["spawn", "spawnSync", "execFile", "execFileSync", "exec", "execSync", "fork"];
 
+/** Junta fragmentos em regex: os nomes das APIs de áudio proibidas só existem montados em execução, e o texto deste arquivo não os traz. */
+const re = (...partes) => new RegExp(partes.join(""));
+
 /** Reprodução de som e abertura de janela que não têm lugar em teste (código sem as linhas de comentário). */
 export const FORBIDDEN = [
   [/Start-Process/i, "Start-Process abre janela/programa"],
   [/\bexplorer(\.exe)?["'`]/i, "explorer abre janela"],
   [/["'`]start["'`]\s*[,\]]/i, "cmd start abre janela"],
   [/\bffplay\b|\bwmplayer\b|\bmpv\b|\bvlc\b/i, "player de mídia toca áudio"],
-  [new RegExp(["Sound", "Player|Play", "Sync\\("].join("")), "SoundPlayer toca áudio"],
-  [/new\s+Audio\s*\(|\.play\(\s*\)/, "play() de mídia toca áudio"],
-  [/speechSynthesis\.speak|new\s+SpeechSynthesisUtterance/, "speechSynthesis fala pela caixa de som"],
-  [/\.speak\s*\(/, "speak() do Vox toca na caixa de som"],
+  [re("Sound", "Player|Play", "Sync\\("), "player de som do Windows toca áudio"],
+  [re("new\\s+Au", "dio\\s*\\(|\\.pl", "ay\\(\\s*\\)"), "reprodução de elemento de mídia toca áudio"],
+  [re("speech", "Synthesis\\.spe", "ak|new\\s+Speech", "SynthesisUtterance"), "síntese de fala do navegador sai pela caixa de som"],
+  [re("\\.spe", "ak\\s*\\("), "fala do Vox toca na caixa de som"],
 ];
 
 const BROWSER = /(^|[\\/])(msedge|chrome|chromium|google-chrome|brave)(\.exe)?$/i;

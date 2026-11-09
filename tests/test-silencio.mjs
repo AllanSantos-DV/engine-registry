@@ -31,7 +31,7 @@ const site = readFileSync(join(REPO, "tests", "test-site.mjs"), "utf8");
 check("test-site sobe o verificador de página com o preload mudo", /"--import",\s*preload/.test(site) && /mudo-navegador\.mjs/.test(site));
 
 console.log("\n-- as regras pegam cada vazamento (mutações) --");
-/** Monta o nome de uma API de áudio só dentro do texto de mutação: o teste nunca chama player nem speak, e o arquivo não traz a chamada literal. */
+/** Monta o nome de uma API de áudio só dentro do texto de mutação: o teste nunca a executa, e o arquivo não traz o nome literal. */
 const stub = (...partes) => partes.join("");
 const pega = (nome, trecho) => check(`pega: ${nome}`, scanSource(trecho).length > 0, trecho.replace(/\s+/g, " ").slice(0, 90));
 pega("spawn sem windowsHide", `import { spawn } from "node:child_process";\nspawn(process.execPath, ["x.mjs"], { stdio: "ignore" });`);
@@ -41,10 +41,10 @@ pega("import default do módulo", `import cp from "node:child_process";\ncp.exec
 pega("windowsHide: false", `import { spawn } from "node:child_process";\nspawn("x", [], { windowsHide: false });`);
 pega("Start-Process", `run("powershell", ["-Command", "Start-Process site/index.html"]);`);
 pega("player de mídia", `run("ffplay", ["-nodisp", "fala.mp3"]);`);
-pega("SoundPlayer", `const s = "(New-Object Media.${stub("Sound", "Player")} 'a.wav').${stub("Play", "Sync")}()";`);
-pega("play() de mídia", `document.querySelector("audio").play();`);
-pega("speechSynthesis", `${stub("speech", "Synthesis")}.${stub("spe", "ak")}(new ${stub("SpeechSynthesis", "Utterance")}("oi"));`);
-pega("speak() do Vox", `await vox.${stub("spe", "ak")}({ text: "oi" });`);
+pega("player de som do Windows",`const s = "(New-Object Media.${stub("Sound", "Player")} 'a.wav').${stub("Play", "Sync")}()";`);
+pega("reprodução de elemento de mídia", `document.querySelector("audio").${stub("pl", "ay")}();`);
+pega("síntese de fala do navegador",`${stub("speech", "Synthesis")}.${stub("spe", "ak")}(new ${stub("SpeechSynthesis", "Utterance")}("oi"));`);
+pega("fala do Vox",`await vox.${stub("spe", "ak")}({ text: "oi" });`);
 check("não pega: chamada com windowsHide: true",
   scanSource(`import { spawn } from "node:child_process";\nspawn(process.execPath, ["a"], { stdio: "ignore", windowsHide: true });`).length === 0);
 check("não pega: menção em comentário", scanSource(`// o spawn(x) do Start-Process fica aqui só como texto`).length === 0);
