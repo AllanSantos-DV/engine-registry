@@ -50,7 +50,7 @@ function extractTgz(tgz, dest) {
   try {
     execFileSync(tar, ["--version"], { stdio: "ignore", windowsHide: true });
   } catch {
-    return { ok: false, reason: "`tar` não encontrado no PATH — necessário para extrair o artefato (Windows 10 1803+, macOS e Linux já trazem). Instale-o e tente de novo." };
+    return { ok: false, reason: "`tar` não encontrado no PATH: instale-o para extrair o artefato." };
   }
   try {
     execFileSync(tar, ["-xzf", tgz, "-C", dest], { stdio: "ignore", windowsHide: true });
@@ -235,7 +235,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
     if (!inst && engine.status !== "self-managed") {
       log(`[engine-kit] ${engine.name}: instalação em estado desconhecido (versão ilegível) → reprovisionando`);
       if (!allowNetwork) {
-        return { ok: false, reason: `${engine.name}: instalação em estado desconhecido (package.json ausente/corrompido em ${binDir}) e rede desabilitada — não dá para validar nem reparar` };
+        return { ok: false, reason: `${engine.name}: instalação em estado desconhecido (package.json ausente/corrompido em ${binDir}) e rede desabilitada: sem como reparar` };
       }
     } else if (inst) {
       log(`[engine-kit] ${engine.name}: instalada v${inst} não satisfaz o pin v${engine.version} → atualizando`);
@@ -249,7 +249,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
   // Tentar provisionar aqui daria erro obscuro (o artefato é um instalador, não um tarball de
   // `extractTo`); melhor recusar dizendo QUEM instala.
   if (engine.status === "self-managed") {
-    return { ok: false, reason: `${engine.name} é self-managed: instala e atualiza pelo próprio updater, não pelo engine-kit (o registry guarda o descritor da release)` };
+    return { ok: false, reason: `${engine.name} é self-managed: instala e atualiza pelo próprio updater, não pelo engine-kit` };
   }
 
   if (!allowNetwork) { return { ok: false, reason: `${engine.name} ausente/desatualizado e rede desabilitada` }; }

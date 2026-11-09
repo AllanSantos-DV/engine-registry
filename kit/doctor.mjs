@@ -18,7 +18,7 @@ import { resolve } from "./resolve.mjs";
 import { provision, satisfiesPin, installedVersion } from "./provision.mjs";
 import { shutdown } from "./lifecycle.mjs";
 import { lifeOf, pointerOf } from "./diagnose.mjs";
-import { pinOf } from "./trust.mjs";
+import { pinOf, readTrust } from "./trust.mjs";
 
 const args = process.argv.slice(2);
 const useLocal = args.includes("--local");
@@ -33,6 +33,7 @@ let manifest;
 try { manifest = JSON.parse(readFileSync(manifestPath, "utf8")); }
 catch (e) { console.error(`FALHOU: manifest local ilegível: ${e.message}`); process.exit(1); }
 
+try { readTrust(); } catch (e) { console.error(`FALHOU: ${e.message}`); process.exit(1); }
 const names = (manifest.engines ?? []).map((e) => e.name).filter((n) => !only || n === only);
 if (only && names.length === 0) {
   console.error(`FALHOU: motor "${only}" não existe no manifest`);

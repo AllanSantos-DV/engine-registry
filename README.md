@@ -207,7 +207,9 @@ assim:
 | **Pin do consumidor** | `ensureEngine(nome, { trustedKeys: { "<motor>": "<hex>" } })`; divergência = **ABORT** já no 1º contato | não depende do registry em momento nenhum (padrão do `vox-engine`) |
 | **Chave no pacote** (`npx engine-kit ensure`) | o comando fixa a chave do `manifest.json` embarcado no pacote do npm | registry comprometido **antes** do 1º contato: trocar a chave exige publicar um engine-kit novo, e a publicação deixa proveniência pública |
 
-Rotação legítima é **ato explícito**: apagar a entrada em `~/.engine-kit/trust.json`.
+Rotação legítima é **ato explícito**: apagar a entrada em `~/.engine-kit/trust.json`. Um `trust.json` que existe e
+não se lê falha fechado: `ensure`, `pin`, `unpin`, `ensureEngine` e o doctor recusam explicando e não regravam o arquivo,
+para não apagar as chaves de primeiro contato e os pins dos outros motores.
 
 **O que isto NÃO cobre, dito na cara:** comprometimento **anterior** ao primeiro contato (o TOFU
 grava a chave do atacante), downgrade/replay e expiração. Fechar isso exige transparência pública

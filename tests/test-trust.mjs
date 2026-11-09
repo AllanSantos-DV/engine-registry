@@ -61,13 +61,14 @@ const pinBom = trust(virgem, `"vox-engine", "eeee5555", { trustedKeys: { "vox-en
 check("pin coincidente aprova", pinBom.ok === true, JSON.stringify(pinBom));
 check("origem registrada como 'pinned'", JSON.parse(readFileSync(join(virgem, "trust.json"), "utf8"))["vox-engine"]?.source === "pinned", readFileSync(join(virgem, "trust.json"), "utf8"));
 
-// 7. Arquivo de confiança corrompido não trava o kit (mas também não vira aprovação cega:
-//    volta ao TOFU, que é o comportamento de quem nunca viu a chave).
+// 7. Arquivo de confiança ilegível falha fechado: voltar ao TOFU regravaria o arquivo só com esta
+//    entrada e apagaria as chaves de primeiro contato e os pins dos outros motores.
 const corrompido = mkdtempSync(join(tmpdir(), "trust-corr-"));
 mkdirSync(corrompido, { recursive: true });
 writeFileSync(join(corrompido, "trust.json"), "{ isto nao e json");
 const corr = trust(corrompido, `"mcp-gateway", "aaaa1111"`);
-check("trust.json corrompido → volta ao TOFU, sem crash", corr.ok === true && corr.tofu === true, JSON.stringify(corr));
+check("trust.json ilegível → recusa explicando", corr.ok === false && /ilegível/.test(corr.reason), JSON.stringify(corr));
+check("trust.json ilegível fica intacto", readFileSync(join(corrompido, "trust.json"), "utf8") === "{ isto nao e json");
 
 for (const d of [home, virgem, corrompido]) rmSync(d, { recursive: true, force: true });
 console.log(fail ? `\n${fail} FALHA(S)` : "\nTUDO VERDE");

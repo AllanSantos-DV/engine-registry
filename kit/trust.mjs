@@ -26,18 +26,26 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 const trustDir = () => process.env.ENGINE_KIT_HOME || join(homedir(), ".engine-kit");
 const trustFile = () => join(trustDir(), "trust.json");
 
+/**
+ * Lê a raiz de confiança; ausente é `{}`. Existente e ilegível LANÇA: devolver `{}` faria a próxima gravação apagar
+ * a chave do primeiro contato, a maior versão vista e o pin dos outros motores.
+ */
 export function readTrust() {
-  try {
-    const v = JSON.parse(readFileSync(trustFile(), "utf8"));
-    return v && typeof v === "object" && !Array.isArray(v) ? v : {};
-  } catch {
-    return {};
-  }
+  const f = trustFile();
+  if (!existsSync(f)) return {};
+  try { const v = JSON.parse(readFileSync(f, "utf8")); if (v && typeof v == "object" && !Array.isArray(v)) return v; } catch {}
+  throw Error(`${f} ilegível: nada foi gravado; corrija-o ou apague-o de propósito (perde chaves e pins)`);
 }
+
+/** Grava a raiz de confiança inteira; lança se não conseguir. */
+export const saveTrust = (store) => {
+  mkdirSync(trustDir(), { recursive: true });
+  writeFileSync(trustFile(), JSON.stringify(store, null, 2));
+};
 
 /**
  * Confronta a chave que veio do registry com a raiz de confiança local.
- * @returns {{ok:true, tofu:boolean} | {ok:false, reason:string}} nunca lança.
+ * @returns {{ok:true, tofu:boolean} | {ok:false, reason:string}} lança só com trust.json ilegível (`readTrust`).
  */
 export function checkTrust(engineName, publicKey, { trustedKeys } = {}) {
   const pinned = trustedKeys?.[engineName];
@@ -59,9 +67,7 @@ export function checkTrust(engineName, publicKey, { trustedKeys } = {}) {
   if (known) return { ok: true, tofu: false };
 
   try {
-    mkdirSync(trustDir(), { recursive: true });
-    store[engineName] = { publicKey, firstSeen: new Date().toISOString(), source: pinned ? "pinned" : "tofu" };
-    writeFileSync(trustFile(), JSON.stringify(store, null, 2));
+    saveTrust({ ...store, [engineName]: { publicKey, firstSeen: new Date().toISOString(), source: pinned ? "pinned" : "tofu" } });
   } catch {
     // Não poder gravar a raiz não pode impedir a instalação — mas também não vira silêncio:
     // sem gravar, a próxima execução repete o TOFU (e o consumidor vê `tofu:true` de novo).
@@ -69,7 +75,7 @@ export function checkTrust(engineName, publicKey, { trustedKeys } = {}) {
   return { ok: true, tofu: true };
 }
 
-export const trustPath = () => trustFile();
+export const trustPath = trustFile;
 
 /** Compara versões `x.y.z` numericamente: negativo, zero ou positivo. */
 export const cmpVer = (a, b) => String(a).localeCompare(String(b), "en", { numeric: true });
@@ -88,7 +94,6 @@ export function noteVersion(name, version) {
   const store = readTrust(), max = store[name]?.maxVersion;
   if (max && cmpVer(version, max) <= 0) return;
   try {
-    mkdirSync(trustDir(), { recursive: true });
-    writeFileSync(trustFile(), JSON.stringify({ ...store, [name]: { ...store[name], maxVersion: version } }, null, 2));
+    saveTrust({ ...store, [name]: { ...store[name], maxVersion: version } });
   } catch { /* sem gravar, a proteção vale a partir da próxima instalação */ }
 }

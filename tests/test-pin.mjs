@@ -7,7 +7,8 @@
 //   • pin --version instala a versão exata, inclusive abaixo da instalada, com assinatura conferida;
 //   • instalação que falha devolve o pin anterior; unpin volta a atualizar;
 //   • esperando o lock de outro consumidor, o motor fixado só reusa a versão fixada;
-//   • motor não instalado ou self-managed não é fixado; o doctor mostra FIXADO e FORA DO PIN.
+//   • motor não instalado ou self-managed não é fixado; o doctor mostra FIXADO e FORA DO PIN;
+//   • trust.json ilegível: ensure, pin, unpin, ensureEngine e doctor recusam explicando e o arquivo fica intacto.
 // Hermético: HOME, trust.json e registry isolados; downloads de memória; o .tgz é real.
 //
 //   node tests/test-pin.mjs
@@ -217,7 +218,39 @@ const all = serve(["1.0.0", "1.1.0"]);
   setPinTo(`${maj}.${min}.${pat + 2}`);
   const off = await doctor();
   check("instalado ≠ pin → FORA DO PIN, pede ação (exit 1)", off.code === 1 && /FORA DO PIN/.test(off.out), off.out.trim());
+
+  const torn = `{ "vxk": { "pin": "${vxk.version}" }, "outro": { "publicKey": "aa`;
+  writeFileSync(join(trustHome, "trust.json"), torn);
+  const unreadable = await doctor();
+  check("trust.json ilegível → doctor falha explicando e não regrava (exit 1)",
+    unreadable.code === 1 && /ilegível/.test(unreadable.out) && readFileSync(join(trustHome, "trust.json"), "utf8") === torn, unreadable.out.trim());
   server.close();
+}
+
+{
+  console.log("\n-- trust.json ilegível: falha fechado, nada é regravado --");
+  const tf = join(process.env.ENGINE_KIT_HOME, "trust.json");
+  const saved = readFileSync(tf);
+  check("antes: trust.json guarda a chave do 1º contato dos motores", Object.values(JSON.parse(saved)).filter((v) => v.publicKey).length >= 2, saved.toString());
+  const torn = saved.subarray(0, saved.length - 5);
+  writeFileSync(tf, torn);
+  const intact = () => readFileSync(tf).equals(torn);
+  const explains = (r) => r.ok === false && /ilegível/.test(r.reason) && r.reason.includes(tf);
+  const fetcher = serve(["1.1.0"]);
+  const m = registry("1.1.0");
+
+  const e = await ensureCommand("fake-engine", { bundled: m, manifest: m, fetcher });
+  check("ensure recusa explicando e não toca o arquivo", explains(e) && intact(), JSON.stringify(e));
+  const p = await pinCommand("fake-engine", { bundled: m, manifest: m, fetcher });
+  check("pin (versão instalada) recusa sem regravar", explains(p) && intact(), JSON.stringify(p));
+  const pv = await pinCommand("fake-engine", { version: "1.1.0", bundled: m, manifest: m, fetcher });
+  check("pin --version recusa sem regravar", explains(pv) && intact(), JSON.stringify(pv));
+  const u = unpinCommand("fake-engine");
+  check("unpin recusa sem regravar", explains(u) && intact(), JSON.stringify(u));
+  const c = await ensureEngine("fake-engine", { registryUrl: "http://127.0.0.1:9/manifest.json", allowNetwork: false, fetcher, healthCheck: async () => ({}) });
+  check("ensureEngine devolve available:false com o motivo", c.available === false && /ilegível/.test(c.reason) && intact(), JSON.stringify(c));
+  check("nenhum download foi feito", fetcher.calls.length === 0, fetcher.calls.join(", "));
+  writeFileSync(tf, saved);
 }
 
 console.log(failures ? `\n${failures} falha(s)` : "\nPIN VERDE");

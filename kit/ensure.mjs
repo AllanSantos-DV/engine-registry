@@ -9,12 +9,12 @@
 // Motor que não está no manifest deste pacote é recusado: sem a chave embarcada não há primeiro contato
 // verificável, e cair no TOFU calado seria justamente o buraco que o pacote fecha. Saída: atualizar o kit.
 // NUNCA lança: devolve { ok, reason } para o cli decidir o exit code.
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import { resolve } from "./resolve.mjs";
 import { provision, installedVersion, satisfiesPin } from "./provision.mjs";
 import { shutdown } from "./lifecycle.mjs";
-import { pinOf, readTrust, trustPath } from "./trust.mjs";
+import { pinOf, readTrust, saveTrust } from "./trust.mjs";
 
 const BUNDLED_MANIFEST = new URL("../manifest.json", import.meta.url);
 const installedOf = (e) => existsSync(join(e.homeDir, e.install.entry)) ? installedVersion(join(e.homeDir, e.install.extractTo ?? "bin")) : null;
@@ -53,7 +53,8 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
     return { ok: false, reason: `${name}: o manifest embarcado não traz publicKey → sem chave do primeiro contato não instalo (ABORT)` };
   }
 
-  const pin = pinOf(name);
+  let pin;
+  try { pin = pinOf(name); } catch (e) { return { ok: false, reason: e.message }; }
   if (pin && version && version !== pin) {
     return { ok: false, reason: `${name} está fixado em v${pin} → engine-kit pin ${name} --version ${version} troca a versão fixada; engine-kit unpin ${name} solta` };
   }
@@ -91,16 +92,16 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
   };
 }
 
-/** Fixa (`version`) ou solta (null) um motor em trust.json; os outros motores não mudam. */
+/** Fixa (`version`) ou solta (null) um motor em trust.json; os outros motores não mudam. `was` = pin anterior. */
 function setPin(name, version) {
-  const store = readTrust(), entry = { ...store[name] };
-  if (version) { entry.pin = version; } else { delete entry.pin; }
   try {
-    mkdirSync(dirname(trustPath()), { recursive: true });
-    writeFileSync(trustPath(), JSON.stringify({ ...store, [name]: entry }, null, 2));
-    return { ok: true };
+    const store = readTrust(), entry = { ...store[name] }, was = entry.pin ?? null;
+    if (!version && !was) { return { ok: true, was }; }
+    if (version) { entry.pin = version; } else { delete entry.pin; }
+    saveTrust({ ...store, [name]: entry });
+    return { ok: true, was };
   } catch (e) {
-    return { ok: false, reason: `não consegui gravar ${trustPath()}: ${e.message}` };
+    return { ok: false, reason: e.message };
   }
 }
 
@@ -112,8 +113,7 @@ function setPin(name, version) {
  */
 export async function pinCommand(name, { version, ...opts } = {}) {
   if (version) {
-    const before = pinOf(name);
-    const s = setPin(name, version);
+    const s = setPin(name, version), before = s.was;
     if (!s.ok) { return s; }
     const e = await ensureCommand(name, opts);
     if (!e.ok) {
@@ -137,8 +137,6 @@ export async function pinCommand(name, { version, ...opts } = {}) {
 
 /** `engine-kit unpin <motor>`: o motor volta a receber atualizações. Nunca lança. */
 export function unpinCommand(name) {
-  const was = pinOf(name);
-  if (!was) { return { ok: true, was: null }; }
   const s = setPin(name, null);
-  return s.ok ? { ok: true, was } : s;
+  return s.ok ? { ok: true, was: s.was } : s;
 }

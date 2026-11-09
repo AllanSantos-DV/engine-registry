@@ -43,7 +43,8 @@ import { pinOf } from "./trust.mjs";
 export async function ensureEngine(name, opts = {}) {
   const { healthCheck, version, allowNetwork = true, registryUrl, log = () => {}, bootTimeoutMs, onBeforeReplace, env, trustedKeys, refresh = false, fetcher } = opts;
 
-  const pin = pinOf(name);
+  let pin;
+  try { pin = pinOf(name); } catch (e) { return { available: false, reason: e.message }; }
   if (pin && version && !satisfiesPin(pin, version)) {
     return { available: false, reason: `${name} fixado em v${pin}; o consumidor pede v${version} → engine-kit unpin ${name}` };
   }
