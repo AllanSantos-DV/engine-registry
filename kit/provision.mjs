@@ -215,7 +215,7 @@ export async function fetchArtifact(engine, { log = () => {}, destDir, downloadT
  * adivinha como derrubar um daemon: quem sabe é o descritor/consumidor).
  * @returns {Promise<{ok:true, entryPath:string, version:string, reused?:boolean, installed?:boolean} | {ok:false, reason:string}>}
  */
-export async function provision(engine, { log = () => {}, allowNetwork = true, onBeforeReplace, downloadTimeoutMs = 120000, fetcher = fetchBuf, trustedKeys, allowDowngrade } = {}) {
+export async function provision(engine, { log = () => {}, allowNetwork = true, onBeforeReplace, downloadTimeoutMs = 120000, fetcher = fetchBuf, trustedKeys, allowDowngrade, exact } = {}) {
   const home = engine.homeDir;
   const binDir = join(home, engine.install.extractTo ?? "bin");
   const entryPath = join(home, engine.install.entry);
@@ -228,7 +228,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
   // numa instalação quebrada para sempre, ignorando o pin do registry.
   if (existsSync(entryPath)) {
     const inst = installedVersion(binDir);
-    if (inst && satisfiesPin(inst, engine.version)) {
+    if (inst && (exact ? inst === engine.version : satisfiesPin(inst, engine.version))) {
       noteVersion(engine.name, inst);
       return { ok: true, entryPath, version: inst, reused: true };
     }
@@ -257,7 +257,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
     return { ok: false, reason: `${engine.name} ainda não publicou release (status: pending-release)` };
   }
 
-  const rb = !allowDowngrade && rollbackReason(engine.name, engine.version);
+  const rb = !allowDowngrade && !exact && rollbackReason(engine.name, engine.version);
   if (rb) { return { ok: false, reason: rb }; }
 
   mkdirSync(home, { recursive: true });
@@ -270,7 +270,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
       if (existsSync(entryPath)) {
         const inst = installedVersion(binDir);
         // Se o vencedor terminou mas a versão continua ilegível, não invente: sinalize.
-        if (inst) { return { ok: true, entryPath, version: inst, reused: true }; }
+        if (inst && (!exact || inst === engine.version)) { return { ok: true, entryPath, version: inst, reused: true }; }
       }
       await sleep(1000);
     }
@@ -278,22 +278,10 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
   }
 
   try {
-    // 1-3) Sidecar SHA256 obrigatório, download e integridade: nada toca o disco antes de conferir.
-    const dl = await downloadChecked(engine, { log, fetcher, timeoutMs: downloadTimeoutMs });
-    if (!dl.buf) { return { ok: false, reason: dl.reason }; }
-    const buf = dl.buf;
-    const part = join(home, `${engine.assetName}.part`);
-    const tgz = join(home, engine.assetName);
-    writeFileSync(part, buf);
-    renameSync(part, tgz);
-
-    // 3.5) AUTENTICIDADE — antes de extrair. Um artefato não confiável não chega a tocar o disco
-    //      final: se a assinatura não confere, o .tgz é apagado e nada é instalado.
-    const auth = await verifyAuthenticity(engine, buf, { log, fetcher, trustedKeys });
-    if (!auth.ok) {
-      dropFile(tgz);
-      return { ok: false, reason: auth.reason };
-    }
+    // 1-3.5) Sidecar SHA256 obrigatório, integridade e AUTENTICIDADE antes de qualquer byte tocar o disco.
+    const auth = await fetchArtifact(engine, { log, destDir: home, downloadTimeoutMs, fetcher, trustedKeys });
+    if (!auth.ok) { return auth; }
+    const tgz = auth.path;
 
     // 4) Extrai em staging e faz o swap (com shutdown-first se já existe).
     const staging = join(home, `stage-${engine.version}`);

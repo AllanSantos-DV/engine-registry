@@ -1,7 +1,12 @@
 # engine-registry
 
-Vitrine de **MOTORES** compartilhados e, em uma seção separada, de aplicativos
+Repositório (marketplace) de **MOTORES independentes** e, em uma seção separada, de aplicativos
 distribuídos. O `engine-kit` continua lendo somente `manifest.engines`.
+
+O registry não é um motor que acopla outros motores: é a prateleira de onde cada motor é baixado,
+conferido e atualizado. Cada motor tem a própria release, a própria chave de assinatura e a própria
+versão; nenhum motor declara dependência de outro no manifest, e cada um recebe atualizações
+separadamente (e pode ser fixado sozinho com `engine-kit pin`).
 
 Um motor **não é um plugin**: não se instala pela vitrine de extensões, não tem `hooks` nem
 `extensions`. Ele é **infraestrutura**: instala **uma vez por máquina** em `~/.<motor>` e serve
@@ -59,7 +64,10 @@ Sem clonar o repositório, com Node 18 ou mais:
 
 ```sh
 npx engine-kit ensure vxk                     # instala ou atualiza; reusa se já estiver em dia
-npx engine-kit ensure vxk --version 0.21.0    # pin de versão
+npx engine-kit ensure vxk --version 0.21.0    # versão exata (downgrade permitido)
+npx engine-kit pin vxk                        # congela o vxk na versão instalada
+npx engine-kit pin vxk --version 0.21.0       # instala essa versão (assinatura conferida) e congela
+npx engine-kit unpin vxk                      # o vxk volta a receber atualizações
 ```
 
 O `npx` baixa o kit do npm e o kit baixa o motor da release, confere o **sha256**, a **assinatura Ed25519**
@@ -74,6 +82,12 @@ mesmo comando nela (o `npx` sem versão reusaria a da cache); o motor instalado 
 registry, com o aviso `motor atualizado: <motor> vA → vB`. `ENGINE_KIT_NO_AUTO_UPDATE=1` desliga as duas trocas e
 deixa só o aviso de versão nova disponível. `--version` explícito sempre vale.
 
+Pin por motor: `engine-kit pin <motor>` grava a versão fixada só desse motor no `trust.json` da máquina. A
+atualização automática (o `ensure`, o `doctor --fix` e o `ensureEngine` dos consumidores) pula os motores fixados e
+continua atualizando os outros. Um `ensure --version` diferente da versão fixada é recusado com a saída (trocar o pin
+ou `unpin`); um consumidor que exige versão maior que a fixada recebe `available:false` explicando o `unpin`. Motores
+`self-managed` não são fixados pelo kit.
+
 Publicar o kit: tag `engine-kit-v<versão do package.json>` criada na `main`; o workflow `.github/workflows/publish.yml`
 roda a suíte e publica por OIDC (sem token guardado). Conferir a proveniência: `npm audit signatures` num projeto
 que dependa do `engine-kit`, ou o selo "Provenance" na página do pacote.
@@ -85,7 +99,8 @@ node kit/doctor.mjs          # diagnostica: o que reusar, atualizar ou baixar
 node kit/doctor.mjs --fix    # aplica
 ```
 
-Desatualizado → atualiza. Ausente → baixa. **Atualizado → reusa** — e o diagnóstico não baixa nada,
+Desatualizado → atualiza. Ausente → baixa. **Atualizado → reusa**. Fixado (`engine-kit pin`) → `FIXADO`, fica na
+versão fixada; instalado diferente do pin → `FORA DO PIN`, e o `--fix` instala a versão fixada. O diagnóstico não baixa nada,
 porque reusar é o caminho comum e precisa ser barato. Antes de trocar um daemon vivo, o doctor pede
 o `shutdownPath` que o registry declara: no Windows, arquivo em uso não pode ser sobrescrito.
 
@@ -210,8 +225,10 @@ kit/
   resolve.mjs      # descobre o motor no registry (cache 6h, degrada p/ cache obsoleto)
   provision.mjs    # baixa/atualiza: SHA256 + assinatura fail-closed, lock e swap atômico
   lifecycle.mjs    # garante o processo vivo (daemon) ou entrega o binário (cli)
-  cli.mjs          # comando `engine-kit` (bin do pacote): `npx engine-kit ensure <motor>`
-  ensure.mjs       # ensure: resolve → provision com a chave do manifest embarcado no pacote
+  trust.mjs        # trust.json por motor: chave do 1º contato, maior versão vista (anti-rollback) e o pin
+  cli.mjs          # comando `engine-kit` (bin do pacote): ensure, pin e unpin
+  ensure.mjs       # ensure, pin e unpin: resolve → provision com a chave do manifest embarcado no pacote
+  doctor.mjs       # concilia a máquina inteira (OK, DESATUALIZADO, AUSENTE, FIXADO...); --fix aplica
   update.mjs       # o kit se atualiza (relança na última versão do npm); ENGINE_KIT_NO_AUTO_UPDATE=1 desliga
   signature.mjs    # contrato ed25519-sha256-raw — assinar e verificar na MESMA fonte
   keystore.mjs     # onde moram as chaves privadas (~/.engine-signing)
@@ -224,7 +241,7 @@ kit/
 consumers/
   mcp-gateway.mjs  # adaptador pronto: handshake + token + shutdown do agregador MCP
 site/               # vitrine de produto dos motores (estática); processo em docs/PAGES.md
-tools/              # pages-branch.mjs: publica site/ na gh-pages
+tools/              # pages-branch.mjs: publica site/ na gh-pages; publish-manifest.mjs: manifest e README na main
 tests/
   smoke.mjs          # contratos do kit: node tests/smoke.mjs
   test-*.mjs         # contratos hermeticos (assinatura, trust, tar, apps, cache, doctor, gateway)
@@ -256,8 +273,9 @@ pwsh kit/publish-base.ps1 -Engine <motor> -Version <x.y.z> -Asset <artefato.tgz>
 
 O `publish-base.ps1` confere a identidade do `gh` (o app Copilot injeta o token de uma conta de
 trabalho nos processos filhos e o `gh` publica pela conta errada), assina, publica no registry,
-atualiza o `manifest.json` **parseado** e então **prova**: baixa a release publicada e valida
-`sha256` + assinatura pelo caminho de um consumidor.
+atualiza o `manifest.json` **parseado** e a linha do README num worktree da `main`, **prova** (baixa a
+release publicada e valida `sha256` + assinatura pelo caminho de um consumidor) e só então envia o commit
+para a `main` e mescla na `develop`, sem passo manual.
 
 O artefato deve ser **self-contained** (traz o próprio `node_modules` trimado): o motor precisa
 subir numa máquina limpa, sem depender do consumidor.

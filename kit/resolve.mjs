@@ -77,7 +77,8 @@ export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowN
       if (!cached) { return { ok: false, reason: `registry inacessível (${e.message}) e sem cache` }; }
       manifest = cached.manifest;
       offline = true;
-      degraded = cached.stale; // AQUI é a degradação real: rede falhou e o cache está vencido
+      // AQUI é a degradação real: rede falhou e o cache está vencido
+      degraded = cached.stale;
     }
   } else if (cached) {
     manifest = cached.manifest;

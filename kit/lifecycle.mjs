@@ -24,24 +24,19 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  */
 const DEFAULT_STALE_MS = 120000;
 
+const runtimeFile = (engine) => join(engine.homeDir, engine.runtime?.runtimeFile ?? "runtime.json");
+
 /** Lê o runtime.json do motor, sem julgar idade. `null` se ausente/ilegível. */
 export function readRuntime(engine) {
-  try {
-    const rt = join(engine.homeDir, engine.runtime?.runtimeFile ?? "runtime.json");
-    return JSON.parse(readFileSync(rt, "utf8"));
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(readFileSync(runtimeFile(engine), "utf8")); } catch { return null; }
 }
 
 /** Lê o runtime.json do motor SE estiver fresco (heartbeat vivo). null se ausente/obsoleto. */
 export function readFreshRuntime(engine, { staleMs } = {}) {
-  const rt = join(engine.homeDir, engine.runtime?.runtimeFile ?? "runtime.json");
   const hb = engine.runtime?.heartbeatMs;
   const limit = staleMs ?? (hb ? hb * 3 : DEFAULT_STALE_MS);
   try {
-    if (Date.now() - statSync(rt).mtimeMs > limit) { return null; }
-    return JSON.parse(readFileSync(rt, "utf8"));
+    return Date.now() - statSync(runtimeFile(engine)).mtimeMs > limit ? null : readRuntime(engine);
   } catch {
     return null;
   }

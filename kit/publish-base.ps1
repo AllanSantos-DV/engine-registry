@@ -112,7 +112,7 @@ if ($DryRun) {
     $upload | ForEach-Object { Write-Host "      $([IO.Path]::GetFileName($_))" }
     if ($SourceRepo) { Write-Host "      + espelho no repo privado $SourceRepo (nao-fatal)" }
     if ($MarketplaceMirror) { Write-Host "      + ponte no canal antigo $MarketplaceMirror (nao-fatal)" }
-    Write-Host "    e atualizaria $manifest (publicKey=$pubKey, signatureRequired=true, repo=$Registry)"
+    Write-Host "    e levaria manifest e README a main de $Registry (publicKey=$pubKey, signatureRequired=true), mesclando na develop"
     exit 0
 }
 
@@ -146,18 +146,19 @@ if ($MarketplaceMirror) {
     }
 }
 
-# --- 5. Manifest: parseado, nao editado com regex -----------------------------------------
-if (-not $SkipManifest) {
-    Step "Atualizando o manifest do registry"
-    node (Join-Path $kit "update-manifest.mjs") $Engine --version $Version --public-key $pubKey --repo $Registry --manifest $manifest
-    if ($LASTEXITCODE -ne 0) { Fail "update-manifest (a release esta publicada; corrija o manifest e commite)" }
+# --- 5. Manifest e README na main, provados antes do push --------------------------------
+# Worktree temporario a partir de origin/main: update-manifest (parseado, nao regex), linha do README, verify-release
+# (baixa do release como um consumidor e confere sha256 + assinatura), commit e push na main, mescla na develop.
+# A copia de trabalho local nao e tocada.
+if ($SkipManifest) {
+    Step "Provando o caminho REAL (baixa do release publicado e confere sha256 + assinatura)"
+    node (Join-Path $kit "verify-release.mjs") $Engine --manifest $manifest
+    if ($LASTEXITCODE -ne 0) { Fail "a release publicada NAO passa pelo caminho do consumidor - conserte antes de anunciar" }
+} else {
+    Step "Levando manifest e README a main (prova a release antes do push) e mesclando na develop"
+    node (Join-Path $RegistryPath "tools\publish-manifest.mjs") $Engine --version $Version --public-key $pubKey --repo $Registry
+    if ($LASTEXITCODE -ne 0) { Fail "publish-manifest (a release esta publicada; se a prova falhou nada foi enviado - veja o erro acima)" }
 }
-
-# --- 6. A prova: baixar do release como um consumidor faria -------------------------------
-Step "Provando o caminho REAL (baixa do release publicado e confere sha256 + assinatura)"
-node (Join-Path $kit "verify-release.mjs") $Engine --manifest $manifest
-if ($LASTEXITCODE -ne 0) { Fail "a release publicada NAO passa pelo caminho do consumidor - conserte antes de anunciar" }
 
 Write-Host ""
 Write-Host "OK: $Engine v$Version publicado e VERIFICADO em $Registry." -ForegroundColor Green
-Write-Host "Falta: commitar e enviar o manifest.json ($manifest) para o registry publico."

@@ -64,13 +64,13 @@ O script faz, em ordem e com *fail-loud* em cada passo:
 2. assina cada artefato e **prova a assinatura na hora** (valida o legítimo, recusa o adulterado);
 3. cria a release no registry (recusa se a tag já existir — artefato assinado não se sobrescreve);
 4. espelha no repo privado, se `-SourceRepo` (falha aqui **avisa**, não aborta: não é o canônico);
-5. atualiza o `manifest.json` **parseado** (nunca regex em JSON);
+5. num worktree temporário a partir da `main` (`tools/publish-manifest.mjs`), atualiza o `manifest.json`
+   **parseado** (nunca regex em JSON) e a linha do motor no README;
 6. **prova o caminho real**: baixa a release publicada e valida `sha256` + assinatura como um
    consumidor faria. *"Publiquei"* não é prova — asset faltando, `.sig` esquecido e tag errada só
-   aparecem quando alguém tenta instalar, em produção.
-
-Depois: commitar e enviar o `manifest.json`. **Consumidores só enxergam a mudança após o push** —
-até lá o registry publicado continua descrevendo a versão anterior.
+   aparecem quando alguém tenta instalar, em produção;
+7. com a prova verde, commita e envia o manifest e o README para a `main` (é dela que os consumidores
+   leem) e mescla a `main` na `develop`. Prova vermelha não envia nada; a cópia de trabalho local não é tocada.
 
 ## 4. Onde o motor instala — e como o consumidor ACHA
 

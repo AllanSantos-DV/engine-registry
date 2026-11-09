@@ -44,9 +44,12 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-11-09 tooling 31000 → 34000: diagnóstico de vida (pid, porta, idade do runtime) e do ponteiro
 //   `cli.json` no doctor (diagnose.mjs), +2.7 KB. Só leitura, rodado na mão de quem diagnostica; o caminho do
 //   `import "engine-kit"` não mudou.
+//   2026-11-09 tooling 34000 → 37000 (loc 950 → 1050): pin por motor aprovado pelo dono — `engine-kit pin/unpin`
+//   (ensure.mjs, cli.mjs) e o estado FIXADO do doctor, +3.6 KB. No runtime o pin entrou sem subir o teto
+//   (dedup em provision/lifecycle pagou os bytes).
 const BUDGETS = {
   runtime: { codeBytes: 27000, baseline: 24519, loc: 900 },
-  tooling: { codeBytes: 34000, baseline: 16420, loc: 950 },
+  tooling: { codeBytes: 37000, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 5000, baseline: 1859, loc: 150 },
 };
 

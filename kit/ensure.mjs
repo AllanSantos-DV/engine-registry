@@ -9,13 +9,15 @@
 // Motor que não está no manifest deste pacote é recusado: sem a chave embarcada não há primeiro contato
 // verificável, e cair no TOFU calado seria justamente o buraco que o pacote fecha. Saída: atualizar o kit.
 // NUNCA lança: devolve { ok, reason } para o cli decidir o exit code.
-import { readFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { join, dirname } from "node:path";
 import { resolve } from "./resolve.mjs";
 import { provision, installedVersion, satisfiesPin } from "./provision.mjs";
 import { shutdown } from "./lifecycle.mjs";
+import { pinOf, readTrust, trustPath } from "./trust.mjs";
 
 const BUNDLED_MANIFEST = new URL("../manifest.json", import.meta.url);
+const installedOf = (e) => existsSync(join(e.homeDir, e.install.entry)) ? installedVersion(join(e.homeDir, e.install.extractTo ?? "bin")) : null;
 
 /** Manifest que viaja dentro do pacote (lança se ilegível; `ensureCommand` transforma em reason). */
 export function bundledManifest() {
@@ -32,8 +34,10 @@ export function bundledManifest() {
  * @param {Function=} opts.fetcher download injetável (testes).
  * @param {boolean=} opts.autoUpdate false = motor já instalado fica na versão dele e o retorno avisa a nova
  *        (`available`). Default true. Um `version` explícito sempre vale: foi pedido.
+ *        Motor fixado (`engine-kit pin`) fica sempre na versão fixada; `version` diferente dela é recusado.
  * @returns {Promise<{ok:true, entryPath:string, version:string, kind:string, reused?:boolean, signed?:boolean,
- *          previous?:string, available?:string} | {ok:false, reason:string}>} `previous` = versão substituída.
+ *          previous?:string, available?:string, pinned?:string} | {ok:false, reason:string}>} `previous` = versão
+ *          substituída; `pinned` = versão em que o motor está fixado.
  */
 export async function ensureCommand(name, { version, registryUrl, bundled, manifest, fetcher, autoUpdate = true, log = () => {} } = {}) {
   let local;
@@ -49,21 +53,25 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
     return { ok: false, reason: `${name}: o manifest embarcado não traz publicKey → sem chave do primeiro contato não instalo (ABORT)` };
   }
 
+  const pin = pinOf(name);
+  if (pin && version && version !== pin) {
+    return { ok: false, reason: `${name} está fixado em v${pin} → engine-kit pin ${name} --version ${version} troca a versão fixada; engine-kit unpin ${name} solta` };
+  }
   // refresh: instalar quer a verdade do registry, não um descritor de cache.
-  const r = await resolve(name, { version, registryUrl, refresh: true, ...(manifest ? { manifest } : {}) });
+  const r = await resolve(name, { version: version ?? pin, registryUrl, refresh: true, ...(manifest ? { manifest } : {}) });
   if (!r.ok) { return { ok: false, reason: r.reason }; }
 
   const engine = r.engine;
-  const entryPath = join(engine.homeDir, engine.install.entry);
-  const previous = existsSync(entryPath) ? installedVersion(join(engine.homeDir, engine.install.extractTo ?? "bin")) : null;
-  if (!autoUpdate && !version && previous && !satisfiesPin(previous, engine.version)) {
-    return { ok: true, entryPath, version: previous, kind: engine.kind, reused: true, available: engine.version };
+  const previous = installedOf(engine);
+  if (!autoUpdate && !version && !pin && previous && !satisfiesPin(previous, engine.version)) {
+    return { ok: true, entryPath: join(engine.homeDir, engine.install.entry), version: previous, kind: engine.kind, reused: true, available: engine.version };
   }
 
   const p = await provision(r.engine, {
     log,
     trustedKeys: { [name]: publicKey },
     allowDowngrade: Boolean(version),
+    exact: Boolean(pin),
     ...(fetcher ? { fetcher } : {}),
     // Windows: arquivo em uso não se sobrescreve. Derruba o daemon pelo shutdownPath que o registry declara.
     onBeforeReplace: async () => {
@@ -79,5 +87,58 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
   return {
     ok: true, entryPath: p.entryPath, version: p.version, kind: engine.kind, reused: p.reused === true, signed: p.signed,
     ...(p.installed && previous && previous !== p.version ? { previous } : {}),
+    ...(pin ? { pinned: pin } : {}),
   };
+}
+
+/** Fixa (`version`) ou solta (null) um motor em trust.json; os outros motores não mudam. */
+function setPin(name, version) {
+  const store = readTrust(), entry = { ...store[name] };
+  if (version) { entry.pin = version; } else { delete entry.pin; }
+  try {
+    mkdirSync(dirname(trustPath()), { recursive: true });
+    writeFileSync(trustPath(), JSON.stringify({ ...store, [name]: entry }, null, 2));
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, reason: `não consegui gravar ${trustPath()}: ${e.message}` };
+  }
+}
+
+/**
+ * `engine-kit pin <motor> [--version x.y.z]`: congela UM motor. Sem `version`, fixa a versão instalada; com ela,
+ * instala essa versão (sha256 + Ed25519, downgrade permitido) e fixa. A autoatualização pula só este motor.
+ * Nunca lança. Opções de teste iguais às de `ensureCommand`.
+ * @returns {Promise<{ok:true, version:string, pinned:string} | {ok:false, reason:string}>}
+ */
+export async function pinCommand(name, { version, ...opts } = {}) {
+  if (version) {
+    const before = pinOf(name);
+    const s = setPin(name, version);
+    if (!s.ok) { return s; }
+    const e = await ensureCommand(name, opts);
+    if (!e.ok) {
+      const back = setPin(name, before);
+      return { ok: false, reason: `${e.reason} → pin não aplicado${back.ok ? (before ? ` (pin anterior v${before} restaurado)` : "") : `; ${back.reason}`}` };
+    }
+    return e;
+  }
+  const r = await resolve(name, { registryUrl: opts.registryUrl, ...(opts.manifest ? { manifest: opts.manifest } : {}) });
+  if (!r.ok) { return { ok: false, reason: r.reason }; }
+  if (r.engine.status === "self-managed") {
+    return { ok: false, reason: `${name} é self-managed: atualiza pelo próprio updater, o engine-kit não fixa a versão dele` };
+  }
+  const inst = installedOf(r.engine);
+  if (!inst) {
+    return { ok: false, reason: `${name} não está instalado (ou a versão é ilegível) → engine-kit pin ${name} --version <x.y.z> instala e fixa` };
+  }
+  const s = setPin(name, inst);
+  return s.ok ? { ok: true, version: inst, pinned: inst } : s;
+}
+
+/** `engine-kit unpin <motor>`: o motor volta a receber atualizações. Nunca lança. */
+export function unpinCommand(name) {
+  const was = pinOf(name);
+  if (!was) { return { ok: true, was: null }; }
+  const s = setPin(name, null);
+  return s.ok ? { ok: true, was } : s;
 }

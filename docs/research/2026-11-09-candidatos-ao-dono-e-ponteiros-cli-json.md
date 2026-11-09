@@ -1,15 +1,14 @@
 # Candidatos de feature para decisão do dono e achado dos ponteiros `cli.json` (2026-11-09)
 
-Origem: lente de feature irmã do engine-kit 0.2.4 (`2026-11-09-lente-feature-irma-engine-kit-0.2.4.md`). Dois itens técnicos dela entraram no 0.2.5; os quatro abaixo mudam o jeito de usar o produto (ou mexem na raiz de confiança) e dependem de decisão do dono.
+Origem: lente de feature irmã do engine-kit 0.2.4 (`2026-11-09-lente-feature-irma-engine-kit-0.2.4.md`). Dois itens técnicos dela entraram no 0.2.5; os três abaixo mudam o jeito de usar o produto (ou mexem na raiz de confiança) e dependem de decisão do dono.
 
 ## Candidatos
 
 | # | Candidato | Ganho | Esforço | Peças reaproveitadas | Recomendação |
 |---|---|---|---|---|---|
-| 1 | Bundle offline: `engine-kit export <motor> --to <pasta>` e `ensure <motor> --from <pasta>` | Alto: máquina sem internet, proxy, CI | S-M | `kit/provision.mjs` (`fetchArtifact`, `downloadChecked`), `kit/signature.mjs`, `kit/cli.mjs` | Fazer primeiro. Assinatura e sha256 continuam conferidos no destino, então não abre brecha nova |
-| 2 | Pin por motor na máquina (`pin`/`unpin`) | Médio-alto: congela uma versão boa contra atualização automática | S-M | `kit/ensure.mjs`, `kit/update.mjs`, `kit/trust.mjs` (o `trust.json` já guarda estado por motor), `kit/doctor.mjs` | Fazer em seguida; reaproveita o estado por motor do anti-rollback |
-| 3 | Monitor agendado de integridade (`verify-release` diário, selo com data no site) | Médio: prova contínua de que as releases publicadas seguem íntegras | S-M | `kit/verify-release.mjs`, `kit/app-release.mjs`, `site/index.html` | Só se o dono quiser a promessa pública de verificação contínua; muda o site |
-| 4 | Manifest assinado pela chave do registry | Alto, mas é a raiz de confiança do produto | M-L | `kit/signature.mjs`, `kit/sign.mjs`, `kit/resolve.mjs` | Decisão do dono: define quem guarda a chave do registry e como ela gira |
+| 1 | Pin por motor na máquina (`pin`/`unpin`) | Médio-alto: congela uma versão boa contra atualização automática | S-M | `kit/ensure.mjs`, `kit/update.mjs`, `kit/trust.mjs` (o `trust.json` já guarda estado por motor), `kit/doctor.mjs` | Aprovado pelo dono e construído na develop: `docs/ADR-registry-repositorio-e-pin-por-motor.md` |
+| 2 | Monitor agendado de integridade (`verify-release` diário, selo com data no site) | Médio: prova contínua de que as releases publicadas seguem íntegras | S-M | `kit/verify-release.mjs`, `kit/app-release.mjs`, `site/index.html` | Só se o dono quiser a promessa pública de verificação contínua; muda o site |
+| 3 | Manifest assinado pela chave do registry | Alto, mas é a raiz de confiança do produto | M-L | `kit/signature.mjs`, `kit/sign.mjs`, `kit/resolve.mjs` | Decisão do dono: define quem guarda a chave do registry e como ela gira |
 
 ## Achado: ponteiros `cli.json` fora da instalação
 
@@ -35,6 +34,6 @@ Quem publica o ponteiro é o próprio motor (CONTRATO-MOTOR §4: "o motor declar
 
 Orçamento: runtime em 26985/27000 B; os candidatos 1, 2 e 4 provavelmente estouram o ferramental (33141/34000 B), e 4 e 6 tocam o runtime.
 
-## Board para a decisão
+## Decisão do dono
 
-As quatro ideias de fluxo (1 a 4 da primeira tabela) foram levadas ao dono num board narrado, com uma decisão (opções A a E, recomendada: bundle offline e depois pin por motor). Fonte do board: `specs/registry-fluxos-engine-kit.gen.mjs` no projeto visual; saída `Desktop\visual-explanations\registry-fluxos-engine-kit.html`. Nada foi construído.
+Decisão do dono (2026-11-09): a distribuição é só online; a ideia de bundle offline foi descartada e saiu do design. O pin por motor foi aprovado (ADR `docs/ADR-registry-repositorio-e-pin-por-motor.md`); o manifest assinado espera a custódia da chave (`2026-11-09-pin-por-motor-acoplamento-e-custodia-de-chaves.md`).

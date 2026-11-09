@@ -20,15 +20,17 @@ export {
 export { SIGNING_DIR, keyPathFor } from "./keystore.mjs";
 
 import { resolve } from "./resolve.mjs";
-import { provision } from "./provision.mjs";
+import { provision, satisfiesPin } from "./provision.mjs";
 import { lifecycle } from "./lifecycle.mjs";
+import { pinOf } from "./trust.mjs";
 
 /**
  * RESOLVE → PROVISION → LIFECYCLE numa chamada: o caminho que 99% dos consumidores querem.
  * @param {string} name nome do motor no registry.
  * @param {object} opts
  * @param {(runtime:object)=>Promise<object|null>} opts.healthCheck validação de saúde/protocolo (obrigatória).
- * @param {string=} opts.version pin de versão (default: a do registry).
+ * @param {string=} opts.version versão mínima pedida pelo consumidor (default: a do registry). Motor fixado
+ *        pelo dono (`engine-kit pin`) fica na versão fixada; se ela não serve o mínimo, `available:false`.
  * @param {boolean=} opts.allowNetwork permite baixar/atualizar (default true).
  * @param {Record<string,string>=} opts.trustedKeys chaves públicas FIXADAS pelo consumidor
  *        (`{ "<motor>": "<hex>" }`). Divergência com o registry = ABORT. Sem isso vale TOFU:
@@ -41,10 +43,14 @@ import { lifecycle } from "./lifecycle.mjs";
 export async function ensureEngine(name, opts = {}) {
   const { healthCheck, version, allowNetwork = true, registryUrl, log = () => {}, bootTimeoutMs, onBeforeReplace, env, trustedKeys, refresh = false, fetcher } = opts;
 
-  const r = await resolve(name, { version, allowNetwork, registryUrl, refresh });
+  const pin = pinOf(name);
+  if (pin && version && !satisfiesPin(pin, version)) {
+    return { available: false, reason: `${name} fixado em v${pin}; o consumidor pede v${version} → engine-kit unpin ${name}` };
+  }
+  const r = await resolve(name, { version: pin ?? version, allowNetwork, registryUrl, refresh });
   if (!r.ok) { return { available: false, reason: r.reason }; }
 
-  const p = await provision(r.engine, { log, allowNetwork, onBeforeReplace, trustedKeys, ...(fetcher ? { fetcher } : {}) });
+  const p = await provision(r.engine, { log, allowNetwork, onBeforeReplace, trustedKeys, exact: Boolean(pin), ...(fetcher ? { fetcher } : {}) });
   if (!p.ok) { return { available: false, reason: p.reason }; }
 
   const l = await lifecycle(r.engine, p.entryPath, { healthCheck, log, bootTimeoutMs, env });

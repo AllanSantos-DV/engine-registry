@@ -1,6 +1,6 @@
 # engine-kit 0.2.5: anti-rollback e diagnóstico de vida/ponteiro (2026-11-09)
 
-Os dois itens técnicos da lente do 0.2.4. Os outros quatro candidatos (bundle offline, pin por motor, monitor agendado de integridade, manifest assinado) ficam como achados para o dono, sem construir.
+Os dois itens técnicos da lente do 0.2.4. Os outros candidatos (pin por motor, monitor agendado de integridade, manifest assinado) ficam como achados para o dono, sem construir. Decisão do dono (2026-11-09): a distribuição é só online; a ideia de bundle offline foi descartada e saiu do design.
 
 ## Anti-rollback local
 

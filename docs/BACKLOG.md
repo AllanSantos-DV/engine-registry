@@ -2,12 +2,27 @@
 
 Melhorias encontradas durante outro trabalho e deixadas para depois.
 
-Nenhum item aberto.
+- **Rotação de chave de motor sem passo manual nas máquinas.** Hoje, trocar a chave de um motor faz toda máquina
+  que já o tinha abortar (`checkTrust` em `kit/trust.mjs` compara com a chave gravada no `trust.json`), e a rotação
+  legítima exige apagar a entrada à mão. Proposta: aceitar a troca quando a chave nova vem do manifest embarcado num
+  engine-kit publicado com proveniência, e regravar o `trust.json`. Mexe na raiz de confiança: decisão do dono antes.
+  Contexto: `docs/research/2026-11-09-pin-por-motor-acoplamento-e-custodia-de-chaves.md`.
+
+- **`trust.json` ilegível não pode virar estado vazio regravado.** `readTrust` (`kit/trust.mjs`) devolve `{}` quando a
+  leitura ou o parse falha, e quem grava em seguida (`noteVersion`, `setPin` em `kit/ensure.mjs`) reescreve o arquivo só
+  com a entrada nova: some a chave do primeiro contato, a maior versão vista e o pin dos outros motores, e o próximo
+  `ensure` aceita qualquer chave como primeiro contato. Proposta: arquivo existente e ilegível falha alto (ou é preservado
+  com sufixo antes de regravar), e um teste cobre o caso. Mexe no runtime (orçamento de 27000 B).
 
 ## Decidido
 
-- **Decidido (Jarvis, 2026-11-09): tratado fora deste backlog.** Os quatro candidatos de feature da lente do engine-kit
-  0.2.4 (bundle offline, pin por motor, monitor agendado de integridade, manifest assinado) vão ao dono como decisão, e
+- **Decidido (dono, 2026-11-09): distribuição só online; pin por motor aprovado.** O bundle offline foi descartado e
+  saiu do design. O pin por motor foi construído na develop (`docs/ADR-registry-repositorio-e-pin-por-motor.md`). O
+  manifest assinado espera a custódia da chave do registry
+  (`docs/research/2026-11-09-pin-por-motor-acoplamento-e-custodia-de-chaves.md`).
+
+- **Decidido (Jarvis, 2026-11-09): tratado fora deste backlog.** Os candidatos de feature da lente do engine-kit
+  0.2.4 (pin por motor, monitor agendado de integridade, manifest assinado) vão ao dono como decisão, e
   os ponteiros `cli.json` fora da instalação (skill-engine, client-harness) vão aos projetos donos dos motores. Detalhe e
   evidência em `docs/research/2026-11-09-candidatos-ao-dono-e-ponteiros-cli-json.md`.
 

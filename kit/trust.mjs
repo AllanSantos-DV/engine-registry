@@ -26,7 +26,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 const trustDir = () => process.env.ENGINE_KIT_HOME || join(homedir(), ".engine-kit");
 const trustFile = () => join(trustDir(), "trust.json");
 
-function readTrust() {
+export function readTrust() {
   try {
     const v = JSON.parse(readFileSync(trustFile(), "utf8"));
     return v && typeof v === "object" && !Array.isArray(v) ? v : {};
@@ -79,6 +79,9 @@ export function rollbackReason(name, version) {
   const max = readTrust()[name]?.maxVersion;
   return max && cmpVer(version, max) < 0 && `${name}: v${version} < v${max} já instalada → ABORT (rollback; downgrade só com --version)`;
 }
+
+/** Versão em que o dono fixou o motor nesta máquina (`engine-kit pin`), ou undefined. */
+export const pinOf = (name) => readTrust()[name]?.pin;
 
 /** Grava `version` como a maior vista do motor, se superar a registrada. */
 export function noteVersion(name, version) {
