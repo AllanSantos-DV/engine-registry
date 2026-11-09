@@ -11,7 +11,7 @@
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { join } from "node:path";
+import { join, basename } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { generateKeyPairHex, signBlob } from "../kit/index.mjs";
@@ -92,6 +92,7 @@ const manifestWith = (version, home, runtime) => ({ engines: [{
 
 /** instala a 1.2.3, sobe o daemon fake com a pasta bin como diretório corrente e espera o daemon.json. */
 async function instalarComDaemonVivo(home, runtime, busyMs = 0) {
+  process.env.ENGINE_KIT_HOME = join(RUN, `trust-${basename(home)}`);
   const v1 = manifestWith("1.2.3", home, runtime);
   const blob = tgzOf("1.2.3");
   const first = await ensureCommand("fake-engine", { bundled: v1, manifest: v1, fetcher: serve(blob, signBlob(blob, owner.privateKeyHex), "1.2.3") });

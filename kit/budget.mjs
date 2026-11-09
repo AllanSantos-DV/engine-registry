@@ -41,9 +41,12 @@ const ROOT = resolvePath(KIT, "..");
 //   e update.mjs (`npx engine-kit ensure <motor>` com autoatualização exigida pelo gate de release), +6.3 KB.
 //   Escopo novo (comando de instalação), rodado pela mão de quem instala, nunca importado por consumidor:
 //   o caminho do `import "engine-kit"` não mudou.
+//   2026-11-09 tooling 31000 → 34000: diagnóstico de vida (pid, porta, idade do runtime) e do ponteiro
+//   `cli.json` no doctor (diagnose.mjs), +2.7 KB. Só leitura, rodado na mão de quem diagnostica; o caminho do
+//   `import "engine-kit"` não mudou.
 const BUDGETS = {
   runtime: { codeBytes: 27000, baseline: 24519, loc: 900 },
-  tooling: { codeBytes: 31000, baseline: 16420, loc: 950 },
+  tooling: { codeBytes: 34000, baseline: 16420, loc: 950 },
   adapter: { codeBytes: 5000, baseline: 1859, loc: 150 },
 };
 

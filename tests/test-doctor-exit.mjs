@@ -33,6 +33,8 @@ check("diagnóstico via rede termina com o exit code do doctor, sem abortar", r.
 check("stderr limpo (sem Assertion failed)", !/Assertion failed/.test(r.err), r.err.trim());
 check("viu o registry local (motor ausente → baixar)", /AUSENTE/.test(r.out), r.out.trim().split("\n").pop());
 
+check("o doctor mostra vida e ponteiro do motor sem alterar o exit code", /vida: PARADO/.test(r.out) && /ponteiro cli\.json: AUSENTE/.test(r.out), r.out.trim());
+
 server.close();
 console.log(failures ? `\n${failures} falha(s)` : "\nDOCTOR-EXIT VERDE");
 process.exitCode = failures ? 1 : 0;

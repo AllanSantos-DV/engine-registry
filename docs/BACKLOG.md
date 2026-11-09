@@ -2,7 +2,14 @@
 
 Melhorias encontradas durante outro trabalho e deixadas para depois.
 
-Nenhum item aberto.
+## Aberto
+
+- **Achados do dono (lente do engine-kit 0.2.4), não construídos:** bundle offline (`export`/`--from`), pin por motor
+  (`pin`/`unpin`), monitor agendado de integridade (selo com data no site), manifest assinado pela chave do registry
+  (raiz de confiança). Detalhe em `docs/research/2026-11-09-lente-feature-irma-engine-kit-0.2.4.md`.
+- **Ponteiros `cli.json` fora da instalação (visto pelo novo diagnóstico do doctor):** na máquina do dono, o `cli.json` do
+  skill-engine aponta para uma pasta temporária e o do client-harness para o checkout de desenvolvimento, não para
+  `runtimes/<motor>`. Quem corrige é o motor (o ponteiro é publicado por ele, CONTRATO-MOTOR §4).
 
 ## Decidido
 

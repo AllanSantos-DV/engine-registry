@@ -63,6 +63,7 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
   const p = await provision(r.engine, {
     log,
     trustedKeys: { [name]: publicKey },
+    allowDowngrade: Boolean(version),
     ...(fetcher ? { fetcher } : {}),
     // Windows: arquivo em uso não se sobrescreve. Derruba o daemon pelo shutdownPath que o registry declara.
     onBeforeReplace: async () => {

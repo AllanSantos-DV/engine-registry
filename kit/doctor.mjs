@@ -17,6 +17,7 @@ import { join } from "node:path";
 import { resolve } from "./resolve.mjs";
 import { provision, satisfiesPin } from "./provision.mjs";
 import { shutdown } from "./lifecycle.mjs";
+import { lifeOf, pointerOf } from "./diagnose.mjs";
 
 const args = process.argv.slice(2);
 const useLocal = args.includes("--local");
@@ -85,6 +86,11 @@ const w = Math.max(12, ...rows.map((r) => r.name.length));
 for (const r of rows) {
   const mark = (r.state === "OK" || r.state === "SELF-MANAGED") ? "  OK  " : r.state === "ERRO" ? " ERRO " : "  !!  ";
   console.log(`${mark} ${pad(r.name, w)}  ${pad(r.state, 14)} ${r.detail}`);
+  if (r.engine && r.engine.status !== "self-managed") {
+    const life = lifeOf(r.engine), ptr = pointerOf(r.engine);
+    console.log(`       ${pad("", w)}  vida: ${life.state} (${life.detail})`);
+    console.log(`       ${pad("", w)}  ponteiro cli.json: ${ptr.state} (${ptr.detail})`);
+  }
 }
 
 const pending = rows.filter((r) => r.needsWork);

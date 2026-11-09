@@ -12,7 +12,7 @@ import { join, dirname } from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { verifyBlob, DEFAULT_ALGORITHM } from "./signature.mjs";
-import { checkTrust, trustPath } from "./trust.mjs";
+import { checkTrust, trustPath, cmpVer, rollbackReason, noteVersion } from "./trust.mjs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -77,22 +77,29 @@ function claimLock(lock) {
   }
 }
 
-const parseVer = (v) => String(v || "").split(".").map((n) => parseInt(n, 10) || 0);
-
 /** true se a versão instalada serve o pin: MESMO major e >= (protocolo é atado ao major). */
-export function satisfiesPin(installed, pinned) {
-  const a = parseVer(installed), b = parseVer(pinned);
-  if (a[0] !== b[0]) { return false; }
-  for (let i = 0; i < 3; i++) {
-    const x = a[i] || 0, y = b[i] || 0;
-    if (x > y) { return true; }
-    if (x < y) { return false; }
-  }
-  return true;
-}
+export const satisfiesPin = (installed, pinned) => String(installed).split(".")[0] === String(pinned).split(".")[0] && cmpVer(installed, pinned) >= 0;
 
-function sha256File(p) {
-  return createHash("sha256").update(readFileSync(p)).digest("hex").toLowerCase();
+/**
+ * Baixa o artefato e confere o sidecar SHA256 (obrigatório, fail-closed) em memória.
+ * @returns {Promise<{buf:Buffer} | {reason:string}>}
+ */
+async function downloadChecked(engine, { log, fetcher, timeoutMs }) {
+  let expected;
+  try {
+    expected = String(await fetcher(engine.checksumUrl, 15000)).trim().split(/\s+/)[0].toLowerCase();
+  } catch (e) {
+    return { reason: `${engine.name}: sha256 sidecar inacessível (${e.status || e.message}) → ABORT (fail-closed)` };
+  }
+  if (!/^[0-9a-f]{64}$/.test(expected)) { return { reason: `${engine.name}: sha256 sidecar malformado → ABORT` }; }
+
+  log(`[engine-kit] baixando ${engine.assetUrl} …`);
+  let buf;
+  try { buf = await fetcher(engine.assetUrl, timeoutMs); }
+  catch (e) { return { reason: `${engine.name}: download falhou (${e.status || e.message})` }; }
+
+  const actual = createHash("sha256").update(buf).digest("hex").toLowerCase();
+  return actual === expected ? { buf } : { reason: `${engine.name}: SHA256 mismatch (esperado ${expected.slice(0, 12)}…, obtido ${actual.slice(0, 12)}…) → ABORT` };
 }
 
 async function fetchBuf(url, timeoutMs) {
@@ -183,26 +190,9 @@ export async function fetchArtifact(engine, { log = () => {}, destDir, downloadT
     return { ok: false, reason: `${engine.name}: não consegui criar ${dir}: ${e?.message || e}` };
   }
 
-  let expected;
-  try {
-    const buf = await fetcher(engine.checksumUrl, 15000);
-    expected = String(buf).trim().split(/\s+/)[0].toLowerCase();
-  } catch (e) {
-    return { ok: false, reason: `${engine.name}: sha256 sidecar inacessível (${e.status || e.message}) → ABORT (fail-closed)` };
-  }
-  if (!/^[0-9a-f]{64}$/.test(expected)) {
-    return { ok: false, reason: `${engine.name}: sha256 sidecar malformado → ABORT` };
-  }
-
-  log(`[engine-kit] baixando ${engine.assetUrl} …`);
-  let buf;
-  try { buf = await fetcher(engine.assetUrl, downloadTimeoutMs); }
-  catch (e) { return { ok: false, reason: `${engine.name}: download falhou (${e.status || e.message})` }; }
-
-  const actual = createHash("sha256").update(buf).digest("hex").toLowerCase();
-  if (actual !== expected) {
-    return { ok: false, reason: `${engine.name}: SHA256 mismatch (esperado ${expected.slice(0, 12)}…, obtido ${actual.slice(0, 12)}…) → ABORT` };
-  }
+  const dl = await downloadChecked(engine, { log, fetcher, timeoutMs: downloadTimeoutMs });
+  if (!dl.buf) { return { ok: false, reason: dl.reason }; }
+  const buf = dl.buf;
 
   const auth = await verifyAuthenticity(engine, buf, { log, fetcher, trustedKeys });
   if (!auth.ok) { return { ok: false, reason: auth.reason }; }
@@ -225,7 +215,7 @@ export async function fetchArtifact(engine, { log = () => {}, destDir, downloadT
  * adivinha como derrubar um daemon: quem sabe é o descritor/consumidor).
  * @returns {Promise<{ok:true, entryPath:string, version:string, reused?:boolean, installed?:boolean} | {ok:false, reason:string}>}
  */
-export async function provision(engine, { log = () => {}, allowNetwork = true, onBeforeReplace, downloadTimeoutMs = 120000, fetcher = fetchBuf, trustedKeys } = {}) {
+export async function provision(engine, { log = () => {}, allowNetwork = true, onBeforeReplace, downloadTimeoutMs = 120000, fetcher = fetchBuf, trustedKeys, allowDowngrade } = {}) {
   const home = engine.homeDir;
   const binDir = join(home, engine.install.extractTo ?? "bin");
   const entryPath = join(home, engine.install.entry);
@@ -239,6 +229,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
   if (existsSync(entryPath)) {
     const inst = installedVersion(binDir);
     if (inst && satisfiesPin(inst, engine.version)) {
+      noteVersion(engine.name, inst);
       return { ok: true, entryPath, version: inst, reused: true };
     }
     if (!inst && engine.status !== "self-managed") {
@@ -266,6 +257,9 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
     return { ok: false, reason: `${engine.name} ainda não publicou release (status: pending-release)` };
   }
 
+  const rb = !allowDowngrade && rollbackReason(engine.name, engine.version);
+  if (rb) { return { ok: false, reason: rb }; }
+
   mkdirSync(home, { recursive: true });
 
   // LOCK atômico: só um consumidor provisiona; os demais aguardam o resultado dele.
@@ -284,34 +278,14 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
   }
 
   try {
-    // 1) SHA256 sidecar OBRIGATÓRIO (fail-closed).
-    let expected;
-    try {
-      const buf = await fetcher(engine.checksumUrl, 15000);
-      expected = String(buf).trim().split(/\s+/)[0].toLowerCase();
-    } catch (e) {
-      return { ok: false, reason: `${engine.name}: sha256 sidecar inacessível (${e.status || e.message}) → ABORT (fail-closed)` };
-    }
-    if (!/^[0-9a-f]{64}$/.test(expected)) {
-      return { ok: false, reason: `${engine.name}: sha256 sidecar malformado → ABORT` };
-    }
-
-    // 2) Download → .part → rename atômico.
-    log(`[engine-kit] baixando ${engine.assetUrl} …`);
-    let buf;
-    try { buf = await fetcher(engine.assetUrl, downloadTimeoutMs); }
-    catch (e) { return { ok: false, reason: `${engine.name}: download falhou (${e.status || e.message})` }; }
+    // 1-3) Sidecar SHA256 obrigatório, download e integridade: nada toca o disco antes de conferir.
+    const dl = await downloadChecked(engine, { log, fetcher, timeoutMs: downloadTimeoutMs });
+    if (!dl.buf) { return { ok: false, reason: dl.reason }; }
+    const buf = dl.buf;
     const part = join(home, `${engine.assetName}.part`);
     const tgz = join(home, engine.assetName);
     writeFileSync(part, buf);
     renameSync(part, tgz);
-
-    // 3) Integridade (mismatch = apaga + ABORT).
-    const actual = sha256File(tgz);
-    if (actual !== expected) {
-      dropFile(tgz);
-      return { ok: false, reason: `${engine.name}: SHA256 mismatch (esperado ${expected.slice(0, 12)}…, obtido ${actual.slice(0, 12)}…) → ABORT` };
-    }
 
     // 3.5) AUTENTICIDADE — antes de extrair. Um artefato não confiável não chega a tocar o disco
     //      final: se a assinatura não confere, o .tgz é apagado e nada é instalado.
@@ -373,6 +347,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
     if (!existsSync(entryPath)) {
       return { ok: false, reason: `${engine.name}: artefato extraído incompleto (sem ${engine.install.entry})` };
     }
+    noteVersion(engine.name, engine.version);
     log(`[engine-kit] ${engine.name} instalado em ${binDir} (v${engine.version})`);
     return { ok: true, entryPath, version: engine.version, installed: true, signed: auth.signed };
   } catch (e) {
