@@ -247,7 +247,7 @@
     },
     {
       "name": "client-harness",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "kind": "cli",
       "summary": "Daemon local que faz o Claude Code e o Codex respeitarem os padrões de cada cliente: confere cada ação do agente (hooks) contra as regras do cliente da pasta e recusa antes de gravar, em cerca de 1 ms, com o motivo e o que usar no lugar.",
       "pagesUrl": "https://allansantos-dv.github.io/harness-padroes-cliente/",
