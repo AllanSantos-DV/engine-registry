@@ -185,6 +185,16 @@ dele não exige reassinar nada):
 **Uma chave por motor**, não uma chave do publisher: um vazamento obriga a republicar aquele
 motor, não a casa inteira.
 
+Backup da pasta de chaves, cifrado com uma frase-senha (scrypt + AES-256-GCM) e gravado igual em duas mídias offline:
+
+```sh
+node tools/backup-keys.mjs backup --to E:\ --to F:\        # pede a frase-senha sem eco; relê e decifra as duas cópias
+node tools/backup-keys.mjs check E:\engine-signing-<data>.ekb   # decifra e compara com ~/.engine-signing
+node tools/backup-keys.mjs restore E:\engine-signing-<data>.ekb --to <pasta nova>
+```
+
+A frase-senha nunca vai em argumento, variável de ambiente ou log (`--passphrase-stdin` lê da entrada padrão).
+
 Política do `provision`, sem meio-termo silencioso:
 
 | Situação no registry | O que acontece |
