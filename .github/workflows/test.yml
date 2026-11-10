@@ -1,24 +1,28 @@
 name: test
 
+# Push só na main: a develop entra na main por fast-forward com o mesmo SHA, e um push em cada uma rodava o mesmo
+# commit duas vezes. A develop é coberta pelas suítes locais e, quando há PR, pelo gatilho pull_request.
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# Só a PR cancela o run anterior da mesma ref: um push na main termina, para o gate da release não ser cancelado.
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   npm-test:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        # Windows cobra mais por minuto: só na main e na PR; dispatch em outra branch roda só no Linux.
+        os: ${{ fromJSON((github.event_name == 'pull_request' || github.ref == 'refs/heads/main') && '["ubuntu-latest","windows-latest"]' || '["ubuntu-latest"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:
