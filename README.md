@@ -272,6 +272,13 @@ node tests/e2e-install.mjs               # baixa e sobe o mcp-gateway num HOME i
 node tests/e2e-install.mjs --local       # idem, mas usando o manifest.json que você vai publicar
 ```
 
+Para ver quais repositórios e workflows consomem os minutos do GitHub Actions da conta logada no `gh` (só leitura; os maiores
+consumidores vêm marcados, assim como jobs que nem iniciaram por cobrança):
+
+```sh
+node tools/actions-minutes.mjs [--month AAAA-MM] [--days 3] [--top 5] [--json]
+```
+
 ## Publicar um motor
 
 Veja o passo a passo completo em [`CONTRATO-MOTOR.md`](./CONTRATO-MOTOR.md). Em resumo:
