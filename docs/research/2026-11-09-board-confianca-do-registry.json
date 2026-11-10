@@ -1,0 +1,401 @@
+{
+  "engine": "vxk",
+  "mode": "board",
+  "title": "Confiança do registry sem custódia de chave",
+  "slug": "engine-registry-confianca-sem-custodia",
+  "badge": "VXK · board · engine-registry · 09/11/2026",
+  "accent": "#ffc15e",
+  "language": "pt-BR",
+  "narrate": true,
+  "voice": "pt-BR-Chirp3-HD-Iapetus",
+  "voiceStrict": true,
+  "intro": "Confiança do registry sem você guardar nenhuma chave de assinatura: o que segura um token do GitHub roubado, e o que não segura.",
+  "labels": {
+    "explain": "▶ Apresentar",
+    "pause": "⏸ Pausar",
+    "resume": "▶ Continuar",
+    "prev": "◀ Anterior",
+    "next": "Próximo ▶",
+    "index": "☰ Índice",
+    "indexTitle": "Tópicos",
+    "indexClose": "Fechar"
+  },
+  "blocks": [
+    {
+      "type": "hero",
+      "kicker": "engine-registry · confiança sem custódia de chave · 09/11/2026",
+      "title": "Quem tem o token do GitHub consegue publicar um kit malicioso?",
+      "subtitle": "O padrão de mercado, o que uma segunda chave resolve e uma recomendação para você decidir. Fase de discussão: nenhum código, chave ou configuração foi mudado.",
+      "say": "Este quadro responde à sua pergunta: se alguém pega a conta ou o token do GitHub, o que impede essa pessoa de pegar também a chave? Mostra o padrão de mercado, quando uma segunda chave ajuda, o caso que você teme, e termina com uma recomendação e as suas opções. Nada foi mudado: é só pesquisa."
+    },
+    {
+      "type": "callout",
+      "tone": "warn",
+      "title": "Resposta curta",
+      "body": "As nove chaves dos motores não estão no GitHub, então o token não as entrega. Mas hoje o token dispensa a chave: existem três caminhos até as máquinas que nenhuma chave guarda.",
+      "say": "A resposta curta: a chave não está no GitHub, então o token não a entrega. Só que hoje o token não precisa da chave. Existem três caminhos até as suas máquinas que nenhuma chave protege."
+    },
+    {
+      "type": "cards",
+      "title": "Hoje: três caminhos que contornam a chave",
+      "columns": 3,
+      "items": [
+        {
+          "icon": "git-branch",
+          "title": "Main sem proteção e tag",
+          "badge": "caminho 1",
+          "body": "Commit na main mudando manifest e kit, depois a tag engine-kit-v*: o publish.yml publica no npm com proveniência verdadeira."
+        },
+        {
+          "icon": "refresh-cw",
+          "title": "Autoatualização do kit",
+          "badge": "caminho 2",
+          "body": "npx engine-kit relança na última versão do npm antes de conferir qualquer assinatura de motor."
+        },
+        {
+          "icon": "package",
+          "title": "Kit instalado direto do GitHub",
+          "badge": "caminho 3",
+          "body": "mcp-gateway e visual seguem a ponta da main; security-check e vscode, uma tag que o token move."
+        }
+      ],
+      "say": "Primeiro caminho: a branch main não tem proteção. Com o token, o atacante faz um commit e cria a tag do kit, e o workflow publica no npm com proveniência verdadeira. Segundo: o kit se atualiza sozinho pelo npx, antes de conferir qualquer assinatura. Terceiro: quatro projetos instalam o kit direto do GitHub, sem passar pelo npm. O token desta máquina tem os escopos repo e workflow, o bastante para os três."
+    },
+    {
+      "type": "callout",
+      "tone": "warn",
+      "title": "E o token talvez alcance a própria chave",
+      "body": "Runners self-hosted do GitHub nesta máquina, registrados em 14 repositórios da mesma conta, sobem no logon como o usuário dono da pasta de chaves. Quem tem o token pode mandar um job para eles. Se esse job lê a pasta depende do isolamento do self-forge: a sessão do self-forge é quem confere, e é a lacuna mais urgente.",
+      "say": "Há um agravante. Esta máquina tem runners do GitHub, registrados em catorze repositórios da mesma conta, que sobem no logon como o mesmo usuário dono da pasta de chaves. Quem tem o token pode criar um workflow que roda aqui. Se esse job consegue ler as chaves depende do isolamento do self-forge, e essa conferência vai para a sessão do self-forge. É a lacuna mais urgente."
+    },
+    {
+      "type": "cards",
+      "title": "O padrão de mercado",
+      "columns": 2,
+      "items": [
+        {
+          "icon": "badge-check",
+          "title": "Assinatura sem chave (Sigstore)",
+          "body": "A identidade do workflow vira a chave: certificado curto, chave destruída logo depois, registro no log público Rekor. Detecta abuso, não impede."
+        },
+        {
+          "icon": "key-round",
+          "title": "TUF com limiar",
+          "body": "Papéis root, targets, snapshot e timestamp. Raiz offline k de n: o próprio Sigstore usa 3 de 5 em chaves de hardware pessoais."
+        },
+        {
+          "icon": "shield-check",
+          "title": "Aprovação fora do GitHub",
+          "body": "Publicação em estágio do npm: o CI só põe em estágio, e publicar exige o 2FA do mantenedor. Token OIDC não aprova."
+        },
+        {
+          "icon": "clock",
+          "title": "Atraso e monitor",
+          "body": "O pnpm espera um dia antes de instalar versão nova; o rekor-monitor avisa cada assinatura de uma identidade."
+        }
+      ],
+      "say": "O padrão de mercado tem quatro peças. A assinatura sem chave do Sigstore troca a chave pela identidade do workflow e registra tudo num log público: detecta abuso, mas não impede. O TUF separa papéis e guarda a raiz offline com limiar, como o três de cinco do próprio Sigstore. A publicação em estágio do npm exige o segundo fator do mantenedor para ir ao ar. E o atraso com monitor dá tempo de ver um abuso antes que ele se espalhe."
+    },
+    {
+      "type": "cards",
+      "title": "Por que trancas dentro do GitHub não seguram o token",
+      "columns": 3,
+      "items": [
+        {
+          "icon": "lock-open",
+          "title": "Secret",
+          "body": "Quem tem escrita no repositório lê todos os secrets. Chave guardada como secret vai junto com o token."
+        },
+        {
+          "icon": "user-check",
+          "title": "Ambiente com revisor",
+          "body": "A aprovação sai por API com um token clássico de escopo repo; administrador passa por cima por padrão."
+        },
+        {
+          "icon": "shield-off",
+          "title": "Proteção de branch",
+          "body": "Um token de administrador desliga a proteção pela mesma API."
+        }
+      ],
+      "say": "Por que não basta trancar dentro do GitHub? Porque quem tem escrita lê todos os secrets; a aprovação de um ambiente sai por API com o próprio token, e o administrador passa por cima por padrão; e a proteção de branch se desliga pela mesma API. A consequência: nenhum esquema automático, sem nada sob a sua guarda e ancorado só no GitHub, resiste ao token roubado. Algum passo precisa exigir algo que o GitHub não tem."
+    },
+    {
+      "type": "compare",
+      "title": "O que você teme e o atacante com o token",
+      "columns": [
+        "Hoje: 9 chaves no PC",
+        "Segunda chave em arquivo, 1 de 1",
+        "Recomendado: esquema D"
+      ],
+      "rows": [
+        {
+          "label": "Token roubado",
+          "cells": [
+            "Comprometimento total pelos três caminhos",
+            "Igual a hoje se não cobrir o kit",
+            "Kit não sai sem o seu 2FA; motor malicioso fica público, atrasado e revogável"
+          ]
+        },
+        {
+          "label": "Máquina perdida",
+          "cells": [
+            "Chaves perdidas, salvo o backup cifrado",
+            "Perdida com a máquina, salvo backup",
+            "Nada se perde"
+          ]
+        },
+        {
+          "label": "Segundo fator perdido",
+          "cells": [
+            "É a própria chave do motor",
+            "O processo acaba, salvo backup",
+            "Recupera a conta npm; motores seguem saindo"
+          ]
+        },
+        {
+          "label": "O que você guarda",
+          "cells": [
+            "9 chaves e uma frase-senha",
+            "1 chave e um backup",
+            "Nenhuma chave, só a conta npm com 2FA"
+          ]
+        },
+        {
+          "label": "Automático",
+          "cells": [
+            "Sim, preso ao PC",
+            "Sim",
+            "Motores sim; um clique por release do kit"
+          ]
+        }
+      ],
+      "say": "Agora o seu medo: perder a segunda chave e perder o processo inteiro. Ele procede quando a chave é um arquivo único. Com uma chave em arquivo, a máquina perdida leva a chave junto, salvo backup. No esquema recomendado não há chave: o segundo fator é a sua conta do npm com dois fatores, que tem recuperação. Se você perder o aparelho, recupera a conta, e enquanto isso os motores continuam saindo. Só a publicação do kit espera."
+    },
+    {
+      "type": "callout",
+      "tone": "info",
+      "title": "Como o mercado evita perder o processo",
+      "body": "Limiar k de n: no 3 de 5, perder duas chaves não para nada. Raiz separada do dia a dia: perder a raiz trava só a troca de política. Conta com 2FA no lugar de arquivo: recupera-se a conta, não há chave para guardar.",
+      "say": "O mercado evita perder o processo de três jeitos: limiar, em que perder duas de cinco chaves não para nada; raiz separada da assinatura do dia a dia; e trocar o arquivo de chave por uma conta com dois fatores que se recupera. A recomendação usa o terceiro."
+    },
+    {
+      "type": "compare",
+      "title": "Os quatro esquemas lado a lado",
+      "columns": [
+        "A · Hoje",
+        "B · Só sem chave",
+        "C · TUF com raiz offline",
+        "D · Recomendado"
+      ],
+      "rows": [
+        {
+          "label": "Token roubado",
+          "cells": [
+            "Perde tudo",
+            "Perde as releases, com registro público",
+            "Raiz segura se assinar o kit",
+            "Kit seguro; motor visível e atrasado"
+          ]
+        },
+        {
+          "label": "Máquina perdida",
+          "cells": [
+            "Perde as chaves, salvo backup",
+            "Nada",
+            "Chaves de hardware fora do PC sobrevivem",
+            "Nada"
+          ]
+        },
+        {
+          "label": "Você guarda",
+          "cells": [
+            "9 chaves e frase-senha",
+            "Nada",
+            "k de n chaves de hardware",
+            "Nada além da conta npm"
+          ]
+        },
+        {
+          "label": "Automático",
+          "cells": [
+            "Sim, preso ao PC",
+            "Total",
+            "Releases sim; raiz com cerimônia",
+            "Motores sim; kit com um clique"
+          ]
+        }
+      ],
+      "say": "Os quatro esquemas lado a lado. A é hoje. B, só assinatura sem chave, é totalmente automático e não perde nada com a máquina, mas com o token é igual a hoje. C, o TUF com raiz offline, segura o token, mas exige que você guarde várias chaves de hardware, justamente o que você quer evitar. D combina assinatura sem chave nos motores com a sua aprovação no npm para o kit."
+    },
+    {
+      "type": "steps",
+      "title": "Recomendação: esquema D",
+      "items": [
+        {
+          "title": "Kit só com aprovação 2FA no npm",
+          "body": "O CI passa a pôr o kit em estágio (npm stage publish). Ele vai ao ar quando você aprova com 2FA no npmjs.com, de qualquer aparelho. As dependências github: passam a vir do npm."
+        },
+        {
+          "title": "Motores assinados sem chave no CI",
+          "body": "Um workflow da main atesta cada artefato pelo Sigstore. O kit confere o certificado, o registro no Rekor e a identidade fixada. Nenhuma chave para guardar, e a troca manual no trust.json acaba."
+        },
+        {
+          "title": "Atraso, monitor e releases imutáveis",
+          "body": "A autoatualização só instala release de motor que está no log há algumas horas. Um monitor avisa cada assinatura, a revogação sai no próximo kit aprovado, e as releases não mudam depois de publicadas."
+        },
+        {
+          "title": "Alternativa sem clique: esquema B",
+          "body": "Se você não aceitar nenhum clique, fica só a assinatura sem chave. Resolve a máquina perdida, mas não resiste ao token roubado."
+        }
+      ],
+      "say": "A recomendação é o esquema D, em três camadas. Primeira: o kit só vai ao ar com a sua aprovação de dois fatores no npm, e os projetos que dependem do GitHub passam a usar o npm. Segunda: os motores são assinados sem chave no CI, com a identidade do workflow fixada dentro do kit; acaba a troca manual de chave. Terceira: a autoatualização espera algumas horas, um monitor avisa cada assinatura, e as releases ficam imutáveis. Se você não quiser nenhum clique, a alternativa é o esquema B, sabendo que ele não resiste ao token."
+    },
+    {
+      "type": "callout",
+      "tone": "warn",
+      "title": "O que o esquema D não resolve",
+      "body": "A garantia dos motores depende de alguém ver o alerta dentro do atraso. Proteção total contra o token sem nenhum clique é impossível. Implementar exige subir o teto de tamanho do kit (26968 de 27000 bytes) ou adotar o @sigstore/verify.",
+      "say": "Dito com clareza: na camada dos motores, a garantia depende de alguém ver o alerta a tempo. Proteção total contra o token sem nenhum clique não existe. E a implementação tem um custo já conhecido: o kit está a trinta e dois bytes do teto de tamanho, então o verificador do Sigstore exige subir o teto ou adicionar uma dependência."
+    },
+    {
+      "type": "html",
+      "html": "<section style=\"border:2px solid #ffc15e;border-radius:16px;padding:18px 20px;background:#241d0b;color:#f3e4bd\">\n<h2 style=\"margin:0 0 10px\">Sua decisão</h2>\n<p style=\"margin:0 0 14px;font-size:17px;line-height:1.5\">Qual esquema de confiança o registry deve seguir? Fase de discussão: nada é implementado antes da sua resposta.</p>\n<ol style=\"margin:0;padding-left:22px;display:grid;gap:10px;font-size:15px;line-height:1.5\">\n<li><b>Esquema D como recomendado (recomendada)</b>: Motores assinados sem chave no CI; kit publicado só com a sua aprovação 2FA no npm; autoatualização de motor espera algumas horas; releases de motor sem estágio; você mesmo configura o npm só-estágio e liga as releases imutáveis.</li>\n<li><b>Esquema D estrito</b>: Tudo da recomendada, e cada release de motor também passa por estágio no npm: fecha a janela do token, ao custo de um clique de aprovação por release de motor.</li>\n<li><b>Esquema B, sem nenhum clique</b>: Só assinatura sem chave no CI. Melhor que hoje quando a máquina se perde, igual a hoje com o token roubado.</li>\n<li><b>Manter como está</b>: Nove chaves no PC com o backup cifrado; o token do GitHub continua bastando para publicar um kit.</li>\n</ol>\n<p style=\"margin:14px 0 0;font-size:14.5px;line-height:1.5\">Dentro da recomendada, o atraso pode ser nenhum, algumas horas ou um dia (o padrão do pnpm); diga se quiser outro.</p>\n</section>\n<script type=\"application/json\" id=\"orq-opcoes\">[{\"rotulo\":\"Esquema D como recomendado (recomendada)\",\"descricao\":\"Motores assinados sem chave no CI; kit publicado só com a sua aprovação 2FA no npm; autoatualização de motor espera algumas horas; releases de motor sem estágio; você mesmo configura o npm só-estágio e liga as releases imutáveis.\"},{\"rotulo\":\"Esquema D estrito\",\"descricao\":\"Tudo da recomendada, e cada release de motor também passa por estágio no npm: fecha a janela do token, ao custo de um clique de aprovação por release de motor.\"},{\"rotulo\":\"Esquema B, sem nenhum clique\",\"descricao\":\"Só assinatura sem chave no CI. Melhor que hoje quando a máquina se perde, igual a hoje com o token roubado.\"},{\"rotulo\":\"Manter como está\",\"descricao\":\"Nove chaves no PC com o backup cifrado; o token do GitHub continua bastando para publicar um kit.\"}]</script>",
+      "say": "Sua decisão: qual esquema o registry deve seguir. Primeira opção, a recomendada: esquema D, com um clique de aprovação por release do kit, atraso de algumas horas, releases de motor sem estágio, e você mesmo configurando o npm e as releases imutáveis. Segunda: esquema D estrito, com cada release de motor também aprovada. Terceira: esquema B, sem nenhum clique. Quarta: manter como está. Nada é implementado antes da sua resposta."
+    },
+    {
+      "type": "cards",
+      "title": "Achados e para onde vão",
+      "columns": 3,
+      "items": [
+        {
+          "icon": "server",
+          "title": "Runners do self-forge",
+          "badge": "técnico · mais urgente",
+          "body": "Runners de 14 repositórios nesta máquina, sob o usuário dono da pasta de chaves: a sessão do self-forge confere se um job alcança essa pasta."
+        },
+        {
+          "icon": "link",
+          "title": "Kit pelo GitHub em quatro projetos",
+          "badge": "técnico",
+          "body": "mcp-gateway, visual, security-check e vscode trocam a dependência github: pelo pacote do npm."
+        },
+        {
+          "icon": "scale",
+          "title": "O esquema de confiança",
+          "badge": "decisão sua",
+          "body": "É a pendência deste quadro: as opções acima."
+        }
+      ],
+      "say": "Os achados e o destino de cada um. Os runners do self-forge vão para a sessão do self-forge, como o mais urgente. A dependência do kit pelo GitHub vai para cada um dos quatro projetos. E o esquema de confiança é decisão sua, a pendência deste quadro."
+    },
+    {
+      "type": "table",
+      "title": "De onde vem cada afirmação",
+      "head": [
+        "Afirmação",
+        "Fonte",
+        "Endereço",
+        "Acessado em"
+      ],
+      "rows": [
+        [
+          "Main sem proteção, escopos do token, histórico do engine-kit no npm, releases imutáveis desligadas, runners e tarefa agendada",
+          "Conferência só de leitura (API do GitHub, registry do npm, disco)",
+          "docs/research/2026-11-09-confianca-do-registry-sem-custodia-de-chave.md",
+          "2026-11-09"
+        ],
+        [
+          "Assinatura sem chave associa identidade, não chave; a chave é destruída logo depois",
+          "Sigstore",
+          "https://docs.sigstore.dev/cosign/signing/overview/",
+          "2026-11-09"
+        ],
+        [
+          "Identidade do workflow no certificado (OIDs 1.3.6.1.4.1.57264.1.9, .11, .12, .14)",
+          "Fulcio",
+          "https://github.com/sigstore/fulcio/blob/main/docs/oid-info.md",
+          "2026-11-09"
+        ],
+        [
+          "A instância pública segue no Rekor v1",
+          "Blog do Sigstore",
+          "https://blog.sigstore.dev/rekor-evolution/",
+          "2026-11-09"
+        ],
+        [
+          "Monitor de identidade; log é evidente a adulteração, não à prova dela",
+          "rekor-monitor",
+          "https://github.com/sigstore/rekor-monitor",
+          "2026-11-09"
+        ],
+        [
+          "Papéis, limiar, raiz offline, recuperação quase impossível sem as chaves",
+          "Especificação TUF",
+          "https://theupdateframework.github.io/specification/latest/",
+          "2026-11-09"
+        ],
+        [
+          "Raiz do Sigstore: root 3 de 5, targets 3 de 5, snapshot e timestamp 1 de 1",
+          "sigstore/root-signing",
+          "https://raw.githubusercontent.com/sigstore/root-signing/main/metadata/root.json",
+          "2026-11-09"
+        ],
+        [
+          "Aprovação em estágio exige 2FA; token OIDC não aprova",
+          "npm",
+          "https://docs.npmjs.com/staged-publishing/",
+          "2026-11-09"
+        ],
+        [
+          "Publicador confiável configurável para só pôr em estágio",
+          "npm",
+          "https://docs.npmjs.com/trusted-publishers/",
+          "2026-11-09"
+        ],
+        [
+          "Espera padrão de 1440 minutos antes de instalar versão nova",
+          "pnpm",
+          "https://pnpm.io/settings/dependency-resolution",
+          "2026-11-09"
+        ],
+        [
+          "Release imutável: assets e tag não mudam depois de publicada",
+          "GitHub Docs",
+          "https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases",
+          "2026-11-09"
+        ],
+        [
+          "Quem tem escrita lê todos os secrets",
+          "GitHub Docs",
+          "https://docs.github.com/en/actions/reference/security/secure-use",
+          "2026-11-09"
+        ],
+        [
+          "Aprovação de deployment pendente com token clássico de escopo repo",
+          "GitHub Docs",
+          "https://docs.github.com/en/rest/actions/workflow-runs",
+          "2026-11-09"
+        ],
+        [
+          "Administrador passa por cima das regras de ambiente por padrão",
+          "GitHub Docs",
+          "https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments",
+          "2026-11-09"
+        ],
+        [
+          "Atestado não garante que o artefato é seguro",
+          "GitHub Docs",
+          "https://docs.github.com/en/actions/concepts/security/artifact-attestations",
+          "2026-11-09"
+        ],
+        [
+          "Shai-Hulud entrou por contas de mantenedor comprometidas",
+          "GitHub Blog",
+          "https://github.blog/security/supply-chain-security/our-plan-for-a-more-secure-npm-supply-chain/",
+          "2026-11-09"
+        ]
+      ],
+      "say": "Por fim, as fontes: as conferências feitas nesta máquina e no GitHub, e a documentação do Sigstore, do TUF, do npm, do pnpm e do GitHub, todas acessadas em nove de novembro de dois mil e vinte e seis. O relatório completo fica em docs research, no engine-registry."
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+[
+  {
+    "titulo": "Runners self-hosted do GitHub nesta máquina rodam como o usuário dono de ~/.engine-signing",
+    "tipo": "tecnico",
+    "projeto": "self-forge",
+    "brief": "Most urgent gap from the engine-registry trust research (engine-registry/docs/research/2026-11-09-confianca-do-registry-sem-custodia-de-chave.md, section 1). Self-hosted GitHub Actions runners live under C:\\actions-runner, are registered to 14 repositories of the same GitHub account and are started at logon by a scheduled task that runs as the same Windows user that owns ~/.engine-signing (the Ed25519 signing keys of the nine engines, plus their encrypted backup). Anyone holding a GitHub token with repo+workflow scope can push a workflow with runs-on: self-hosted to one of those repositories and get a job executed on this PC. Task: determine, with evidence, whether such a job can read ~/.engine-signing (or anything else in the user profile): check the runner service account, any container/WSL isolation, mounted paths, and whether the runners are ephemeral and restricted to specific repositories or workflows. No runner process was alive at the time of the research check. Deliver: a short report with the actual isolation boundary, and if a job can reach the profile, a remediation proposal (dedicated low-privilege local account for the runners with no access to the user profile, ephemeral/JIT runners, runner groups restricted to selected workflows, or removing self-hosted runners from repositories that do not need them). Do not change runner registration, tasks or accounts before the owner approves the proposal. Do not touch ~/.engine-signing."
+  },
+  {
+    "titulo": "mcp-gateway instala o engine-kit pela ponta da main do GitHub",
+    "tipo": "tecnico",
+    "projeto": "mcp-gateway",
+    "brief": "From the engine-registry trust research (engine-registry/docs/research/2026-11-09-confianca-do-registry-sem-custodia-de-chave.md, section 1, path 3). mcp-gateway depends on engine-kit through a github:<account>/engine-registry reference that follows the tip of main. Anyone holding a stolen GitHub token can push to that unprotected main and the next npm install of mcp-gateway pulls the attacker's code, bypassing npm provenance and any future npm staged-publish approval. Task: replace the github: dependency with the published npm package engine-kit pinned to an exact version (check npm view engine-kit versions), keep the lockfile with integrity hashes, and run the mcp-gateway suites to prove nothing changed in behavior. Report the version chosen and the test results."
+  },
+  {
+    "titulo": "visual instala o engine-kit pela ponta da main do GitHub",
+    "tipo": "tecnico",
+    "projeto": "visual",
+    "brief": "From the engine-registry trust research (engine-registry/docs/research/2026-11-09-confianca-do-registry-sem-custodia-de-chave.md, section 1, path 3). visual (VXK) depends on engine-kit through a github:<account>/engine-registry reference that follows the tip of main. A stolen GitHub token can push to that unprotected main and the next npm install of visual pulls the attacker's code, bypassing npm provenance and any future npm staged-publish approval. Task: replace the github: dependency with the published npm package engine-kit pinned to an exact version (check npm view engine-kit versions), keep the lockfile with integrity hashes, and run the visual suites plus one board build to prove nothing changed. Report the version chosen and the test results."
+  },
+  {
+    "titulo": "security-check instala o engine-kit pela tag móvel engine-kit-v0.1.1",
+    "tipo": "tecnico",
+    "projeto": "security-check",
+    "brief": "From the engine-registry trust research (engine-registry/docs/research/2026-11-09-confianca-do-registry-sem-custodia-de-chave.md, section 1, path 3). security-check depends on engine-kit through the git tag engine-kit-v0.1.1 of the engine-registry GitHub repository. Git tags are movable: anyone holding a stolen GitHub token can re-point that tag and the next npm install pulls the attacker's code, bypassing npm provenance. Task: replace the git/tag dependency with the published npm package engine-kit pinned to an exact version (check npm view engine-kit versions), keep the lockfile with integrity hashes, and run the security-check suites to prove nothing changed. Report the version chosen and the test results."
+  },
+  {
+    "titulo": "vscode instala o engine-kit pela tag móvel engine-kit-v0.1.1",
+    "tipo": "tecnico",
+    "projeto": "vscode",
+    "brief": "From the engine-registry trust research (engine-registry/docs/research/2026-11-09-confianca-do-registry-sem-custodia-de-chave.md, section 1, path 3). The vscode project depends on engine-kit through the git tag engine-kit-v0.1.1 of the engine-registry GitHub repository. Git tags are movable: anyone holding a stolen GitHub token can re-point that tag and the next npm install pulls the attacker's code, bypassing npm provenance. Task: replace the git/tag dependency with the published npm package engine-kit pinned to an exact version (check npm view engine-kit versions), keep the lockfile with integrity hashes, and run the vscode project suites to prove nothing changed. Report the version chosen and the test results."
+  },
+  {
+    "titulo": "Esquema de confiança do engine-registry (D, D estrito, B ou manter)",
+    "tipo": "produto",
+    "projeto": "engine-registry",
+    "motivo": "Decisão do dono: quanto atrito aceitar (um clique de 2FA por release do kit, atraso de autoatualização, estágio também nos motores) e quem configura o npm só-estágio e as releases imutáveis. É a pendência do board."
+  }
+]

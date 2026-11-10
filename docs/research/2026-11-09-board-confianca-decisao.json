@@ -1,0 +1,12 @@
+{
+  "titulo": "Qual esquema de confiança o engine-registry deve seguir?",
+  "pergunta": "Hoje um token do GitHub roubado publica um kit malicioso sem precisar da chave. Seguir com o esquema D (motores assinados sem chave no CI e kit só com a sua aprovação 2FA no npm), com o D estrito, com o esquema B sem cliques, ou manter como está?",
+  "resumo": "As nove chaves dos motores não estão no GitHub, mas o token as dispensa: main sem proteção mais tag engine-kit-v* publica no npm com proveniência verdadeira, o npx autoatualiza o kit e quatro projetos instalam o kit direto do GitHub. Nenhum esquema automático ancorado só no GitHub resiste ao token; o padrão de mercado é assinatura sem chave (Sigstore) mais um passo fora do GitHub (aprovação em estágio do npm com 2FA). Relatório: docs/research/2026-11-09-confianca-do-registry-sem-custodia-de-chave.md.",
+  "recomendacao": "Esquema D como recomendado, em três camadas: Kit só com aprovação 2FA no npm (o CI só põe em estágio; as dependências github: passam ao npm); Motores assinados sem chave no CI (Sigstore, identidade do workflow fixada no kit, sem chave para guardar); Atraso, monitor e releases imutáveis (autoatualização de motor espera algumas horas, monitor do Rekor, revogação no próximo kit). Releases de motor sem estágio; você mesmo configura o npm só-estágio e liga as releases imutáveis. Alternativa sem clique: esquema B, só assinatura sem chave, que não resiste ao token roubado.",
+  "opcoes": [
+    { "rotulo": "Esquema D como recomendado (recomendada)", "descricao": "Motores assinados sem chave no CI; kit publicado só com a sua aprovação 2FA no npm; autoatualização de motor espera algumas horas; releases de motor sem estágio; você mesmo configura o npm só-estágio e liga as releases imutáveis." },
+    { "rotulo": "Esquema D estrito", "descricao": "Tudo da recomendada, e cada release de motor também passa por estágio no npm: fecha a janela do token, ao custo de um clique de aprovação por release de motor." },
+    { "rotulo": "Esquema B, sem nenhum clique", "descricao": "Só assinatura sem chave no CI. Melhor que hoje quando a máquina se perde, igual a hoje com o token roubado." },
+    { "rotulo": "Manter como está", "descricao": "Nove chaves no PC com o backup cifrado; o token do GitHub continua bastando para publicar um kit." }
+  ]
+}
