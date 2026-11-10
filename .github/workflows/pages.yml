@@ -2,7 +2,7 @@
 # Fonte do Pages = "Deploy from a branch", gh-pages, "/": sem artefato do Actions (a cota mensal de armazenamento da conta
 # bloqueia o deploy-pages). O push usa a chave de deploy PAGES_DEPLOY_KEY (push com GITHUB_TOKEN não dispara a
 # publicação). Só roda por disparo manual: publicar é decisão do dono. Processo e reversão: docs/PAGES.md.
-# Runner Windows hospedado: o push por ssh exige o cliente ssh.
+# Runner Linux hospedado; a suíte roda na checagem local antes do disparo.
 
 name: pages
 
@@ -18,20 +18,14 @@ concurrency:
 
 jobs:
   publish:
-    runs-on: windows-latest
-    timeout-minutes: 20
-    defaults:
-      run:
-        shell: bash
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-
-      - name: Suíte (inclui o site e o publicador)
-        run: npm test
 
       - name: Site completo, com a mídia de apresentação
         run: node tests/test-site.mjs --require-media

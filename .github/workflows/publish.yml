@@ -44,8 +44,5 @@ jobs:
           test "$GITHUB_REF_NAME" = "engine-kit-v$v" || { echo "tag $GITHUB_REF_NAME não corresponde à versão $v do package.json"; exit 1; }
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "o commit da tag não está na main"; exit 1; }
 
-      - name: Suíte
-        run: npm test
-
       - name: Publicar com proveniência
         run: npm publish --access public --provenance

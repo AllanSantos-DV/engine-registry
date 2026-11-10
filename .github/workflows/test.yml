@@ -1,7 +1,8 @@
 name: test
 
-# Push só na main: a develop entra na main por fast-forward com o mesmo SHA, e um push em cada uma rodava o mesmo
-# commit duas vezes. A develop é coberta pelas suítes locais e, quando há PR, pelo gatilho pull_request.
+# Checagens leves no runner Linux hospedado, só as que precisam de rede: a página de cada motor no ar e cada produto do
+# manifest na versão da última release. A suíte e o Windows ficam na checagem local antes do push, não aqui.
+# Push só na main: a develop entra na main por fast-forward com o mesmo SHA, e um push em cada uma rodava o mesmo commit duas vezes.
 on:
   push:
     branches: [main]
@@ -17,24 +18,17 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  npm-test:
-    strategy:
-      fail-fast: false
-      matrix:
-        # Windows cobra mais por minuto: só na main e na PR; dispatch em outra branch roda só no Linux.
-        os: ${{ fromJSON((github.event_name == 'pull_request' || github.ref == 'refs/heads/main') && '["ubuntu-latest","windows-latest"]' || '["ubuntu-latest"]') }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+  live-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      # Só o `npm test` (herméticos, sem --network). test:network e test:e2e ficam fora do CI.
-      - run: npm test
-      # Página de cada motor no ar, com vídeo e na ordem (precisa de rede; só um motor com pagesPendente é tolerado).
+      # Página de cada motor no ar, com vídeo e na ordem (só um motor com pagesPendente é tolerado).
       - run: npm run test:pages-live
-      # Cada produto do manifest na versão da última release publicada (precisa de rede).
+      # Cada produto do manifest na versão da última release publicada.
       - run: npm run test:versions-live
         env:
           GH_TOKEN: ${{ github.token }}

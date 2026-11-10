@@ -55,10 +55,10 @@ npm test                                  # suíte inteira (inclui o site e o pu
 
 Fonte do Pages: **Deploy from a branch** (`gh-pages`, `/`), sem artefato do Actions (a cota de armazenamento do Actions da
 conta bloqueia o `deploy-pages`). `.github/workflows/pages.yml` só roda por disparo manual (publicar é decisão do dono) e
-executa, em ordem: `npm test`, `tests/test-site.mjs --require-media`, `tools/pages-branch.mjs publish` e
+executa, em ordem: `tests/test-site.mjs --require-media`, `tools/pages-branch.mjs publish` e
 `tools/pages-branch.mjs verify`. O `publish` monta um commit órfão só com o conteúdo de `site/` mais `.nojekyll` e o envia
 com push forçado a `gh-pages` pela chave de deploy do secret `PAGES_DEPLOY_KEY`; o `verify` lê a URL pública até ela servir o
-`index.html` do site e falha se não servir. Roda no runner Windows (`vars.CI_RUNNER` ou `windows-latest`).
+`index.html` do site e falha se não servir. Roda no runner `ubuntu-latest`; a suíte (`npm test`) roda antes, na checagem local.
 
 Antes da primeira publicação, uma vez:
 

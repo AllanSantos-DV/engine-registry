@@ -84,6 +84,10 @@ minutos zerados: **a razão exata do bloqueio não verificada** (a API de budget
 
 ## Aplicado no engine-registry
 
+Atualização: depois desta tabela, o `test.yml` passou a ter só checagens leves de rede em `ubuntu-latest` (sem `npm test` e sem Windows),
+o `pages.yml` foi para `ubuntu-latest` sem a suíte e o `publish.yml` perdeu o passo da suíte, conforme a regra do dono em
+`2026-11-10-workflows-com-teste-ou-windows-na-conta.md`. A tabela abaixo descreve o primeiro corte.
+
 `test.yml`: push só na `main` (a develop entra na main por fast-forward com o mesmo SHA), PR e dispatch mantidos; matriz Windows só em PR e na
 main; `cancel-in-progress` só em PR. Jobs por gatilho, antes e depois (conferido com `actionlint` e uma simulação da expressão da matriz):
 
