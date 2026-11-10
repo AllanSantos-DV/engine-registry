@@ -30,3 +30,7 @@ jobs:
       - run: npm test
       # Página de cada motor no ar, com vídeo e na ordem (precisa de rede; só um motor com pagesPendente é tolerado).
       - run: npm run test:pages-live
+      # Cada produto do manifest na versão da última release publicada (precisa de rede).
+      - run: npm run test:versions-live
+        env:
+          GH_TOKEN: ${{ github.token }}

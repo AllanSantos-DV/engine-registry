@@ -7,6 +7,8 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
   legítima exige apagar a entrada à mão. Proposta: aceitar a troca quando a chave nova vem do manifest embarcado num
   engine-kit publicado com proveniência, e regravar o `trust.json`. Mexe na raiz de confiança: decisão do dono antes.
   Contexto: `docs/research/2026-11-09-pin-por-motor-acoplamento-e-custodia-de-chaves.md`.
+  **Decidido** (Jarvis, 09/11): a rotação fica tratada no esquema de confiança da pendência aberta 3a178e; até o dono
+  escolher o esquema, nenhum passo manual por máquina é introduzido.
 
 ## Decidido
 
