@@ -10,6 +10,13 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
   **Decidido** (Jarvis, 09/11): a rotação fica tratada no esquema de confiança da pendência aberta 3a178e; até o dono
   escolher o esquema, nenhum passo manual por máquina é introduzido.
 
+- **Chaves de assinatura fora do alcance dos runners self-hosted, sem ACL.** Aplicar quando o dono responder a
+  pendência 3a178e. Com o esquema D, D estrito ou B, entra a assinatura keyless com o build e a assinatura da release em
+  runner hospedado e a identidade fixada no kit, primeiro em native-java, cerne e vox-engine. Com "manter como está",
+  entram as chaves cifradas em repouso como paliativo, e o fechamento real fica com o plano `svc-runners` do self-forge.
+  A conta dedicada de assinatura não entra. Comparação e fontes:
+  `docs/research/2026-11-09-chaves-contra-runners-sem-acl.md`.
+
 ## Decidido
 
 - **Resolvido (Jarvis, 2026-11-09): `trust.json` ilegível falha fechado.** `readTrust` lança quando o arquivo existe e não
