@@ -32,6 +32,31 @@
         "signatureAlgorithm": "ed25519-sha256-raw",
         "signatureRequired": true
       }
+    },
+    {
+      "name": "smart-design",
+      "version": "0.2.1",
+      "summary": "Serviço local que o agente de código chama por MCP para desenhar telas com sistema de design, renderizá-las e conferi-las em pixels antes de entregar. Windows.",
+      "homepage": "https://allansantos-dv.github.io/smart-design/",
+      "license": "MIT",
+      "platforms": [
+        "win32-x64"
+      ],
+      "release": {
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "smart-design-v{version}",
+        "assets": [
+          {
+            "name": "smart_design-{version}-py3-none-any.whl",
+            "platform": "win32-x64",
+            "checksum": "{asset}.sha256",
+            "signature": "{asset}.sig"
+          }
+        ],
+        "publicKey": "03b4f450fe0ef68d249a6d3503e7577ae45f9dcd89c6301fb4232f0195ef3457",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true
+      }
     }
   ],
   "engines": [
@@ -163,7 +188,7 @@
     },
     {
       "name": "vxk",
-      "version": "0.21.0",
+      "version": "0.22.0",
       "kind": "cli",
       "summary": "VXK — explicações visuais animadas e narradas como servidor MCP (stdio): qualquer cliente MCP (Claude Code, Codex, Copilot) compõe a biblioteca de componentes, ícones e o controle único de reprodução e recebe UM HTML autocontido e offline, ou o vídeo MP4 da mesma explicação (por preset, do aplicativo real ou em Motion) e o PDF. A narração é assada pelo motor vox-engine.",
       "pagesUrl": "https://allansantos-dv.github.io/visual-explainer/",

@@ -34,7 +34,7 @@ vive num lugar só e o consumidor apenas **declara a dependência**.
 | `vox-engine` | 0.33.0 | `daemon` (pipe), **self-managed** | Motor de voz (STT/TTS) compartilhado, com auto-unload quando ocioso. Traz o próprio instalador e updater. |
 | `mcp-gateway` | 0.17.3 | `daemon` (http) | Agregador MCP: conecta uma vez em cada servidor MCP e reexpõe tudo num endpoint único. |
 | `neural-link` | 0.7.15 | `cli` | Dispatcher adaptativo de hooks: recebe o evento por stdin, pontua os handlers e devolve uma decisão composta. |
-| `vxk` | 0.21.0 | `cli` | Explicações visuais animadas e narradas como servidor MCP (stdio): devolve UM HTML autocontido e offline, ou o vídeo MP4 (preset, aplicativo real, Motion) e o PDF. Um daemon único por máquina atende os agentes. A narração vem do `vox-engine`. |
+| `vxk` | 0.22.0 | `cli` | Explicações visuais animadas e narradas como servidor MCP (stdio): devolve UM HTML autocontido e offline, ou o vídeo MP4 (preset, aplicativo real, Motion) e o PDF. Um daemon único por máquina atende os agentes. A narração vem do `vox-engine`. |
 | `cerne` | 0.4.14 | `daemon`, **self-managed** | Leitura ativa de vídeo (captura, quadros, transcrição, tradução) exposta via MCP. Instalador Inno por usuário, Windows. |
 | `skill-engine` | 0.2.1 | `cli` | Gerencia skills de agentes fora de qualquer IDE: busca repositórios em quarentena, varre com regras determinísticas e só ativa o que sai limpo. |
 | `client-harness` | 0.1.8 | `cli` | Daemon local que faz o Claude Code e o Codex respeitarem os padrões de cada cliente: confere cada ação do agente contra as regras da pasta e recusa antes de gravar, com o motivo. |
@@ -64,9 +64,9 @@ Sem clonar o repositório, com Node 18 ou mais:
 
 ```sh
 npx engine-kit ensure vxk                     # instala ou atualiza; reusa se já estiver em dia
-npx engine-kit ensure vxk --version 0.21.0    # versão exata (downgrade permitido)
+npx engine-kit ensure vxk --version 0.22.0    # versão exata (downgrade permitido)
 npx engine-kit pin vxk                        # congela o vxk na versão instalada
-npx engine-kit pin vxk --version 0.21.0       # instala essa versão (assinatura conferida) e congela
+npx engine-kit pin vxk --version 0.22.0       # instala essa versão (assinatura conferida) e congela
 npx engine-kit unpin vxk                      # o vxk volta a receber atualizações
 ```
 
@@ -302,6 +302,7 @@ plataforma, e a release mora aqui, no registry público, com download **sem logi
 | App | Versão | Plataformas | O que faz |
 |---|---|---|---|
 | `agent-launcher` | 1.3.6 | `win32-x64` | Abre Claude Code, Codex, Copilot CLI, VS Code e o Copilot app nos seus projetos por qualquer host de modelos. Leva só o launcher; cada ferramenta se instala pelo cartão dela. |
+| `smart-design` | 0.2.1 | `win32-x64` | Serviço local que o agente de código chama por MCP para desenhar telas com sistema de design, renderizá-las e conferi-las em pixels antes de entregar. |
 
 Um app só entra nesta tabela e em `manifest.apps` **depois** de a release pública existir e passar
 em `node kit/verify-release.mjs --app <nome>` (download anônimo de todos os assets, `.sha256` e
