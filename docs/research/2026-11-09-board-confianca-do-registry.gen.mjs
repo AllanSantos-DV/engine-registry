@@ -15,7 +15,7 @@ const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(
 
 const OPCOES = [
   { rotulo: 'Esquema D como recomendado (recomendada)',
-    descricao: 'Motores assinados sem chave no CI; kit publicado só com a sua aprovação 2FA no npm; autoatualização de motor espera algumas horas; releases de motor sem estágio; você mesmo configura o npm só-estágio e liga as releases imutáveis.' },
+    descricao: 'Motores assinados sem chave no CI, com build e assinatura das releases de native-java, cerne e vox-engine em runner hospedado pelo GitHub; kit publicado só com a sua aprovação 2FA no npm; autoatualização de motor espera algumas horas; releases de motor sem estágio; você mesmo configura o npm só-estágio e liga as releases imutáveis.' },
   { rotulo: 'Esquema D estrito',
     descricao: 'Tudo da recomendada, e cada release de motor também passa por estágio no npm: fecha a janela do token, ao custo de um clique de aprovação por release de motor.' },
   { rotulo: 'Esquema B, sem nenhum clique',
@@ -28,7 +28,7 @@ const RECOMENDACAO = [
   { title: 'Kit só com aprovação 2FA no npm',
     body: 'O CI passa a pôr o kit em estágio (npm stage publish). Ele vai ao ar quando você aprova com 2FA no npmjs.com, de qualquer aparelho. As dependências github: passam a vir do npm.' },
   { title: 'Motores assinados sem chave no CI',
-    body: 'Um workflow da main atesta cada artefato pelo Sigstore. O kit confere o certificado, o registro no Rekor e a identidade fixada. Nenhuma chave para guardar, e a troca manual no trust.json acaba.' },
+    body: 'Um workflow da main, em runner hospedado pelo GitHub nos três repositórios pesados (native-java, cerne, vox-engine), atesta cada artefato pelo Sigstore. O kit confere o certificado, o registro no Rekor e a identidade fixada. Nenhuma chave para guardar, e a troca manual no trust.json acaba.' },
   { title: 'Atraso, monitor e releases imutáveis',
     body: 'A autoatualização só instala release de motor que está no log há algumas horas. Um monitor avisa cada assinatura, a revogação sai no próximo kit aprovado, e as releases não mudam depois de publicadas.' },
   { title: 'Alternativa sem clique: esquema B',
@@ -41,7 +41,8 @@ const decisaoHtml = `<section style="border:2px solid #ffc15e;border-radius:16px
 <ol style="margin:0;padding-left:22px;display:grid;gap:10px;font-size:15px;line-height:1.5">
 ${OPCOES.map(o => `<li><b>${esc(o.rotulo)}</b>: ${esc(o.descricao)}</li>`).join('\n')}
 </ol>
-<p style="margin:14px 0 0;font-size:14.5px;line-height:1.5">Dentro da recomendada, o atraso pode ser nenhum, algumas horas ou um dia (o padrão do pnpm); diga se quiser outro.</p>
+<p style="margin:14px 0 0;font-size:14.5px;line-height:1.5">Custos das opções com assinatura sem chave: minutos pagos dos builds hospedados nos repositórios privados e os nomes desses repositórios no log público de transparência.</p>
+<p style="margin:10px 0 0;font-size:14.5px;line-height:1.5">Dentro da recomendada, o atraso pode ser nenhum, algumas horas ou um dia (o padrão do pnpm); diga se quiser outro.</p>
 </section>
 <script type="application/json" id="orq-opcoes">${JSON.stringify(OPCOES).replace(/</g, '\\u003c')}</script>`;
 
@@ -60,6 +61,8 @@ const F = {
   runs: 'https://docs.github.com/en/rest/actions/workflow-runs',
   envs: 'https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments',
   attest: 'https://docs.github.com/en/actions/concepts/security/artifact-attestations',
+  billing: 'https://docs.github.com/en/billing/concepts/product-billing/github-actions',
+  rlog: 'https://docs.sigstore.dev/logging/overview/',
   shai: 'https://github.blog/security/supply-chain-security/our-plan-for-a-more-secure-npm-supply-chain/'
 };
 
@@ -135,14 +138,23 @@ const blocks = [
     say: 'Os quatro esquemas lado a lado. A é hoje. B, só assinatura sem chave, é totalmente automático e não perde nada com a máquina, mas com o token é igual a hoje. C, o TUF com raiz offline, segura o token, mas exige que você guarde várias chaves de hardware, justamente o que você quer evitar. D combina assinatura sem chave nos motores com a sua aprovação no npm para o kit.' },
 
   { type: 'steps', title: 'Recomendação: esquema D', items: RECOMENDACAO,
-    say: 'A recomendação é o esquema D, em três camadas. Primeira: o kit só vai ao ar com a sua aprovação de dois fatores no npm, e os projetos que dependem do GitHub passam a usar o npm. Segunda: os motores são assinados sem chave no CI, com a identidade do workflow fixada dentro do kit; acaba a troca manual de chave. Terceira: a autoatualização espera algumas horas, um monitor avisa cada assinatura, e as releases ficam imutáveis. Se você não quiser nenhum clique, a alternativa é o esquema B, sabendo que ele não resiste ao token.' },
+    say: 'A recomendação é o esquema D, em três camadas. Primeira: o kit só vai ao ar com a sua aprovação de dois fatores no npm, e os projetos que dependem do GitHub passam a usar o npm. Segunda: os motores são assinados sem chave no CI, num runner hospedado pelo GitHub nos três repositórios pesados, com a identidade do workflow fixada dentro do kit; acaba a troca manual de chave. Terceira: a autoatualização espera algumas horas, um monitor avisa cada assinatura, e as releases ficam imutáveis. Se você não quiser nenhum clique, a alternativa é o esquema B, sabendo que ele não resiste ao token.' },
+
+  { type: 'cards', title: 'Quanto custa o esquema D', columns: 2,
+    items: [
+      { icon: 'credit-card', title: 'Minutos pagos nos repositórios privados', badge: 'custo',
+        body: 'O build e a assinatura das releases de native-java, cerne e vox-engine passam a rodar em runner hospedado pelo GitHub. Em repositório privado, isso gasta a cota incluída: US$ 12 por mês no plano Free; o minuto Windows custa US$ 0,010 e o Linux US$ 0,006. Só as releases gastam; o CI do dia a dia segue no runner local.' },
+      { icon: 'eye', title: 'Nome dos repositórios no log público', badge: 'custo',
+        body: 'O certificado do Sigstore traz o endereço do repositório e o caminho do workflow, e o log público de transparência nunca apaga entradas. Os nomes dos três repositórios privados ficam públicos para sempre. As releases já são públicas no engine-registry.' }
+    ],
+    say: 'O esquema D tem dois custos que entram na sua decisão. Primeiro, minutos pagos: o build e a assinatura das releases dos três repositórios pesados passam a rodar num runner do GitHub, e em repositório privado isso gasta a cota incluída, de doze dólares por mês no plano gratuito. Só as releases gastam; o resto do CI continua aqui. Segundo, o nome dos três repositórios privados fica gravado para sempre no log público de transparência do Sigstore, junto com o caminho do workflow.' },
 
   { type: 'callout', tone: 'warn', title: 'O que o esquema D não resolve',
     body: 'A garantia dos motores depende de alguém ver o alerta dentro do atraso. Proteção total contra o token sem nenhum clique é impossível. Implementar exige subir o teto de tamanho do kit (26968 de 27000 bytes) ou adotar o @sigstore/verify.',
     say: 'Dito com clareza: na camada dos motores, a garantia depende de alguém ver o alerta a tempo. Proteção total contra o token sem nenhum clique não existe. E a implementação tem um custo já conhecido: o kit está a trinta e dois bytes do teto de tamanho, então o verificador do Sigstore exige subir o teto ou adicionar uma dependência.' },
 
   { type: 'html', html: decisaoHtml,
-    say: 'Sua decisão: qual esquema o registry deve seguir. Primeira opção, a recomendada: esquema D, com um clique de aprovação por release do kit, atraso de algumas horas, releases de motor sem estágio, e você mesmo configurando o npm e as releases imutáveis. Segunda: esquema D estrito, com cada release de motor também aprovada. Terceira: esquema B, sem nenhum clique. Quarta: manter como está. Nada é implementado antes da sua resposta.' },
+    say: 'Sua decisão: qual esquema o registry deve seguir. Primeira opção, a recomendada: esquema D, com o build e a assinatura das releases pesadas num runner do GitHub, um clique de aprovação por release do kit, atraso de algumas horas, releases de motor sem estágio, e você mesmo configurando o npm e as releases imutáveis. Segunda: esquema D estrito, com cada release de motor também aprovada. Terceira: esquema B, sem nenhum clique. Quarta: manter como está. Nada é implementado antes da sua resposta.' },
 
   { type: 'cards', title: 'Achados e para onde vão', columns: 3,
     items: [
@@ -172,9 +184,11 @@ const blocks = [
       ['Aprovação de deployment pendente com token clássico de escopo repo', 'GitHub Docs', F.runs, D],
       ['Administrador passa por cima das regras de ambiente por padrão', 'GitHub Docs', F.envs, D],
       ['Atestado não garante que o artefato é seguro', 'GitHub Docs', F.attest, D],
+      ['Runner hospedado em repositório privado gasta a cota: US$ 12/mês no Free; minuto Windows US$ 0,010, Linux US$ 0,006', 'GitHub Docs', F.billing, D],
+      ['Entradas do log de transparência nunca são alteradas nem removidas', 'Sigstore', F.rlog, D],
       ['Shai-Hulud entrou por contas de mantenedor comprometidas', 'GitHub Blog', F.shai, D]
     ],
-    say: 'Por fim, as fontes: as conferências feitas nesta máquina e no GitHub, e a documentação do Sigstore, do TUF, do npm, do pnpm e do GitHub, todas acessadas em nove de novembro de dois mil e vinte e seis. O relatório completo fica em docs research, no engine-registry.' }
+    say: 'Por fim, as fontes: as conferências feitas nesta máquina e no GitHub, e a documentação do Sigstore, do TUF, da cobrança do GitHub Actions, do npm, do pnpm e do GitHub, todas acessadas em nove de novembro de dois mil e vinte e seis. O relatório completo fica em docs research, no engine-registry.' }
 ];
 
 const spec = {

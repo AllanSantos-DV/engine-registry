@@ -237,7 +237,7 @@
         },
         {
           "title": "Motores assinados sem chave no CI",
-          "body": "Um workflow da main atesta cada artefato pelo Sigstore. O kit confere o certificado, o registro no Rekor e a identidade fixada. Nenhuma chave para guardar, e a troca manual no trust.json acaba."
+          "body": "Um workflow da main, em runner hospedado pelo GitHub nos três repositórios pesados (native-java, cerne, vox-engine), atesta cada artefato pelo Sigstore. O kit confere o certificado, o registro no Rekor e a identidade fixada. Nenhuma chave para guardar, e a troca manual no trust.json acaba."
         },
         {
           "title": "Atraso, monitor e releases imutáveis",
@@ -248,7 +248,27 @@
           "body": "Se você não aceitar nenhum clique, fica só a assinatura sem chave. Resolve a máquina perdida, mas não resiste ao token roubado."
         }
       ],
-      "say": "A recomendação é o esquema D, em três camadas. Primeira: o kit só vai ao ar com a sua aprovação de dois fatores no npm, e os projetos que dependem do GitHub passam a usar o npm. Segunda: os motores são assinados sem chave no CI, com a identidade do workflow fixada dentro do kit; acaba a troca manual de chave. Terceira: a autoatualização espera algumas horas, um monitor avisa cada assinatura, e as releases ficam imutáveis. Se você não quiser nenhum clique, a alternativa é o esquema B, sabendo que ele não resiste ao token."
+      "say": "A recomendação é o esquema D, em três camadas. Primeira: o kit só vai ao ar com a sua aprovação de dois fatores no npm, e os projetos que dependem do GitHub passam a usar o npm. Segunda: os motores são assinados sem chave no CI, num runner hospedado pelo GitHub nos três repositórios pesados, com a identidade do workflow fixada dentro do kit; acaba a troca manual de chave. Terceira: a autoatualização espera algumas horas, um monitor avisa cada assinatura, e as releases ficam imutáveis. Se você não quiser nenhum clique, a alternativa é o esquema B, sabendo que ele não resiste ao token."
+    },
+    {
+      "type": "cards",
+      "title": "Quanto custa o esquema D",
+      "columns": 2,
+      "items": [
+        {
+          "icon": "credit-card",
+          "title": "Minutos pagos nos repositórios privados",
+          "badge": "custo",
+          "body": "O build e a assinatura das releases de native-java, cerne e vox-engine passam a rodar em runner hospedado pelo GitHub. Em repositório privado, isso gasta a cota incluída: US$ 12 por mês no plano Free; o minuto Windows custa US$ 0,010 e o Linux US$ 0,006. Só as releases gastam; o CI do dia a dia segue no runner local."
+        },
+        {
+          "icon": "eye",
+          "title": "Nome dos repositórios no log público",
+          "badge": "custo",
+          "body": "O certificado do Sigstore traz o endereço do repositório e o caminho do workflow, e o log público de transparência nunca apaga entradas. Os nomes dos três repositórios privados ficam públicos para sempre. As releases já são públicas no engine-registry."
+        }
+      ],
+      "say": "O esquema D tem dois custos que entram na sua decisão. Primeiro, minutos pagos: o build e a assinatura das releases dos três repositórios pesados passam a rodar num runner do GitHub, e em repositório privado isso gasta a cota incluída, de doze dólares por mês no plano gratuito. Só as releases gastam; o resto do CI continua aqui. Segundo, o nome dos três repositórios privados fica gravado para sempre no log público de transparência do Sigstore, junto com o caminho do workflow."
     },
     {
       "type": "callout",
@@ -259,8 +279,8 @@
     },
     {
       "type": "html",
-      "html": "<section style=\"border:2px solid #ffc15e;border-radius:16px;padding:18px 20px;background:#241d0b;color:#f3e4bd\">\n<h2 style=\"margin:0 0 10px\">Sua decisão</h2>\n<p style=\"margin:0 0 14px;font-size:17px;line-height:1.5\">Qual esquema de confiança o registry deve seguir? Fase de discussão: nada é implementado antes da sua resposta.</p>\n<ol style=\"margin:0;padding-left:22px;display:grid;gap:10px;font-size:15px;line-height:1.5\">\n<li><b>Esquema D como recomendado (recomendada)</b>: Motores assinados sem chave no CI; kit publicado só com a sua aprovação 2FA no npm; autoatualização de motor espera algumas horas; releases de motor sem estágio; você mesmo configura o npm só-estágio e liga as releases imutáveis.</li>\n<li><b>Esquema D estrito</b>: Tudo da recomendada, e cada release de motor também passa por estágio no npm: fecha a janela do token, ao custo de um clique de aprovação por release de motor.</li>\n<li><b>Esquema B, sem nenhum clique</b>: Só assinatura sem chave no CI. Melhor que hoje quando a máquina se perde, igual a hoje com o token roubado.</li>\n<li><b>Manter como está</b>: Nove chaves no PC com o backup cifrado; o token do GitHub continua bastando para publicar um kit.</li>\n</ol>\n<p style=\"margin:14px 0 0;font-size:14.5px;line-height:1.5\">Dentro da recomendada, o atraso pode ser nenhum, algumas horas ou um dia (o padrão do pnpm); diga se quiser outro.</p>\n</section>\n<script type=\"application/json\" id=\"orq-opcoes\">[{\"rotulo\":\"Esquema D como recomendado (recomendada)\",\"descricao\":\"Motores assinados sem chave no CI; kit publicado só com a sua aprovação 2FA no npm; autoatualização de motor espera algumas horas; releases de motor sem estágio; você mesmo configura o npm só-estágio e liga as releases imutáveis.\"},{\"rotulo\":\"Esquema D estrito\",\"descricao\":\"Tudo da recomendada, e cada release de motor também passa por estágio no npm: fecha a janela do token, ao custo de um clique de aprovação por release de motor.\"},{\"rotulo\":\"Esquema B, sem nenhum clique\",\"descricao\":\"Só assinatura sem chave no CI. Melhor que hoje quando a máquina se perde, igual a hoje com o token roubado.\"},{\"rotulo\":\"Manter como está\",\"descricao\":\"Nove chaves no PC com o backup cifrado; o token do GitHub continua bastando para publicar um kit.\"}]</script>",
-      "say": "Sua decisão: qual esquema o registry deve seguir. Primeira opção, a recomendada: esquema D, com um clique de aprovação por release do kit, atraso de algumas horas, releases de motor sem estágio, e você mesmo configurando o npm e as releases imutáveis. Segunda: esquema D estrito, com cada release de motor também aprovada. Terceira: esquema B, sem nenhum clique. Quarta: manter como está. Nada é implementado antes da sua resposta."
+      "html": "<section style=\"border:2px solid #ffc15e;border-radius:16px;padding:18px 20px;background:#241d0b;color:#f3e4bd\">\n<h2 style=\"margin:0 0 10px\">Sua decisão</h2>\n<p style=\"margin:0 0 14px;font-size:17px;line-height:1.5\">Qual esquema de confiança o registry deve seguir? Fase de discussão: nada é implementado antes da sua resposta.</p>\n<ol style=\"margin:0;padding-left:22px;display:grid;gap:10px;font-size:15px;line-height:1.5\">\n<li><b>Esquema D como recomendado (recomendada)</b>: Motores assinados sem chave no CI, com build e assinatura das releases de native-java, cerne e vox-engine em runner hospedado pelo GitHub; kit publicado só com a sua aprovação 2FA no npm; autoatualização de motor espera algumas horas; releases de motor sem estágio; você mesmo configura o npm só-estágio e liga as releases imutáveis.</li>\n<li><b>Esquema D estrito</b>: Tudo da recomendada, e cada release de motor também passa por estágio no npm: fecha a janela do token, ao custo de um clique de aprovação por release de motor.</li>\n<li><b>Esquema B, sem nenhum clique</b>: Só assinatura sem chave no CI. Melhor que hoje quando a máquina se perde, igual a hoje com o token roubado.</li>\n<li><b>Manter como está</b>: Nove chaves no PC com o backup cifrado; o token do GitHub continua bastando para publicar um kit.</li>\n</ol>\n<p style=\"margin:14px 0 0;font-size:14.5px;line-height:1.5\">Custos das opções com assinatura sem chave: minutos pagos dos builds hospedados nos repositórios privados e os nomes desses repositórios no log público de transparência.</p>\n<p style=\"margin:10px 0 0;font-size:14.5px;line-height:1.5\">Dentro da recomendada, o atraso pode ser nenhum, algumas horas ou um dia (o padrão do pnpm); diga se quiser outro.</p>\n</section>\n<script type=\"application/json\" id=\"orq-opcoes\">[{\"rotulo\":\"Esquema D como recomendado (recomendada)\",\"descricao\":\"Motores assinados sem chave no CI, com build e assinatura das releases de native-java, cerne e vox-engine em runner hospedado pelo GitHub; kit publicado só com a sua aprovação 2FA no npm; autoatualização de motor espera algumas horas; releases de motor sem estágio; você mesmo configura o npm só-estágio e liga as releases imutáveis.\"},{\"rotulo\":\"Esquema D estrito\",\"descricao\":\"Tudo da recomendada, e cada release de motor também passa por estágio no npm: fecha a janela do token, ao custo de um clique de aprovação por release de motor.\"},{\"rotulo\":\"Esquema B, sem nenhum clique\",\"descricao\":\"Só assinatura sem chave no CI. Melhor que hoje quando a máquina se perde, igual a hoje com o token roubado.\"},{\"rotulo\":\"Manter como está\",\"descricao\":\"Nove chaves no PC com o backup cifrado; o token do GitHub continua bastando para publicar um kit.\"}]</script>",
+      "say": "Sua decisão: qual esquema o registry deve seguir. Primeira opção, a recomendada: esquema D, com o build e a assinatura das releases pesadas num runner do GitHub, um clique de aprovação por release do kit, atraso de algumas horas, releases de motor sem estágio, e você mesmo configurando o npm e as releases imutáveis. Segunda: esquema D estrito, com cada release de motor também aprovada. Terceira: esquema B, sem nenhum clique. Quarta: manter como está. Nada é implementado antes da sua resposta."
     },
     {
       "type": "cards",
@@ -389,13 +409,25 @@
           "2026-11-09"
         ],
         [
+          "Runner hospedado em repositório privado gasta a cota: US$ 12/mês no Free; minuto Windows US$ 0,010, Linux US$ 0,006",
+          "GitHub Docs",
+          "https://docs.github.com/en/billing/concepts/product-billing/github-actions",
+          "2026-11-09"
+        ],
+        [
+          "Entradas do log de transparência nunca são alteradas nem removidas",
+          "Sigstore",
+          "https://docs.sigstore.dev/logging/overview/",
+          "2026-11-09"
+        ],
+        [
           "Shai-Hulud entrou por contas de mantenedor comprometidas",
           "GitHub Blog",
           "https://github.blog/security/supply-chain-security/our-plan-for-a-more-secure-npm-supply-chain/",
           "2026-11-09"
         ]
       ],
-      "say": "Por fim, as fontes: as conferências feitas nesta máquina e no GitHub, e a documentação do Sigstore, do TUF, do npm, do pnpm e do GitHub, todas acessadas em nove de novembro de dois mil e vinte e seis. O relatório completo fica em docs research, no engine-registry."
+      "say": "Por fim, as fontes: as conferências feitas nesta máquina e no GitHub, e a documentação do Sigstore, do TUF, da cobrança do GitHub Actions, do npm, do pnpm e do GitHub, todas acessadas em nove de novembro de dois mil e vinte e seis. O relatório completo fica em docs research, no engine-registry."
     }
   ]
 }

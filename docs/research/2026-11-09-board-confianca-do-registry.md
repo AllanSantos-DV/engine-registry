@@ -5,7 +5,7 @@ Quadro de decisão do relatório [2026-11-09-confianca-do-registry-sem-custodia-
 | Arquivo | Papel |
 |---|---|
 | `2026-11-09-board-confianca-do-registry.gen.mjs` | gera a spec VXK (modo board, pt-BR, narração do motor) |
-| `2026-11-09-board-confianca-do-registry.json` | spec gerada: 14 blocos, cada um com fala |
+| `2026-11-09-board-confianca-do-registry.json` | spec gerada: 15 blocos, cada um com fala |
 | `2026-11-09-board-confianca-decisao.json` | pendência: pergunta, recomendação e as quatro opções (iguais ao bloco `orq-opcoes`) |
 | `2026-11-09-board-confianca-achados.json` | achados: cinco técnicos (self-forge, mcp-gateway, visual, security-check, vscode) e um de produto (o esquema) |
 
@@ -18,7 +18,7 @@ node ~/.vxk/bin/vxk.mjs build docs/research/2026-11-09-board-confianca-do-regist
 
 ## Recomendação levada ao dono
 
-Esquema D: kit só com aprovação 2FA no npm; motores assinados sem chave no CI; atraso, monitor e releases imutáveis. Alternativa sem clique: esquema B, que não resiste ao token roubado.
+Esquema D: kit só com aprovação 2FA no npm; motores assinados sem chave no CI, com build e assinatura das releases de native-java, cerne e vox-engine em runner hospedado pelo GitHub; atraso, monitor e releases imutáveis. Custos: minutos pagos dos builds hospedados nos repositórios privados e os nomes desses repositórios no log público de transparência ([comparação](2026-11-09-chaves-contra-runners-sem-acl.md)). Alternativa sem clique: esquema B, que não resiste ao token roubado.
 
 Opções: esquema D como recomendado (recomendada), D estrito, esquema B sem nenhum clique, manter como está.
 

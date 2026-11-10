@@ -10,11 +10,13 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
   **Decidido** (Jarvis, 09/11): a rotação fica tratada no esquema de confiança da pendência aberta 3a178e; até o dono
   escolher o esquema, nenhum passo manual por máquina é introduzido.
 
-- **Chaves de assinatura fora do alcance dos runners self-hosted, sem ACL.** Aplicar quando o dono responder a
-  pendência 3a178e. Com o esquema D, D estrito ou B, entra a assinatura keyless com o build e a assinatura da release em
-  runner hospedado e a identidade fixada no kit, primeiro em native-java, cerne e vox-engine. Com "manter como está",
-  entram as chaves cifradas em repouso como paliativo, e o fechamento real fica com o plano `svc-runners` do self-forge.
-  A conta dedicada de assinatura não entra. Comparação e fontes:
+- **Esquema de confiança do registry: assinatura sem chave e publicação do kit com aprovação.** Decisão de negócio do
+  dono, na pendência aberta 3a178e: muda como o dono publica o kit (um clique de aprovação 2FA por release) e o que ele
+  guarda. Recomendação: esquema D, com os motores assinados sem chave (keyless) no CI, em runner hospedado pelo GitHub,
+  nos três repositórios pesados (native-java, cerne, vox-engine), e o engine-kit publicado no npm só com a aprovação 2FA
+  do dono. Custos que entram na decisão: minutos pagos dos builds hospedados nos repositórios privados e o nome desses
+  repositórios gravado para sempre no log público de transparência. Fontes:
+  `docs/research/2026-11-09-confianca-do-registry-sem-custodia-de-chave.md` e
   `docs/research/2026-11-09-chaves-contra-runners-sem-acl.md`.
 
 ## Decidido
