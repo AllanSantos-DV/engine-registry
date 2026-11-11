@@ -1,0 +1,100 @@
+// test-gateway-drain.mjs — antes de trocar os arquivos, o adaptador do mcp-gateway pede `POST /admin/drain`
+// (bearer) e espera o daemon sair sozinho; o SIGTERM só vem se o gateway não drenar. No Windows o SIGTERM
+// mata na hora e corta as chamadas em curso, então a prova é a chamada em curso terminar.
+//
+//   node tests/test-gateway-drain.mjs
+import { mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { spawn } from "node:child_process";
+
+let failures = 0;
+const check = (name, cond, detail = "") => { if (!cond) failures++; console.log(`${cond ? "  OK  " : " FALHA"} ${name}${detail ? ` — ${detail}` : ""}`); };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+const ROOT = join(tmpdir(), `engine-kit-gwdrain-${process.pid}-${Date.now()}`);
+mkdirSync(ROOT, { recursive: true });
+process.env.USERPROFILE = ROOT;
+process.env.HOME = ROOT;
+const { onBeforeReplace } = await import("../consumers/mcp-gateway.mjs");
+
+const TOKEN = "tok-de-teste";
+
+// gateway falso: uma chamada em curso de 800 ms; no drain espera ela acabar, grava a marca e sai com 0.
+const FAKE = join(ROOT, "fake-gateway.mjs");
+writeFileSync(FAKE, `
+import http from 'node:http';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+const home = process.env.FAKE_HOME, mode = process.env.FAKE_MODE;
+const emCurso = new Promise((r) => setTimeout(r, 800)).then(() => writeFileSync(join(home, 'em-curso-terminou'), 'ok'));
+http.createServer((req, res) => {
+  if (req.url !== '/admin/drain' || req.method !== 'POST' || mode === 'sem-rota') { res.writeHead(404).end(); return; }
+  if (req.headers.authorization !== 'Bearer ${TOKEN}') { res.writeHead(401).end(); return; }
+  res.writeHead(202).end('drenando');
+  if (mode === 'trava') { return; }
+  emCurso.then(() => process.exit(0));
+}).listen(0, '127.0.0.1', function () {
+  writeFileSync(join(home, 'runtime.json'), JSON.stringify({ pid: process.pid, port: this.address().port }));
+});
+`);
+
+async function subir(mode, { comToken = true } = {}) {
+  const home = join(ROOT, mode + (comToken ? "" : "-sem-token"));
+  mkdirSync(home, { recursive: true });
+  if (comToken) { writeFileSync(join(home, "auth-token"), TOKEN); }
+  const proc = spawn(process.execPath, [FAKE], { env: { ...process.env, FAKE_HOME: home, FAKE_MODE: mode }, windowsHide: true, stdio: "ignore" });
+  const exitCode = new Promise((r) => proc.on("exit", (code) => r(code)));
+  for (let i = 0; i < 100 && !existsSync(join(home, "runtime.json")); i++) { await sleep(100); }
+  if (!existsSync(join(home, "runtime.json"))) { proc.kill(); throw new Error("gateway falso não anunciou o runtime.json"); }
+  return { home, proc, exitCode, marca: join(home, "em-curso-terminou") };
+}
+
+console.log("== onBeforeReplace do mcp-gateway: drenar antes de sinalizar ==\n");
+
+{
+  const g = await subir("drena");
+  const logs = [];
+  await onBeforeReplace({ home: g.home, drainMs: 10000, log: (m) => logs.push(m) });
+  check("a chamada em curso terminou antes de o daemon sair", existsSync(g.marca));
+  check("o daemon saiu com código 0 (drenou, não foi morto)", (await g.exitCode) === 0, `código ${g.proc.exitCode}`);
+  check("sem queda para o sinal", logs.length === 0, logs.join(" | "));
+}
+
+{
+  const g = await subir("sem-rota");
+  const logs = [];
+  await onBeforeReplace({ home: g.home, drainMs: 10000, log: (m) => logs.push(m) });
+  await g.exitCode;
+  check("gateway sem /admin/drain: cai no sinal e o daemon sai", g.proc.exitCode !== null || g.proc.signalCode !== null);
+  check("a queda para o sinal fica no log com o HTTP recebido", logs.some((m) => m.includes("HTTP 404")), logs.join(" | "));
+}
+
+{
+  const g = await subir("drena", { comToken: false });
+  const logs = [];
+  await onBeforeReplace({ home: g.home, drainMs: 10000, log: (m) => logs.push(m) });
+  await g.exitCode;
+  check("sem token: o drain é recusado (401), cai no sinal e a chamada em curso é cortada", logs.some((m) => m.includes("HTTP 401")) && !existsSync(g.marca), logs.join(" | "));
+}
+
+{
+  const g = await subir("trava");
+  const logs = [];
+  const t0 = Date.now();
+  await onBeforeReplace({ home: g.home, drainMs: 1500, log: (m) => logs.push(m) });
+  await g.exitCode;
+  check("drain aceito mas daemon preso: após o prazo cai no sinal e o daemon sai", Date.now() - t0 >= 1500 && logs.some((m) => m.includes("ainda vivo")), logs.join(" | "));
+}
+
+{
+  const home = join(ROOT, "sem-runtime");
+  mkdirSync(home, { recursive: true });
+  let lancou = false;
+  try { await onBeforeReplace({ home, drainMs: 500 }); } catch { lancou = true; }
+  check("sem runtime.json (nada vivo): volta sem lançar", !lancou);
+}
+
+rmSync(ROOT, { recursive: true, force: true });
+console.log(`\n== ${failures === 0 ? "TUDO VERDE" : `${failures} FALHA(S)`} ==`);
+process.exit(failures === 0 ? 0 : 1);

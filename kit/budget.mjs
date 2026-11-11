@@ -47,10 +47,13 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-11-09 tooling 34000 → 37000 (loc 950 → 1050): pin por motor aprovado pelo dono — `engine-kit pin/unpin`
 //   (ensure.mjs, cli.mjs) e o estado FIXADO do doctor, +3.6 KB. No runtime o pin entrou sem subir o teto
 //   (dedup em provision/lifecycle pagou os bytes).
+//   2026-11-11 adapter 5000 → 5500: o adaptador do mcp-gateway passou a pedir `POST /admin/drain` (bearer) antes
+//   de sinalizar o daemon, +0.6 KB. É o contrato de desligamento do motor, que só o adaptador do motor conhece:
+//   no Windows o SIGTERM mata na hora e corta as chamadas em curso. O caminho do `import "engine-kit"` não mudou.
 const BUDGETS = {
   runtime: { codeBytes: 27000, baseline: 24519, loc: 900 },
   tooling: { codeBytes: 37000, baseline: 16420, loc: 1050 },
-  adapter: { codeBytes: 5000, baseline: 1859, loc: 150 },
+  adapter: { codeBytes: 5500, baseline: 1859, loc: 150 },
 };
 
 // `split("\n")` num arquivo terminado em newline devolve um elemento vazio no fim — linha

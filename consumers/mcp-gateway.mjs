@@ -19,6 +19,7 @@ import { join, dirname, resolve as resolvePath, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import { ensureEngine } from "../kit/index.mjs";
+import { waitExit } from "../kit/lifecycle.mjs";
 
 const DEFAULT_HOME = join(homedir(), ".mcp-gateway");
 const DEFAULT_PORT = 7337;
@@ -108,13 +109,26 @@ async function healthCheck() {
   }
 }
 
-/** Derruba o daemon antes de sobrescrever os arquivos (Windows trava arquivo em uso). */
-async function onBeforeReplace() {
+/**
+ * Derruba o daemon antes de sobrescrever os arquivos (Windows trava arquivo em uso). Primeiro pede
+ * `POST /admin/drain` (espera as chamadas em curso e sai com 0); só se o gateway não drenar (sem a
+ * rota, token recusado, sem resposta ou ainda vivo após `drainMs`) cai no SIGTERM, que no Windows
+ * mata na hora.
+ */
+export async function onBeforeReplace({ home = HOME, drainMs = 60000, log = () => {} } = {}) {
+  let rt;
+  try { rt = JSON.parse(readFileSync(join(home, "runtime.json"), "utf8")); } catch { return; }
+  if (!rt?.pid) { return; }
+  const token = readToken({ home, log });
   try {
-    const rt = JSON.parse(readFileSync(join(HOME, "runtime.json"), "utf8"));
-    if (rt?.pid) { process.kill(rt.pid, "SIGTERM"); }
-    await new Promise((r) => setTimeout(r, 1500));
-  } catch { /* já parado / sem runtime */ }
+    const res = await fetch(`http://127.0.0.1:${rt.port}/admin/drain`, {
+      method: "POST", headers: token ? { authorization: `Bearer ${token}` } : {}, signal: AbortSignal.timeout(5000),
+    });
+    if (res.ok && await waitExit(rt.pid, drainMs)) { return; }
+    log(`mcp-gateway: drain HTTP ${res.status}, ainda vivo; sinalizando`);
+  } catch (e) { log(`mcp-gateway: drain falhou (${e.message}); sinalizando`); }
+  try { process.kill(rt.pid, "SIGTERM"); } catch { return; }
+  await new Promise((r) => setTimeout(r, 1500));
 }
 
 /**
@@ -169,7 +183,7 @@ export function readInstructions() {
 export async function ensureGateway({ log = () => {}, version, allowNetwork = true, bootTimeoutMs = 45000, registryUrl, fetcher } = {}) {
   const r = await ensureEngine("mcp-gateway", {
     healthCheck,
-    onBeforeReplace,
+    onBeforeReplace: () => onBeforeReplace({ log }),
     log,
     version,
     allowNetwork,

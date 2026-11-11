@@ -61,7 +61,7 @@ async function findAlive(engine, healthCheck) {
 }
 
 /** Espera o processo sair (até `ms`). true = saiu. */
-async function waitExit(pid, ms) {
+export async function waitExit(pid, ms) {
   for (const fim = Date.now() + ms; Date.now() < fim; await sleep(500)) {
     try { process.kill(pid, 0); } catch { return true; }
   }
