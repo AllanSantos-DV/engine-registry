@@ -35,7 +35,7 @@
     },
     {
       "name": "smart-design",
-      "version": "0.2.3",
+      "version": "0.3.1",
       "summary": "Serviço local que o agente de código chama por MCP para desenhar telas com sistema de design, renderizá-las e conferi-las em pixels antes de entregar. Windows.",
       "homepage": "https://allansantos-dv.github.io/smart-design/",
       "license": "MIT",
@@ -96,7 +96,7 @@
     },
     {
       "name": "vox-engine",
-      "version": "0.33.1",
+      "version": "0.33.2",
       "kind": "daemon",
       "status": "self-managed",
       "summary": "Motor de voz (STT/TTS) compartilhado: transcreve e sintetiza para N consumidores a partir de uma única instância, com auto-unload quando ocioso.",
