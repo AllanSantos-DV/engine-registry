@@ -22,7 +22,7 @@ function git(cwd, ...args) {
 }
 const identity = (cwd) => { git(cwd, 'config', 'user.name', 'teste'); git(cwd, 'config', 'user.email', 'teste@example.invalid'); };
 
-function setup() {
+function setup(developEdit = () => {}) {
   const base = tmp();
   const remote = path.join(base, 'remote.git');
   git(base, 'init', '-q', '--bare', remote);
@@ -36,6 +36,7 @@ function setup() {
   git(seed, 'commit', '-q', '-m', 'base');
   git(seed, 'push', '-q', remote, 'HEAD:refs/heads/main');
   fs.writeFileSync(path.join(seed, 'em-andamento.txt'), 'trabalho da develop');
+  developEdit(seed);
   git(seed, 'add', '.');
   git(seed, 'commit', '-q', '-m', 'develop à frente');
   git(seed, 'push', '-q', remote, 'HEAD:refs/heads/develop');
@@ -71,6 +72,50 @@ ok('a main recebe manifest e README, a develop contém a main e a cópia local f
   const again = publishManifest({ engine: ENGINE, version: '9.9.9', repoDir: local, verify: () => {} });
   assert.equal(again.unchanged, true, 'repetir a mesma versão não cria commit');
   assert.equal(git(remote, 'rev-parse', 'main'), r.main);
+});
+
+/** Troca `de` por `para` no arquivo do seed; falha se o trecho não existe (o teste deixaria de provar o conflito). */
+const edit = (seed, file, de, para) => {
+  const p = path.join(seed, file);
+  const txt = fs.readFileSync(p, 'utf8');
+  assert.ok(txt.includes(de), `${file} sem o trecho ${de}`);
+  fs.writeFileSync(p, txt.replace(de, para));
+};
+const readmeLine = (txt, engine) => txt.split(/\r?\n/).find((l) => l.startsWith('| `' + engine + '` |'));
+
+ok('develop com a linha vizinha do README mudada: a mescla não conflita e mantém as duas mudanças', () => {
+  let neighbor;
+  const { remote, local } = setup((seed) => {
+    const lines = fs.readFileSync(path.join(seed, 'README.md'), 'utf8').split(/\r?\n/);
+    const i = lines.findIndex((l) => l.startsWith('| `' + ENGINE + '` |'));
+    neighbor = lines[i - 1].match(/^\| `([^`]+)`/)[1];
+    edit(seed, 'README.md', lines[i - 1], lines[i - 1].replace(/^(\| `[^`]+` \| )[^ |]+/, '$17.7.7'));
+  });
+  const r = publishManifest({ engine: ENGINE, version: '9.9.9', repoDir: local, verify: () => {} });
+  assert.equal(git(remote, 'rev-parse', 'develop'), r.develop);
+  git(remote, 'merge-base', '--is-ancestor', 'main', 'develop');
+  const readme = remoteFile(remote, 'develop', 'README.md');
+  assert.match(readmeLine(readme, ENGINE), /\| 9\.9\.9 \|/, 'a mudança da main chega à develop');
+  assert.match(readmeLine(readme, neighbor), /\| 7\.7\.7 \|/, 'a mudança da develop fica');
+  assert.doesNotMatch(readme, /^(<{7}|>{7}|={7})/m);
+  assert.equal(versionAt(remote, 'develop'), '9.9.9');
+  assert.equal(worktrees(local), 1);
+});
+
+ok('develop com a mesma entrada do manifest mudada: a develop fica com a versão publicada e o resto dela', () => {
+  const { remote, local } = setup((seed) => {
+    const m = JSON.parse(fs.readFileSync(path.join(seed, 'manifest.json'), 'utf8'));
+    const e = m.engines.find((x) => x.name === ENGINE);
+    edit(seed, 'manifest.json', JSON.stringify(e.version), JSON.stringify('9.9.8'));
+    edit(seed, 'manifest.json', JSON.stringify(e.summary), JSON.stringify('resumo da develop'));
+  });
+  const r = publishManifest({ engine: ENGINE, version: '9.9.9', repoDir: local, verify: () => {} });
+  assert.equal(git(remote, 'rev-parse', 'develop'), r.develop);
+  git(remote, 'merge-base', '--is-ancestor', 'main', 'develop');
+  const dev = JSON.parse(remoteFile(remote, 'develop', 'manifest.json')).engines.find((e) => e.name === ENGINE);
+  assert.equal(dev.version, '9.9.9');
+  assert.equal(dev.summary, 'resumo da develop');
+  assert.equal(worktrees(local), 1);
 });
 
 ok('release que não passa na prova não envia nada', () => {

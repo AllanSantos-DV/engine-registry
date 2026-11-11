@@ -6,7 +6,9 @@
 // Num worktree temporário a partir de <remote>/main: roda o kit/update-manifest.mjs, alinha a linha do motor na tabela do
 // README, prova a release pelo caminho do consumidor (kit/verify-release.mjs) e só então commita e envia para a main. Em
 // seguida mescla a main na develop (outro worktree temporário) e envia a develop. A main recebe o commit direto porque é
-// dela que os consumidores leem o manifest; a develop continua contendo a main. Falha antes do push não envia nada.
+// dela que os consumidores leem o manifest; a develop continua contendo a main. Falha antes do push não envia nada. Se a
+// mescla conflitar só em manifest.json ou README.md (linhas vizinhas mudadas nos dois ramos), o arquivo da develop recebe a
+// mesma mudança que a main recebeu.
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -32,9 +34,40 @@ function hasRef(ref, cwd) {
   return spawnSync('git', ['rev-parse', '--verify', '--quiet', ref], { cwd, windowsHide: true }).status === 0;
 }
 
+const REGENERABLE = ['manifest.json', 'README.md'];
+
 /** Troca a versão da linha `| \`motor\` | x.y.z |` do README; README sem a linha fica como está. */
 export function alignReadme(readme, engine, version) {
   return readme.replace(new RegExp('^(\\| `' + engine + '` \\| )[^ |]+( \\|)', 'm'), `$1${version}$2`);
+}
+
+/** Aplica a versão do motor ao manifest.json e/ou à linha do README.md do worktree. */
+function applyVersion(wt, { engine, version, updateArgs, files = REGENERABLE }) {
+  if (files.includes('manifest.json')) {
+    run(process.execPath, [path.join(wt, 'kit', 'update-manifest.mjs'), engine, '--version', version, ...updateArgs, '--manifest', path.join(wt, 'manifest.json')], wt);
+  }
+  const readmePath = path.join(wt, 'README.md');
+  if (files.includes('README.md') && fs.existsSync(readmePath)) {
+    fs.writeFileSync(readmePath, alignReadme(fs.readFileSync(readmePath, 'utf8'), engine, version));
+  }
+}
+
+/**
+ * Mescla a main na develop do worktree. Conflito restrito a manifest.json/README.md é resolvido pela versão da develop com
+ * a mesma mudança aplicada; qualquer outro conflito aborta a mescla e lança.
+ */
+function mergeIntoDevelop(devWt, main, release) {
+  const r = spawnSync('git', ['merge', '--no-edit', main], { cwd: devWt, encoding: 'utf8', windowsHide: true });
+  if (r.status === 0) return;
+  const conflicted = git(['diff', '--name-only', '--diff-filter=U'], devWt).split('\n').filter(Boolean);
+  if (!conflicted.length || conflicted.some((f) => !REGENERABLE.includes(f))) {
+    spawnSync('git', ['merge', '--abort'], { cwd: devWt, windowsHide: true });
+    throw new PublishManifestError(`main ${main} enviada, mas a mescla na develop conflitou (mescle à mão): git merge --no-edit ${main} (${(r.stdout + r.stderr).trim()})`);
+  }
+  git(['checkout', '--ours', '--', ...conflicted], devWt);
+  applyVersion(devWt, { ...release, files: conflicted });
+  git(['add', '--', ...conflicted], devWt);
+  git(['commit', '--no-edit'], devWt);
 }
 
 /**
@@ -55,9 +88,8 @@ export function publishManifest({ engine, version, updateArgs = [], repoDir = RO
     git(['worktree', 'add', '--detach', mainWt, `${remote}/main`], repoDir);
     added.push(mainWt);
     const manifest = path.join(mainWt, 'manifest.json');
-    run(process.execPath, [path.join(mainWt, 'kit', 'update-manifest.mjs'), engine, '--version', version, ...updateArgs, '--manifest', manifest], mainWt);
-    const readmePath = path.join(mainWt, 'README.md');
-    if (fs.existsSync(readmePath)) fs.writeFileSync(readmePath, alignReadme(fs.readFileSync(readmePath, 'utf8'), engine, version));
+    const release = { engine, version, updateArgs };
+    applyVersion(mainWt, release);
     verify(manifest, mainWt);
     git(['add', 'manifest.json', 'README.md'], mainWt);
     // Compara o índice, não o status: com autocrlf, reescrever o arquivo com LF aparece como modificado sem mudar o conteúdo.
@@ -71,12 +103,7 @@ export function publishManifest({ engine, version, updateArgs = [], repoDir = RO
     if (!hasRef(`${remote}/develop`, repoDir)) return { ok: true, unchanged: false, main, develop: null };
     git(['worktree', 'add', '--detach', devWt, `${remote}/develop`], repoDir);
     added.push(devWt);
-    try {
-      git(['merge', '--no-edit', main], devWt);
-    } catch (e) {
-      spawnSync('git', ['merge', '--abort'], { cwd: devWt, windowsHide: true });
-      throw new PublishManifestError(`main ${main} enviada, mas a mescla na develop conflitou (mescle à mão): ${e.message}`);
-    }
+    mergeIntoDevelop(devWt, main, release);
     git(['push', remote, 'HEAD:refs/heads/develop'], devWt);
     return { ok: true, unchanged: false, main, develop: git(['rev-parse', 'HEAD'], devWt) };
   } finally {
