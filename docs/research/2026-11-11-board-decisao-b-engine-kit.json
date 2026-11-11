@@ -1,0 +1,229 @@
+{
+  "engine": "vxk",
+  "mode": "board",
+  "title": "Novas funções do engine-kit e da vitrine",
+  "slug": "engine-registry-decisao-b-engine-kit",
+  "badge": "VXK · board · engine-registry · 11/11/2026",
+  "accent": "#ffc15e",
+  "language": "pt-BR",
+  "narrate": true,
+  "voice": "pt-BR-Chirp3-HD-Iapetus",
+  "voiceStrict": true,
+  "intro": "Uma decisão sobre o engine-kit e a vitrine: quais funcionalidades construir.",
+  "labels": {
+    "explain": "▶ Apresentar",
+    "pause": "⏸ Pausar",
+    "resume": "▶ Continuar",
+    "prev": "◀ Anterior",
+    "next": "Próximo ▶",
+    "index": "☰ Índice",
+    "indexTitle": "Tópicos",
+    "indexClose": "Fechar"
+  },
+  "blocks": [
+    {
+      "type": "hero",
+      "kicker": "engine-registry · decisão sua · 11/11/2026",
+      "title": "Novas funções do engine-kit e da vitrine",
+      "subtitle": "Cinco funcionalidades que mudam o jeito de usar o engine-kit ou a vitrine, cada uma com ganho, esforço e recomendação.",
+      "say": "Este quadro tem uma decisão para você: quais de cinco funcionalidades novas do engine-kit e da vitrine devem ser construídas. Para cada uma, o quadro mostra o que muda no uso, o ganho, o tamanho do trabalho e a recomendação."
+    },
+    {
+      "type": "callout",
+      "tone": "info",
+      "title": "Decisão B: a pergunta",
+      "body": "Cinco funcionalidades novas do engine-kit e da vitrine mudam o jeito de usar o produto. Quais valem ser construídas?",
+      "say": "Decisão B. Cinco funcionalidades mudam o jeito de usar o engine-kit ou a vitrine, e por isso são suas. Para cada uma: o que faz, o ganho, o tamanho do trabalho e a recomendação."
+    },
+    {
+      "type": "table",
+      "title": "As cinco funcionalidades, com ganho, esforço e recomendação",
+      "head": [
+        "Funcionalidade",
+        "O que muda no uso",
+        "Ganho",
+        "Esforço",
+        "Recomendação"
+      ],
+      "rows": [
+        [
+          "engine-kit fetch",
+          "Verbo novo: baixa e confere sha256 e assinatura de um motor ou app sem instalar. Cerne, vox-engine e os apps só chegam hoje por link de release.",
+          "Médio",
+          "Médio: apps têm lista de assets fora do resolve; os sdkFlats do vox-engine ficam de fora",
+          "Construir"
+        ],
+        [
+          "engine-kit stop",
+          "Verbo novo: desliga um motor pelo shutdownPath declarado. O mcp-gateway não declara shutdownPath (só o adaptador drena), então não faria nada no motor mais usado.",
+          "Médio",
+          "Médio",
+          "Não construir agora; só depois que o mcp-gateway declarar o shutdownPath"
+        ],
+        [
+          "Instruções do agente no ensureGateway",
+          "O adaptador devolve também as instruções para o agente; os hosts passam a exibir ou injetar esse texto.",
+          "Médio",
+          "Pequeno, mas o adaptador está no teto (5492 de 5500 bytes) e pede reajuste do teto",
+          "Construir"
+        ],
+        [
+          "Instalação pelo npm na vitrine",
+          "O passo 2 da vitrine deixa de mandar clonar o repositório e rodar node kit/doctor.mjs --fix, e passa a ensinar npx engine-kit ensure. O README já documenta esse caminho.",
+          "Alto",
+          "Pequeno",
+          "Construir"
+        ],
+        [
+          "Cartões dos apps na vitrine",
+          "Agent Launcher e Smart Design, hoje só na tabela do README, ganham cartão lido do manifest. A vitrine, hoje \"dos motores\", passa a dizer \"motores e apps\".",
+          "Médio",
+          "Pequeno a médio",
+          "Construir, com a vitrine dizendo motores e apps"
+        ]
+      ],
+      "say": "As cinco funcionalidades. Primeira, engine-kit fetch: baixa e confere um motor ou app sem instalar, útil para o cerne, o vox-engine e os apps, que hoje só chegam por link. Ganho médio, esforço médio. Recomendo construir. Segunda, engine-kit stop: desliga um motor, mas o mcp-gateway não declara como, então não faria nada no motor mais usado. Recomendo esperar. Terceira, as instruções do agente no adaptador do gateway: ganho médio, esforço pequeno, mas o adaptador está no teto de tamanho e pede reajuste. Recomendo construir. Quarta, a instalação pelo npm na vitrine: hoje a vitrine manda clonar o repositório, e o caminho do npm já existe no README. Ganho alto, esforço pequeno. Recomendo construir. Quinta, os cartões dos apps na vitrine: ganho médio, e a vitrine passa a dizer motores e apps. Recomendo construir."
+    },
+    {
+      "type": "steps",
+      "title": "Recomendação: os quatro, sem o stop",
+      "items": [
+        {
+          "title": "Instalação pelo npm na vitrine",
+          "body": "Ganho alto, esforço pequeno: a vitrine passa a ensinar npx engine-kit ensure no lugar de clonar o repositório."
+        },
+        {
+          "title": "engine-kit fetch",
+          "body": "Baixa e confere um motor ou app sem instalar; o cerne, o vox-engine e os apps só chegam hoje por link."
+        },
+        {
+          "title": "Instruções do agente no ensureGateway",
+          "body": "Os hosts passam a exibir ou injetar as instruções; pede reajuste do teto do adaptador."
+        },
+        {
+          "title": "Cartões dos apps na vitrine",
+          "body": "Agent Launcher e Smart Design ganham cartão; a vitrine passa a dizer motores e apps."
+        },
+        {
+          "title": "Fica de fora: engine-kit stop",
+          "body": "Só depois que o mcp-gateway declarar como desligar; hoje não faria nada no motor mais usado."
+        }
+      ],
+      "say": "Recomendo construir quatro e deixar o engine-kit stop de fora. A instalação pelo npm na vitrine tem o maior ganho e o menor esforço. O fetch baixa e confere um motor ou app sem instalar. As instruções do agente no ensureGateway pedem reajuste do teto do adaptador. Os cartões dos apps fazem a vitrine falar em motores e apps. O stop espera o mcp-gateway declarar como se desliga, porque hoje não faria nada no motor mais usado."
+    },
+    {
+      "type": "html",
+      "html": "<section style=\"border:2px solid #ffc15e;border-radius:16px;padding:18px 20px;background:#241d0b;color:#f3e4bd\">\n<h2 style=\"margin:0 0 10px\">Sua decisão</h2>\n<p style=\"margin:0 0 14px;font-size:17px;line-height:1.5\">Quais funcionalidades que mudam o uso do engine-kit devem ser construídas?</p>\n<ol style=\"margin:0;padding-left:22px;display:grid;gap:10px;font-size:15px;line-height:1.5;list-style:none\">\n<li><b>B1 · Construir os quatro recomendados (recomendada)</b>: fetch, instruções do agente no ensureGateway, instalação pelo npm e cartões dos apps na vitrine; sem o stop.</li>\n<li><b>B2 · Construir os cinco</b>: Os quatro mais o engine-kit stop, que hoje não faria nada no mcp-gateway.</li>\n<li><b>B3 · Só a instalação pelo npm na vitrine</b>: A vitrine ensina npx engine-kit ensure no lugar de clonar o repositório.</li>\n<li><b>B4 · Não construir nenhum</b>: O engine-kit e a vitrine seguem como estão.</li>\n</ol>\n\n</section>\n<script type=\"application/json\" id=\"orq-opcoes\">[{\"rotulo\":\"B1 · Construir os quatro recomendados (recomendada)\",\"descricao\":\"fetch, instruções do agente no ensureGateway, instalação pelo npm e cartões dos apps na vitrine; sem o stop.\"},{\"rotulo\":\"B2 · Construir os cinco\",\"descricao\":\"Os quatro mais o engine-kit stop, que hoje não faria nada no mcp-gateway.\"},{\"rotulo\":\"B3 · Só a instalação pelo npm na vitrine\",\"descricao\":\"A vitrine ensina npx engine-kit ensure no lugar de clonar o repositório.\"},{\"rotulo\":\"B4 · Não construir nenhum\",\"descricao\":\"O engine-kit e a vitrine seguem como estão.\"}]</script>",
+      "say": "Sua decisão: quais funcionalidades construir. B um, a recomendada: construir os quatro recomendados, sem o engine-kit stop. B dois: construir os cinco. B três: só a instalação pelo npm na vitrine. B quatro: não construir nenhum. Nada é implementado antes da sua resposta."
+    },
+    {
+      "type": "table",
+      "title": "De onde vem cada afirmação",
+      "head": [
+        "Afirmação",
+        "Fonte",
+        "Endereço",
+        "Acessado em"
+      ],
+      "rows": [
+        [
+          "Os quatro esquemas, os três caminhos até as máquinas, o caso do token roubado e a recomendação D",
+          "Relatório do registry",
+          "docs/research/2026-11-09-confianca-do-registry-sem-custodia-de-chave.md",
+          "09/11/2026"
+        ],
+        [
+          "Quadro anterior da decisão de confiança, com as opções A a D",
+          "Quadro narrado do registry",
+          "docs/research/2026-11-09-board-confianca-do-registry.md",
+          "09/11/2026"
+        ],
+        [
+          "Pin por motor, acoplamento entre motores e custódia das chaves",
+          "Relatório do registry",
+          "docs/research/2026-11-09-pin-por-motor-acoplamento-e-custodia-de-chaves.md",
+          "09/11/2026"
+        ],
+        [
+          "Fetch, stop e instruções do ensureGateway: ganho, esforço e peças reaproveitadas; adaptador a 5492 de 5500 bytes",
+          "Lente de feature irmã do engine-kit 0.2.6",
+          "docs/research/2026-11-11-lente-feature-irma-engine-kit-0.2.6.md",
+          "11/11/2026"
+        ],
+        [
+          "Instalação pelo npm na vitrine e cartões dos apps: ganho, esforço e peças reaproveitadas",
+          "Lente de feature irmã do engine-kit 0.2.9",
+          "docs/research/2026-11-11-lente-feature-irma-engine-kit-0.2.9.md",
+          "11/11/2026"
+        ],
+        [
+          "Assinatura sem chave associa identidade, não chave; a chave é destruída logo depois",
+          "Sigstore",
+          "https://docs.sigstore.dev/cosign/signing/overview/",
+          "09/11/2026"
+        ],
+        [
+          "Identidade do workflow no certificado",
+          "Fulcio",
+          "https://github.com/sigstore/fulcio/blob/main/docs/oid-info.md",
+          "09/11/2026"
+        ],
+        [
+          "Monitor de identidade; o log é evidente a adulteração, não à prova dela",
+          "rekor-monitor",
+          "https://github.com/sigstore/rekor-monitor",
+          "09/11/2026"
+        ],
+        [
+          "Papéis, limiar e raiz offline; recuperação quase impossível sem as chaves",
+          "Especificação TUF",
+          "https://theupdateframework.github.io/specification/latest/",
+          "09/11/2026"
+        ],
+        [
+          "Aprovação em estágio exige 2FA; token OIDC não aprova",
+          "npm",
+          "https://docs.npmjs.com/staged-publishing/",
+          "09/11/2026"
+        ],
+        [
+          "Publicador confiável configurável para só pôr em estágio",
+          "npm",
+          "https://docs.npmjs.com/trusted-publishers/",
+          "09/11/2026"
+        ],
+        [
+          "Espera padrão de 1440 minutos antes de instalar versão nova",
+          "pnpm",
+          "https://pnpm.io/settings/dependency-resolution",
+          "09/11/2026"
+        ],
+        [
+          "Release imutável: assets e tag não mudam depois de publicada",
+          "GitHub Docs",
+          "https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases",
+          "09/11/2026"
+        ],
+        [
+          "Quem tem escrita lê todos os secrets",
+          "GitHub Docs",
+          "https://docs.github.com/en/actions/reference/security/secure-use",
+          "09/11/2026"
+        ],
+        [
+          "Runner hospedado em repositório privado gasta a cota: US$ 12/mês no Free; minuto Windows US$ 0,010, Linux US$ 0,006",
+          "GitHub Docs",
+          "https://docs.github.com/en/billing/concepts/product-billing/github-actions",
+          "09/11/2026"
+        ],
+        [
+          "Entradas do log de transparência nunca são alteradas nem removidas",
+          "Sigstore",
+          "https://docs.sigstore.dev/logging/overview/",
+          "09/11/2026"
+        ]
+      ],
+      "say": "Por fim, as fontes. Os cinco relatórios do próprio registry, em docs research: o de confiança sem custódia de chave, o quadro anterior, o de pin por motor e custódia, e as lentes de feature irmã das versões zero ponto dois ponto seis e zero ponto dois ponto nove. E a documentação do Sigstore, do TUF, do npm, do pnpm e do GitHub, acessada em nove de novembro de dois mil e vinte e seis."
+    }
+  ]
+}
