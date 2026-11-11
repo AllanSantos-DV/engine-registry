@@ -51,3 +51,8 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
   máquina; o manifest agora declara o `runtime` dele (`run/daemon.json`, `POST /shutdown` com `x-shutdown-token`) e o
   `engine-kit ensure vxk` o desliga antes de trocar a instalação, em vez de falhar com "arquivos em uso" no Windows
   (`tests/test-ensure-daemon.mjs`). A vitrine e o README passaram a dizer que o vxk entrega HTML, vídeo MP4 e PDF.
+
+- **Candidatos da lente de 11/11 que mudam o uso (decisão do dono):** (1) a vitrine ensinar a instalar pelo canal npm
+  (`npx engine-kit ensure <motor>`) no lugar de clonar o repositório e rodar `node kit/doctor.mjs --fix`; (2) cartões dos
+  apps (`agent-launcher`, `smart-design`) na vitrine, lidos de `manifest.apps`, o que amplia a vitrine "dos motores".
+  Detalhes em `docs/research/2026-11-11-lente-feature-irma-engine-kit-0.2.9.md`.
