@@ -56,6 +56,14 @@ function Step($m) { Write-Host "==> $m" -ForegroundColor Cyan }
 function Warn($m) { Write-Host "AVISO: $m" -ForegroundColor Yellow }
 function Fail($m) { Write-Host "FALHOU: $m" -ForegroundColor Red; exit 1 }
 
+# Windows PowerShell 5.1 com ErrorActionPreference=Stop transforma o stderr de um exe nativo em
+# NativeCommandError mesmo com 2>$null; o chamador decide pelo $LASTEXITCODE.
+function Invoke-GhQuiet {
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try { & gh @args 2>$null } finally { $ErrorActionPreference = $previous }
+}
+
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { Fail "versao '$Version' invalida (esperado x.y.z)" }
 if ($Engine -notmatch '^[a-z0-9][a-z0-9-]*$') { Fail "motor '$Engine' invalido (minusculas, hifens)" }
 
@@ -67,7 +75,7 @@ $env:GITHUB_TOKEN = ''
 $env:GIT_CONFIG_PARAMETERS = ''
 
 Step "Conferindo identidade do gh"
-$who = (gh api user --jq '.login' 2>$null)
+$who = (Invoke-GhQuiet api user --jq '.login')
 if ($LASTEXITCODE -ne 0 -or -not $who) { Fail "gh nao autenticado - rode 'gh auth login' com a conta dona dos repos" }
 $owner = $Registry.Split('/')[0]
 if ($who.Trim() -ne $owner) { Fail "gh autenticado como '$($who.Trim())' mas o registry e de '$owner' (token da conta errada)" }
@@ -121,7 +129,7 @@ Step "Publicando a release no registry ($Registry, tag $tag)"
 if (-not $Notes) {
     $Notes = "$Engine $Version. Artefato assinado com Ed25519 (ed25519-sha256-raw): o engine-kit e fail-closed e recusa artefato sem assinatura valida."
 }
-gh release view $tag --repo $Registry 2>$null | Out-Null
+Invoke-GhQuiet release view $tag --repo $Registry | Out-Null
 if ($LASTEXITCODE -eq 0) { Fail "a release '$tag' ja existe em $Registry - suba a versao ou apague a release antes (nao sobrescreva um artefato ja assinado)" }
 
 gh release create $tag --repo $Registry --title "$Engine $Version" --notes $Notes @upload

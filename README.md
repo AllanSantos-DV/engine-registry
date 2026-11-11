@@ -310,7 +310,7 @@ plataforma, e a release mora aqui, no registry público, com download **sem logi
 | App | Versão | Plataformas | O que faz |
 |---|---|---|---|
 | `agent-launcher` | 1.3.6 | `win32-x64` | Abre Claude Code, Codex, Copilot CLI, VS Code e o Copilot app nos seus projetos por qualquer host de modelos. Leva só o launcher; cada ferramenta se instala pelo cartão dela. |
-| `smart-design` | 0.2.1 | `win32-x64` | Serviço local que o agente de código chama por MCP para desenhar telas com sistema de design, renderizá-las e conferi-las em pixels antes de entregar. |
+| `smart-design` | 0.2.2 | `win32-x64` | Serviço local que o agente de código chama por MCP para desenhar telas com sistema de design, renderizá-las e conferi-las em pixels antes de entregar. |
 
 Um app só entra nesta tabela e em `manifest.apps` **depois** de a release pública existir e passar
 em `node kit/verify-release.mjs --app <nome>` (download anônimo de todos os assets, `.sha256` e
