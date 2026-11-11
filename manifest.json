@@ -164,7 +164,7 @@
     },
     {
       "name": "neural-link",
-      "version": "0.7.15",
+      "version": "0.7.16",
       "kind": "cli",
       "summary": "Dispatcher adaptativo de hooks para agentes LLM: recebe o evento por stdin, pontua e executa os handlers registrados, e devolve UMA decisão composta. Não é daemon — é invocado a cada evento de hook, por qualquer host (Copilot CLI, VS Code, Claude Code).",
       "pagesPendente": "sem página de produto com vídeo; ela nasce do repositório do próprio motor e este registro só aponta para ela",
@@ -188,7 +188,7 @@
     },
     {
       "name": "vxk",
-      "version": "0.22.0",
+      "version": "0.23.0",
       "kind": "cli",
       "summary": "VXK — explicações visuais animadas e narradas como servidor MCP (stdio): qualquer cliente MCP (Claude Code, Codex, Copilot) compõe a biblioteca de componentes, ícones e o controle único de reprodução e recebe UM HTML autocontido e offline, ou o vídeo MP4 da mesma explicação (por preset, do aplicativo real ou em Motion) e o PDF. A narração é assada pelo motor vox-engine.",
       "pagesUrl": "https://allansantos-dv.github.io/visual-explainer/",
