@@ -131,7 +131,7 @@
     },
     {
       "name": "mcp-gateway",
-      "version": "0.17.4",
+      "version": "0.17.5",
       "kind": "daemon",
       "summary": "Agregador MCP: conecta UMA vez em cada servidor MCP e reexpõe todas as tools num endpoint Streamable HTTP único, com auth bearer, namespacing condicional, resiliência e auditoria. Mata a multiplicação de processos por sessão.",
       "pagesPendente": "sem página de produto com vídeo; ela nasce do repositório do próprio motor e este registro só aponta para ela",
@@ -248,7 +248,7 @@
     },
     {
       "name": "skill-engine",
-      "version": "0.2.1",
+      "version": "0.3.0",
       "kind": "cli",
       "summary": "Skill Manager v2: motor portátil que gerencia skills de agentes fora de qualquer IDE — busca repositórios de skills em quarentena, varre com regras determinísticas e só ativa o que sai limpo, nas pastas que Claude Code, Codex, Copilot e OpenCode leem. CLI `skill-engine`, não é daemon.",
       "pagesPendente": "sem página de produto com vídeo; ela nasce do repositório do próprio motor e este registro só aponta para ela (a sessão do skill-manager a constrói)",
