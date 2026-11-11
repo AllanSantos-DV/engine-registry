@@ -50,9 +50,12 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-11-11 adapter 5000 → 5500: o adaptador do mcp-gateway passou a pedir `POST /admin/drain` (bearer) antes
 //   de sinalizar o daemon, +0.6 KB. É o contrato de desligamento do motor, que só o adaptador do motor conhece:
 //   no Windows o SIGTERM mata na hora e corta as chamadas em curso. O caminho do `import "engine-kit"` não mudou.
+//   2026-11-11 tooling 37000 → 37500: o `ensure` passou a avisar quando instala a partir do descritor em cache
+//   vencido (registry fora do ar) e quando o ponteiro `cli.json` do motor está quebrado, +0.3 KB (cli.mjs,
+//   ensure.mjs, reusando `pointerOf` do diagnose). O caminho do `import "engine-kit"` não mudou.
 const BUDGETS = {
   runtime: { codeBytes: 27000, baseline: 24519, loc: 900 },
-  tooling: { codeBytes: 37000, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 37500, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 5500, baseline: 1859, loc: 150 },
 };
 

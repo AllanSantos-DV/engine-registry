@@ -14,6 +14,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadSchema, manifestErrors } from './schema-check.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -52,6 +53,14 @@ function applyVersion(wt, { engine, version, updateArgs, files = REGENERABLE }) 
   }
 }
 
+/** Recusa manifest fora do schema.json do próprio worktree: é a main que todo consumidor lê. */
+function assertSchema(wt) {
+  const schemaPath = path.join(wt, 'schema.json');
+  if (!fs.existsSync(schemaPath)) throw new PublishManifestError(`${wt} sem schema.json: não há contra o que validar o manifest`);
+  const errs = manifestErrors(JSON.parse(fs.readFileSync(path.join(wt, 'manifest.json'), 'utf8')), loadSchema(schemaPath));
+  if (errs.length) throw new PublishManifestError(`manifest fora do schema (nada enviado): ${errs.join('; ')}`);
+}
+
 /**
  * Mescla a main na develop do worktree. Conflito restrito a manifest.json/README.md é resolvido pela versão da develop com
  * a mesma mudança aplicada; qualquer outro conflito aborta a mescla e lança.
@@ -66,6 +75,7 @@ function mergeIntoDevelop(devWt, main, release) {
   }
   git(['checkout', '--ours', '--', ...conflicted], devWt);
   applyVersion(devWt, { ...release, files: conflicted });
+  assertSchema(devWt);
   git(['add', '--', ...conflicted], devWt);
   git(['commit', '--no-edit'], devWt);
 }
@@ -90,6 +100,7 @@ export function publishManifest({ engine, version, updateArgs = [], repoDir = RO
     const manifest = path.join(mainWt, 'manifest.json');
     const release = { engine, version, updateArgs };
     applyVersion(mainWt, release);
+    assertSchema(mainWt);
     verify(manifest, mainWt);
     git(['add', 'manifest.json', 'README.md'], mainWt);
     // Compara o índice, não o status: com autocrlf, reescrever o arquivo com LF aparece como modificado sem mudar o conteúdo.

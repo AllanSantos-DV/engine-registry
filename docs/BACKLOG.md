@@ -19,6 +19,11 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
   `docs/research/2026-11-09-confianca-do-registry-sem-custodia-de-chave.md` e
   `docs/research/2026-11-09-chaves-contra-runners-sem-acl.md`.
 
+- **Candidatos da lente do engine-kit 0.2.6 que mudam o uso (decisão do dono).** `engine-kit fetch <motor|app>`
+  (baixa e confere sem instalar), `engine-kit stop <motor>` (desliga pelo `shutdownPath` declarado; o mcp-gateway
+  precisaria do drain do adaptador) e `ensureGateway` devolvendo também as instruções para agente (adaptador no teto
+  de tamanho). Ganho, esforço e peças em `docs/research/2026-11-11-lente-feature-irma-engine-kit-0.2.6.md`.
+
 ## Decidido
 
 - **Resolvido (Jarvis, 2026-11-09): `trust.json` ilegível falha fechado.** `readTrust` lança quando o arquivo existe e não

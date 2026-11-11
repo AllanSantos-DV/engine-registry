@@ -33,8 +33,6 @@ function resolveHome() {
   return process.env.MCP_GATEWAY_DATA_DIR || DEFAULT_HOME;
 }
 
-const HOME = resolveHome();
-
 /**
  * Descritor do motor `mcp-gateway` lido do manifest.json do registry. Nunca lança: manifest
  * ilegível ou motor ausente do registro → null (quem chama sinaliza, não inventa um default).
@@ -51,7 +49,7 @@ function loadEngineDescriptor() {
 /** Lê a porta configurada pelo usuário (config.json), caindo no default do motor. */
 function configuredPort() {
   try {
-    return JSON.parse(readFileSync(join(HOME, "config.json"), "utf8")).port ?? DEFAULT_PORT;
+    return JSON.parse(readFileSync(join(resolveHome(), "config.json"), "utf8")).port ?? DEFAULT_PORT;
   } catch {
     return DEFAULT_PORT;
   }
@@ -116,7 +114,7 @@ async function healthCheck() {
  * `drainMs` + 15 s ou ainda vivo `drainMs` depois de responder) cai no SIGTERM, que no Windows mata
  * na hora.
  */
-export async function onBeforeReplace({ home = HOME, drainMs = 60000, reason = "engine-kit: atualização do mcp-gateway", log = () => {} } = {}) {
+export async function onBeforeReplace({ home = resolveHome(), drainMs = 60000, reason = "engine-kit: atualização do mcp-gateway", log = () => {} } = {}) {
   let rt;
   try { rt = JSON.parse(readFileSync(join(home, "runtime.json"), "utf8")); } catch { return; }
   if (!rt?.pid) { return; }
@@ -194,7 +192,7 @@ export async function ensureGateway({ log = () => {}, version, allowNetwork = tr
     bootTimeoutMs,
     registryUrl,
     fetcher,
-    env: { MCP_GATEWAY_DATA_DIR: HOME },
+    env: { MCP_GATEWAY_DATA_DIR: resolveHome() },
   });
   if (!r.available) { return r; }
 

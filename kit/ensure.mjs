@@ -15,6 +15,7 @@ import { resolve } from "./resolve.mjs";
 import { provision, installedVersion, satisfiesPin } from "./provision.mjs";
 import { shutdown } from "./lifecycle.mjs";
 import { pinOf, readTrust, saveTrust } from "./trust.mjs";
+import { pointerOf } from "./diagnose.mjs";
 
 const BUNDLED_MANIFEST = new URL("../manifest.json", import.meta.url);
 const installedOf = (e) => existsSync(join(e.homeDir, e.install.entry)) ? installedVersion(join(e.homeDir, e.install.extractTo ?? "bin")) : null;
@@ -89,6 +90,8 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
     ok: true, entryPath: p.entryPath, version: p.version, kind: engine.kind, reused: p.reused === true, signed: p.signed,
     ...(p.installed && previous && previous !== p.version ? { previous } : {}),
     ...(pin ? { pinned: pin } : {}),
+    ...(engine.staleCache ? { staleCache: true } : {}),
+    ...(engine.kind === "cli" ? { pointer: pointerOf(engine) } : {}),
   };
 }
 

@@ -22,7 +22,7 @@ function git(cwd, ...args) {
 }
 const identity = (cwd) => { git(cwd, 'config', 'user.name', 'teste'); git(cwd, 'config', 'user.email', 'teste@example.invalid'); };
 
-function setup(developEdit = () => {}) {
+function setup(developEdit = () => {}, mainEdit = () => {}) {
   const base = tmp();
   const remote = path.join(base, 'remote.git');
   git(base, 'init', '-q', '--bare', remote);
@@ -32,6 +32,8 @@ function setup(developEdit = () => {}) {
   fs.cpSync(path.join(ROOT, 'kit'), path.join(seed, 'kit'), { recursive: true });
   fs.copyFileSync(path.join(ROOT, 'manifest.json'), path.join(seed, 'manifest.json'));
   fs.copyFileSync(path.join(ROOT, 'README.md'), path.join(seed, 'README.md'));
+  fs.copyFileSync(path.join(ROOT, 'schema.json'), path.join(seed, 'schema.json'));
+  mainEdit(seed);
   git(seed, 'add', '.');
   git(seed, 'commit', '-q', '-m', 'base');
   git(seed, 'push', '-q', remote, 'HEAD:refs/heads/main');
@@ -123,6 +125,20 @@ ok('release que não passa na prova não envia nada', () => {
   const before = [git(remote, 'rev-parse', 'main'), git(remote, 'rev-parse', 'develop')];
   assert.throws(() => publishManifest({ engine: ENGINE, version: '9.9.9', repoDir: local, verify: () => { throw new Error('assinatura não confere'); } }),
     /assinatura não confere/);
+  assert.deepEqual([git(remote, 'rev-parse', 'main'), git(remote, 'rev-parse', 'develop')], before);
+  assert.equal(worktrees(local), 1);
+});
+
+ok('manifest da main fora do schema: nada é enviado e o erro diz o campo', () => {
+  const { remote, local } = setup(() => {}, (seed) => {
+    const m = JSON.parse(fs.readFileSync(path.join(seed, 'manifest.json'), 'utf8'));
+    m.apps[0].checksun = 'campo com erro de digitação';
+    fs.writeFileSync(path.join(seed, 'manifest.json'), JSON.stringify(m, null, 2));
+  });
+  const before = [git(remote, 'rev-parse', 'main'), git(remote, 'rev-parse', 'develop')];
+  let verified = 0;
+  assert.throws(() => publishManifest({ engine: ENGINE, version: '9.9.9', repoDir: local, verify: () => { verified++; } }), /fora do schema.*checksun/);
+  assert.equal(verified, 0, 'o manifest inválido para antes da prova');
   assert.deepEqual([git(remote, 'rev-parse', 'main'), git(remote, 'rev-parse', 'develop')], before);
   assert.equal(worktrees(local), 1);
 });

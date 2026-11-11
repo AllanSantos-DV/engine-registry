@@ -50,6 +50,8 @@ if (cmd === "--help" || cmd === "-h") {
       const how = r.reused ? "já instalado, reusado" : r.signed ? "assinatura Ed25519 conferida" : "SEM assinatura no registry";
       if (r.previous) { console.log(`motor atualizado: ${name} v${r.previous} → v${r.version}`); }
       console.log(`OK ${name} v${r.version} (${how}) em ${r.entryPath}`);
+      if (r.staleCache) { console.log(`aviso: registry inacessível; ${name} veio do descritor em cache vencido`); }
+      if (r.pointer && !["OK", "AUSENTE"].includes(r.pointer.state)) { console.log(`aviso: ponteiro cli.json ${r.pointer.state}: ${r.pointer.detail}`); }
       if (r.pinned) { console.log(`fixado: ${name} fica em v${r.pinned} (engine-kit unpin ${name} volta a atualizar)`); }
       if (r.available) { console.log(`aviso: ${name} v${r.available} disponível; ENGINE_KIT_NO_AUTO_UPDATE ligado — rode sem ele para atualizar`); }
       if (r.kind === "daemon") { console.log("daemon: quem sobe o motor é o consumidor (ensureEngine com healthCheck)."); }

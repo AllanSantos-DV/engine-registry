@@ -52,8 +52,8 @@ http.createServer((req, res) => {
 });
 `);
 
-async function subir(mode, { comToken = true, callMs } = {}) {
-  const home = join(ROOT, mode + (comToken ? "" : "-sem-token"));
+async function subir(mode, { comToken = true, callMs, pasta = mode } = {}) {
+  const home = join(ROOT, pasta + (comToken ? "" : "-sem-token"));
   mkdirSync(home, { recursive: true });
   if (comToken) { writeFileSync(join(home, "auth-token"), TOKEN); }
   const proc = spawn(process.execPath, [FAKE], { env: { ...process.env, FAKE_HOME: home, FAKE_MODE: mode, ...(callMs ? { FAKE_CALL_MS: String(callMs) } : {}) }, windowsHide: true, stdio: "ignore" });
@@ -83,6 +83,16 @@ console.log("== onBeforeReplace do mcp-gateway: drenar antes de sinalizar ==\n")
   check("contrato real: o drain leva motivo e espera no corpo", corpo.reason === "teste: troca do gateway" && corpo.waitMs === 10000, JSON.stringify(corpo));
   check("contrato real: chamada em curso de 6 s termina (a resposta só chega depois da drenagem)", existsSync(g.marca), logs.join(" | "));
   check("contrato real: o daemon saiu com código 0, sem sinal", (await g.exitCode) === 0 && logs.length === 0, `código ${g.proc.exitCode}`);
+}
+
+{
+  const g = await subir("drena", { pasta: "data-dir-do-ambiente" });
+  process.env.MCP_GATEWAY_DATA_DIR = g.home;
+  const logs = [];
+  try { await onBeforeReplace({ drainMs: 10000, log: (m) => logs.push(m) }); } finally { delete process.env.MCP_GATEWAY_DATA_DIR; }
+  const saiu = await Promise.race([g.exitCode, sleep(3000).then(() => "vivo")]);
+  if (saiu === "vivo") { g.proc.kill(); }
+  check("MCP_GATEWAY_DATA_DIR definido depois do import vale na chamada: drena o gateway dessa pasta", saiu === 0 && existsSync(g.marca), `saída ${saiu}`);
 }
 
 {

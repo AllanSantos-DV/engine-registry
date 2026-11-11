@@ -13,6 +13,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { generateKeyPairHex, signBlob } from "../kit/signature.mjs";
 import { findApp, appAssetUrls, verifyAppRelease } from "../kit/app-release.mjs";
+import { validate as validateSchema } from "../tools/schema-check.mjs";
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -24,43 +25,21 @@ const here = import.meta.dirname;
 const schema = JSON.parse(readFileSync(join(here, "..", "schema.json"), "utf8"));
 const manifest = JSON.parse(readFileSync(join(here, "..", "manifest.json"), "utf8"));
 
-// --- validador draft-07 MÍNIMO: só as palavras-chave que o schema.json usa -----------------
-// Sem dependência nova no pacote. Os casos negativos abaixo provam que ele não aprova tudo.
-function validate(node, value, path = "$") {
-  if (node.$ref) { return validate(node.$ref.split("/").slice(1).reduce((o, k) => o[k], schema), value, path); }
-  const errs = [];
-  const typeOf = (v) => (Array.isArray(v) ? "array" : v === null ? "null" : Number.isInteger(v) ? "integer" : typeof v);
-  if (node.type) {
-    const t = typeOf(value);
-    const okType = node.type === t || (node.type === "number" && t === "integer");
-    if (!okType) { return [`${path}: esperado ${node.type}, veio ${t}`]; }
-  }
-  if ("const" in node && value !== node.const) { errs.push(`${path}: esperado ${JSON.stringify(node.const)}`); }
-  if (node.enum && !node.enum.includes(value)) { errs.push(`${path}: fora do enum`); }
-  if (node.pattern && typeof value === "string" && !new RegExp(node.pattern).test(value)) { errs.push(`${path}: não casa ${node.pattern}`); }
-  if (node.minimum !== undefined && typeof value === "number" && value < node.minimum) { errs.push(`${path}: < ${node.minimum}`); }
-  if (Array.isArray(value)) {
-    if (node.minItems !== undefined && value.length < node.minItems) { errs.push(`${path}: menos de ${node.minItems} itens`); }
-    if (node.items) { value.forEach((v, i) => errs.push(...validate(node.items, v, `${path}[${i}]`))); }
-  }
-  if (typeOf(value) === "object") {
-    for (const k of node.required ?? []) { if (!(k in value)) { errs.push(`${path}: falta "${k}"`); } }
-    for (const [k, v] of Object.entries(value)) {
-      if (node.properties?.[k]) { errs.push(...validate(node.properties[k], v, `${path}.${k}`)); }
-      else if (node.additionalProperties === false) { errs.push(`${path}: campo desconhecido "${k}"`); }
-    }
-  }
-  for (const sub of node.allOf ?? []) { errs.push(...validate(sub, value, path)); }
-  if (node.if && validate(node.if, value, path).length === 0 && node.then) { errs.push(...validate(node.then, value, path)); }
-  if (node.not && validate(node.not, value, path).length === 0) { errs.push(`${path}: casou o 'not'`); }
-  return errs;
-}
+const validate = (node, value, at) => validateSchema(schema, node, value, at);
 const appErrors = (app) => validate(schema.definitions.app, app, "app");
 
 console.log("== 1) manifest.json inteiro contra o schema ==");
 const all = validate(schema, manifest);
 check("manifest.json é válido (engines + apps)", all.length === 0, all.join("; "));
 check("manifest declara o catálogo 'apps' (array)", Array.isArray(manifest.apps));
+{
+  let erro = "";
+  try { validateSchema({ oneOf: [] }, { oneOf: [] }, {}); } catch (e) { erro = e.message; }
+  check("palavra-chave que o validador não implementa lança em vez de aprovar", /não suportada.*oneOf/.test(erro), erro);
+  erro = "";
+  try { validateSchema({}, { type: "string", format: "email" }, "x"); } catch (e) { erro = e.message; }
+  check("format que o validador não implementa lança em vez de aprovar", /format não suportado.*email/.test(erro), erro);
+}
 
 console.log("\n== 2) definitions.app ==");
 const { publicKeyHex, privateKeyHex } = generateKeyPairHex();
