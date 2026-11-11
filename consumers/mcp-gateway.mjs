@@ -111,18 +111,22 @@ async function healthCheck() {
 
 /**
  * Derruba o daemon antes de sobrescrever os arquivos (Windows trava arquivo em uso). Primeiro pede
- * `POST /admin/drain` (espera as chamadas em curso e sai com 0); só se o gateway não drenar (sem a
- * rota, token recusado, sem resposta ou ainda vivo após `drainMs`) cai no SIGTERM, que no Windows
- * mata na hora.
+ * `POST /admin/drain` com `{reason, waitMs}`: o daemon espera as chamadas em curso (até `waitMs`),
+ * responde e sai com 0. Só se o gateway não drenar (sem a rota, token recusado, sem resposta em
+ * `drainMs` + 15 s ou ainda vivo `drainMs` depois de responder) cai no SIGTERM, que no Windows mata
+ * na hora.
  */
-export async function onBeforeReplace({ home = HOME, drainMs = 60000, log = () => {} } = {}) {
+export async function onBeforeReplace({ home = HOME, drainMs = 60000, reason = "engine-kit: atualização do mcp-gateway", log = () => {} } = {}) {
   let rt;
   try { rt = JSON.parse(readFileSync(join(home, "runtime.json"), "utf8")); } catch { return; }
   if (!rt?.pid) { return; }
   const token = readToken({ home, log });
   try {
     const res = await fetch(`http://127.0.0.1:${rt.port}/admin/drain`, {
-      method: "POST", headers: token ? { authorization: `Bearer ${token}` } : {}, signal: AbortSignal.timeout(5000),
+      method: "POST",
+      headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ reason, waitMs: drainMs }),
+      signal: AbortSignal.timeout(drainMs + 15000),
     });
     if (res.ok && await waitExit(rt.pid, drainMs)) { return; }
     log(`mcp-gateway: drain HTTP ${res.status}, ainda vivo; sinalizando`);

@@ -294,7 +294,8 @@ O `publish-base.ps1` confere a identidade do `gh` (o app Copilot injeta o token 
 trabalho nos processos filhos e o `gh` publica pela conta errada), assina, publica no registry,
 atualiza o `manifest.json` **parseado** e a linha do README num worktree da `main`, **prova** (baixa a
 release publicada e valida `sha256` + assinatura pelo caminho de um consumidor) e só então envia o commit
-para a `main` e mescla na `develop`, sem passo manual.
+para a `main` e mescla na `develop`, sem passo manual. Se a mescla conflitar só no `manifest.json` ou no
+README (linhas vizinhas mudadas nos dois ramos), o arquivo da `develop` recebe a mesma mudança que a `main` recebeu.
 
 O artefato deve ser **self-contained** (traz o próprio `node_modules` trimado): o motor precisa
 subir numa máquina limpa, sem depender do consumidor.

@@ -29,6 +29,7 @@
     "test:versions-live": "node tests/test-manifest-versions.mjs --live",
     "test:network": "node tests/smoke.mjs --network && node tests/test-signature.mjs --network",
     "test:e2e": "node tests/e2e-install.mjs",
+    "test:gateway-live": "node tests/e2e-gateway-drain-live.mjs",
     "gen-key": "node kit/gen-key.mjs",
     "verify-release": "node kit/verify-release.mjs",
     "budget": "node kit/budget.mjs"

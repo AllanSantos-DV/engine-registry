@@ -20,17 +20,30 @@ const { onBeforeReplace } = await import("../consumers/mcp-gateway.mjs");
 
 const TOKEN = "tok-de-teste";
 
-// gateway falso: uma chamada em curso de 800 ms; no drain espera ela acabar, grava a marca e sai com 0.
+// gateway falso: uma chamada em curso (800 ms, ou FAKE_CALL_MS); no drain espera ela acabar, grava a marca e sai com 0.
+// O modo 'contrato' segue o daemon real (mcp-gateway src/daemon/http.ts + index.ts drenarEParar): lê {reason, waitMs}
+// do corpo (sem corpo, o daemon real responde 500) e só responde 200 depois de drenar, saindo 100 ms após a resposta.
 const FAKE = join(ROOT, "fake-gateway.mjs");
 writeFileSync(FAKE, `
 import http from 'node:http';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 const home = process.env.FAKE_HOME, mode = process.env.FAKE_MODE;
-const emCurso = new Promise((r) => setTimeout(r, 800)).then(() => writeFileSync(join(home, 'em-curso-terminou'), 'ok'));
+const emCurso = new Promise((r) => setTimeout(r, Number(process.env.FAKE_CALL_MS || 800))).then(() => writeFileSync(join(home, 'em-curso-terminou'), 'ok'));
 http.createServer((req, res) => {
   if (req.url !== '/admin/drain' || req.method !== 'POST' || mode === 'sem-rota') { res.writeHead(404).end(); return; }
   if (req.headers.authorization !== 'Bearer ${TOKEN}') { res.writeHead(401).end(); return; }
+  if (mode === 'contrato') {
+    let corpo = '';
+    req.on('data', (c) => { corpo += c; }).on('end', async () => {
+      writeFileSync(join(home, 'corpo-do-drain.json'), corpo);
+      if (!corpo) { res.writeHead(500).end(); return; }
+      await emCurso;
+      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: true, pid: process.pid, pendentes: 0 }));
+      setTimeout(() => process.exit(0), 100);
+    });
+    return;
+  }
   res.writeHead(202).end('drenando');
   if (mode === 'trava') { return; }
   emCurso.then(() => process.exit(0));
@@ -39,11 +52,11 @@ http.createServer((req, res) => {
 });
 `);
 
-async function subir(mode, { comToken = true } = {}) {
+async function subir(mode, { comToken = true, callMs } = {}) {
   const home = join(ROOT, mode + (comToken ? "" : "-sem-token"));
   mkdirSync(home, { recursive: true });
   if (comToken) { writeFileSync(join(home, "auth-token"), TOKEN); }
-  const proc = spawn(process.execPath, [FAKE], { env: { ...process.env, FAKE_HOME: home, FAKE_MODE: mode }, windowsHide: true, stdio: "ignore" });
+  const proc = spawn(process.execPath, [FAKE], { env: { ...process.env, FAKE_HOME: home, FAKE_MODE: mode, ...(callMs ? { FAKE_CALL_MS: String(callMs) } : {}) }, windowsHide: true, stdio: "ignore" });
   const exitCode = new Promise((r) => proc.on("exit", (code) => r(code)));
   for (let i = 0; i < 100 && !existsSync(join(home, "runtime.json")); i++) { await sleep(100); }
   if (!existsSync(join(home, "runtime.json"))) { proc.kill(); throw new Error("gateway falso não anunciou o runtime.json"); }
@@ -59,6 +72,17 @@ console.log("== onBeforeReplace do mcp-gateway: drenar antes de sinalizar ==\n")
   check("a chamada em curso terminou antes de o daemon sair", existsSync(g.marca));
   check("o daemon saiu com código 0 (drenou, não foi morto)", (await g.exitCode) === 0, `código ${g.proc.exitCode}`);
   check("sem queda para o sinal", logs.length === 0, logs.join(" | "));
+}
+
+{
+  const g = await subir("contrato", { callMs: 6000 });
+  const logs = [];
+  await onBeforeReplace({ home: g.home, drainMs: 10000, reason: "teste: troca do gateway", log: (m) => logs.push(m) });
+  let corpo = {};
+  try { corpo = JSON.parse(readFileSync(join(g.home, "corpo-do-drain.json"), "utf8")); } catch {}
+  check("contrato real: o drain leva motivo e espera no corpo", corpo.reason === "teste: troca do gateway" && corpo.waitMs === 10000, JSON.stringify(corpo));
+  check("contrato real: chamada em curso de 6 s termina (a resposta só chega depois da drenagem)", existsSync(g.marca), logs.join(" | "));
+  check("contrato real: o daemon saiu com código 0, sem sinal", (await g.exitCode) === 0 && logs.length === 0, `código ${g.proc.exitCode}`);
 }
 
 {

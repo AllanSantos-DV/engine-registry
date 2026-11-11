@@ -70,7 +70,8 @@ O script faz, em ordem e com *fail-loud* em cada passo:
    consumidor faria. *"Publiquei"* não é prova — asset faltando, `.sig` esquecido e tag errada só
    aparecem quando alguém tenta instalar, em produção;
 7. com a prova verde, commita e envia o manifest e o README para a `main` (é dela que os consumidores
-   leem) e mescla a `main` na `develop`. Prova vermelha não envia nada; a cópia de trabalho local não é tocada.
+   leem) e mescla a `main` na `develop` (conflito só no manifest ou no README: a `develop` recebe a mesma mudança).
+   Prova vermelha não envia nada; a cópia de trabalho local não é tocada.
 
 ## 4. Onde o motor instala — e como o consumidor ACHA
 
