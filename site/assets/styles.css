@@ -119,6 +119,7 @@ pre{margin:12px 0 0;padding:12px 14px;border-radius:10px;background:var(--bg);bo
 
 .rodape{margin-top:72px;padding:30px 0 44px;border-top:1px solid var(--linha);color:var(--fraco);font-size:14px}
 .rodape .wrap{display:flex;flex-wrap:wrap;gap:12px 28px;justify-content:space-between}
+.rodape a{display:inline-flex;align-items:center;min-height:44px}
 
 /* modo Apresentar */
 .apres{position:fixed;inset:0;z-index:90;background:var(--bg);display:grid;grid-template-rows:auto 1fr auto auto;
