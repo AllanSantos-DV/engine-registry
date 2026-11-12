@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 const RUN = mkdtempSync(join(tmpdir(), "engine-stop-"));
 Object.assign(process.env, { HOME: RUN, USERPROFILE: RUN, ENGINE_KIT_HOME: join(RUN, "trust-home") });
 const { stopCommand } = await import("../kit/ensure.mjs");
+const { stopEngine } = await import("../kit/index.mjs");
 
 let failures = 0;
 const check = (name, cond, detail = "") => { if (!cond) failures++; console.log(`${cond ? "  OK  " : " FALHA"} ${name}${detail ? ` — ${detail}` : ""}`); };
@@ -32,7 +33,8 @@ const home = process.env.FAKE_HOME, shutdownToken = 'tok-' + process.pid;
 const srv = http.createServer((req, res) => {
   if (req.url === '/shutdown' && req.method === 'POST') {
     if (req.headers['x-shutdown-token'] !== shutdownToken) { res.writeHead(401).end('token'); return; }
-    res.writeHead(200).end('ok'); setTimeout(() => process.exit(0), 50); return;
+    const busy = process.env.FAKE_BUSY === '1';
+    res.writeHead(busy ? 202 : 200).end('ok'); setTimeout(() => process.exit(0), busy ? 800 : 50); return;
   }
   res.writeHead(404).end();
 });
@@ -60,6 +62,38 @@ const opts = (m) => ({ bundled: m, manifest: m });
   for (let i = 0; i < 30 && vivo(pid); i++) { await sleep(100); }
   check("o processo do motor saiu", !vivo(pid));
   proc.kill();
+}
+
+async function daemonVivo(home, env = {}) {
+  mkdirSync(home, { recursive: true });
+  const proc = spawn(process.execPath, [DAEMON], { env: { ...process.env, FAKE_HOME: home, ...env }, windowsHide: true, stdio: "ignore" });
+  for (let i = 0; i < 100 && !(() => { try { readFileSync(join(home, "run", "daemon.json")); return true; } catch { return false; } })(); i++) { await sleep(100); }
+  return { proc, pid: JSON.parse(readFileSync(join(home, "run", "daemon.json"), "utf8")).pid };
+}
+
+{
+  const home = join(RUN, "home-lib");
+  const { proc, pid } = await daemonVivo(home);
+  const r = await stopEngine("fake-engine", { manifest: manifestWith(home, RUNTIME) });
+  check("stopEngine da lib desliga o motor vivo", r.ok === true && r.stopped === true && !vivo(pid), JSON.stringify(r));
+  proc.kill();
+}
+
+{
+  const home = join(RUN, "home-lib-ocupado");
+  const { proc, pid } = await daemonVivo(home, { FAKE_BUSY: "1" });
+  const logs = [];
+  const r = await stopEngine("fake-engine", { manifest: manifestWith(home, RUNTIME), log: (m) => logs.push(m) });
+  check("motor ocupado (HTTP 202): o shutdown avisa que está esperando o trabalho em curso", r.ok === true && logs.some((m) => /ocupado, aguardando até \d+s/.test(m)), logs.join(" | "));
+  check("motor ocupado (HTTP 202): o processo sai depois da espera", !vivo(pid));
+  proc.kill();
+}
+
+{
+  const r = await stopEngine("fake-engine", { manifest: manifestWith(join(RUN, "home-lib-sem"), undefined) });
+  check("stopEngine de motor sem shutdownPath recusa com o motivo", r.ok === false && /não declara shutdownPath/.test(r.reason), r.reason);
+  const f = await stopEngine("nao-existe", { manifest: manifestWith(join(RUN, "x"), RUNTIME) });
+  check("stopEngine de motor fora do registry devolve ok:false, sem lançar", f.ok === false, f.reason);
 }
 
 {

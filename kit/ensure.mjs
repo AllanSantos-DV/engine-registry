@@ -13,7 +13,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { resolve, fill } from "./resolve.mjs";
 import { provision, installedVersion, satisfiesPin } from "./provision.mjs";
-import { shutdown } from "./lifecycle.mjs";
+import { shutdown, stopEngine } from "./lifecycle.mjs";
 import { pinOf, readTrust, saveTrust } from "./trust.mjs";
 export { firstContactKeys } from "./trust.mjs";
 import { pointerOf } from "./diagnose.mjs";
@@ -162,11 +162,5 @@ export async function stopCommand(name, { registryUrl, bundled, manifest, log = 
   if (!(local.engines ?? []).some((e) => e.name === name)) {
     return { ok: false, reason: `motor "${name}" não está no manifest deste engine-kit → atualize o kit (npx engine-kit@latest stop ${name})` };
   }
-  const r = await resolve(name, { registryUrl, refresh: true, ...(manifest ? { manifest } : {}) });
-  if (!r.ok) { return { ok: false, reason: r.reason }; }
-  if (!r.engine.runtime?.shutdownPath) {
-    return { ok: false, reason: `${name} não declara shutdownPath no registry: o kit não sabe desligá-lo (quem o sobe é o consumidor ou o próprio motor)` };
-  }
-  const s = await shutdown(r.engine, { log });
-  return s.ok ? { ok: true, stopped: s.stopped } : s;
+  return stopEngine(name, { registryUrl, manifest, log });
 }

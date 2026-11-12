@@ -12,7 +12,7 @@
 // consumidor decidir (fail-loud no caller, não no kit).
 export { resolve, DEFAULT_REGISTRY_URL, expandHome, target, fill } from "./resolve.mjs";
 export { provision, satisfiesPin, fetchArtifact } from "./provision.mjs";
-export { lifecycle, readRuntime, readFreshRuntime, shutdown } from "./lifecycle.mjs";
+export { lifecycle, readRuntime, readFreshRuntime, shutdown, stopEngine } from "./lifecycle.mjs";
 export {
   verifyBlob, signBlob, generateKeyPairHex, publicKeyFromHex, privateKeyFromHex, publicKeyHexFromPrivateHex,
   SUPPORTED_ALGORITHMS, DEFAULT_ALGORITHM, SIGNATURE_BYTES,
@@ -22,7 +22,7 @@ export { SIGNING_DIR, keyPathFor } from "./keystore.mjs";
 import { resolve } from "./resolve.mjs";
 import { provision, satisfiesPin } from "./provision.mjs";
 import { lifecycle } from "./lifecycle.mjs";
-import { pinOf, firstContactKeys } from "./trust.mjs";
+import { pinOf } from "./trust.mjs";
 
 /**
  * RESOLVE → PROVISION → LIFECYCLE numa chamada: o caminho que 99% dos consumidores querem.
@@ -33,8 +33,8 @@ import { pinOf, firstContactKeys } from "./trust.mjs";
  *        pelo dono (`engine-kit pin`) fica na versão fixada; se ela não serve o mínimo, `available:false`.
  * @param {boolean=} opts.allowNetwork permite baixar/atualizar (default true).
  * @param {Record<string,string>=} opts.trustedKeys chaves públicas FIXADAS pelo consumidor
- *        (`{ "<motor>": "<hex>" }`). Divergência com o registry = ABORT. Default: a chave do manifest embarcado
- *        no pacote (só no registry público). Motor fora desse manifest, ou com `registryUrl` próprio, vale TOFU:
+ *        (`{ "<motor>": "<hex>" }`). Divergência com o registry = ABORT. Default no registry público: a chave do
+ *        manifest embarcado no pacote; motor fora dele não instala sem `trustedKeys`. Com `registryUrl` próprio vale TOFU:
  *        a chave da 1ª instalação é gravada e qualquer troca posterior aborta.
  * @param {string=} opts.registryUrl URL do manifest (default: registry público; testes apontam para um local).
  * @param {(url:string,timeoutMs:number)=>Promise<Buffer>=} opts.fetcher download injetável (testes).
@@ -42,7 +42,7 @@ import { pinOf, firstContactKeys } from "./trust.mjs";
  * @returns {Promise<{available:true, runtime:object, health:object, engine:object} | {available:false, reason:string}>}
  */
 export async function ensureEngine(name, opts = {}) {
-  const { healthCheck, version, allowNetwork = true, registryUrl, log = () => {}, bootTimeoutMs, onBeforeReplace, env, trustedKeys = firstContactKeys(name, registryUrl), refresh = false, fetcher } = opts;
+  const { healthCheck, version, allowNetwork = true, registryUrl, log = () => {}, bootTimeoutMs, onBeforeReplace, env, trustedKeys, refresh = false, fetcher } = opts;
 
   let pin;
   try { pin = pinOf(name); } catch (e) { return { available: false, reason: e.message }; }

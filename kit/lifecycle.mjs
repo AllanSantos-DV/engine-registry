@@ -14,6 +14,7 @@
 import { spawn } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { resolve } from "./resolve.mjs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -103,6 +104,7 @@ export async function shutdown(engine, { log = () => {}, timeoutMs = 5000, waitB
     const adiado = res.status === 202 || res.status === 503;
     if (!res.ok && !adiado) { return { ok: false, reason: `${engine.name}: shutdown respondeu HTTP ${res.status}` }; }
     log(`[engine-kit] ${engine.name}: shutdown pedido (pid ${rt.pid ?? "?"}, HTTP ${res.status})`);
+    if (adiado) { log(`[engine-kit] ${engine.name}: ocupado, aguardando até ${waitBusyMs / 1000}s o trabalho em curso acabar`); }
     // O motor responde ANTES de sair. Sem esta espera, o swap ainda encontra o arquivo em uso.
     if (rt.pid ? !(await waitExit(rt.pid, adiado ? waitBusyMs : 15000)) : await sleep(1500)) {
       return { ok: false, reason: `${engine.name}: ainda ocupado após o pedido; rode de novo depois` };
@@ -111,6 +113,19 @@ export async function shutdown(engine, { log = () => {}, timeoutMs = 5000, waitB
   } catch (e) {
     return { ok: false, reason: `${engine.name}: shutdown falhou (${e?.message || e})` };
   }
+}
+
+/**
+ * Desliga o motor vivo pelo `shutdownPath` declarado no registry. Recusa motor que não declara um.
+ * @param {string} name
+ * @param {{registryUrl?:string, manifest?:object, log?:(m:string)=>void}} [opts]
+ * @returns {Promise<{ok:true, stopped:boolean} | {ok:false, reason:string}>} nunca lança.
+ */
+export async function stopEngine(name, { registryUrl, manifest, log } = {}) {
+  const r = await resolve(name, { registryUrl, refresh: true, ...(manifest ? { manifest } : {}) });
+  if (!r.ok) { return r; }
+  if (!r.engine.runtime?.shutdownPath) { return { ok: false, reason: `${name} não declara shutdownPath no registry: o kit não sabe desligá-lo (quem o sobe é o consumidor ou o próprio motor)` }; }
+  return shutdown(r.engine, { log });
 }
 
 /** Sobe o motor destacado, com ambiente limpo (fora do fork do host). */
