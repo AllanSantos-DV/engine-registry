@@ -47,18 +47,21 @@ export function readTrust() {
 export function updateEntry(name, change) {
   mkdirSync(trustDir(), { recursive: true });
   const lock = `${trustFile()}.lock`;
+  const nap = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
   for (let i = 0; ; i++) {
     try { closeSync(openSync(lock, "wx")); break; }
     catch (e) {
       if ((e.code !== "EEXIST" && e.code !== "EPERM") || i > 250) { throw e; } // EPERM: Windows, lock em remoção
       try { if (Date.now() - statSync(lock).mtimeMs > 10000) { unlinkSync(lock); } } catch { /* outro processo liberou */ }
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+      nap(20);
     }
   }
   try {
     const store = readTrust(), next = change(store[name]), tmp = `${trustFile()}.${process.pid}.tmp`;
     writeFileSync(tmp, JSON.stringify({ ...store, [name]: next }, null, 2));
-    renameSync(tmp, trustFile());
+    for (let t = 1; ; nap(50 * t++)) {
+      try { renameSync(tmp, trustFile()); break; } catch (e) { if (t >= 8 || !/^(EBUSY|EPERM|EACCES)$/.test(e.code)) { throw e; } }
+    }
     return next;
   } finally { try { unlinkSync(lock); } catch { /* já liberado */ } }
 }
@@ -75,22 +78,22 @@ export function checkTrust(engineName, publicKey, { trustedKeys } = {}) {
 
   const store = readTrust();
   const known = store[engineName]?.publicKey;
-  if (known && known !== publicKey) {
-    return {
-      ok: false,
-      reason:
-        `${engineName}: a chave pública MUDOU desde a primeira instalação → ABORT. ` +
-        `Rotação legítima exige apagar a entrada em ${trustFile()} de propósito; ` +
-        `se você não rotacionou, o registry pode estar comprometido.`,
-    };
-  }
+  const mudou = () => ({
+    ok: false,
+    reason:
+      `${engineName}: a chave pública MUDOU desde a primeira instalação → ABORT. ` +
+      `Rotação legítima exige apagar a entrada em ${trustFile()} de propósito; ` +
+      `se você não rotacionou, o registry pode estar comprometido.`,
+  });
+  if (known && known !== publicKey) { return mudou(); }
   if (known) return { ok: true, tofu: false };
 
   try {
-    updateEntry(engineName, (e) => (e?.publicKey ? e : { publicKey, firstSeen: new Date().toISOString(), source: pinned ? "pinned" : "tofu" }));
+    const gravada = updateEntry(engineName, (e) => (e?.publicKey ? e : { publicKey, firstSeen: new Date().toISOString(), source: pinned ? "pinned" : "tofu" }));
+    if (gravada.publicKey !== publicKey) { return mudou(); }
   } catch {
-    // Não poder gravar a raiz não pode impedir a instalação — mas também não vira silêncio:
-    // sem gravar, a próxima execução repete o TOFU (e o consumidor vê `tofu:true` de novo).
+    // Não poder gravar a raiz não impede a instalação, mas vira `saved:false`: a próxima execução repete o TOFU.
+    return { ok: true, tofu: true, saved: false };
   }
   return { ok: true, tofu: true };
 }
