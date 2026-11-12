@@ -35,7 +35,7 @@ export const SIGNATURE_BYTES = 64;
 
 const isHexKey = (s) => /^[0-9a-fA-F]{64}$/.test(String(s ?? ""));
 
-/** Converte a chave PÚBLICA hex (32 bytes) num KeyObject utilizável pelo `crypto.verify`. */
+/** Valida a chave Ed25519 hex (32 bytes) e devolve os bytes crus; `kind` entra na mensagem de erro. */
 const rawOf = (hex, kind) => {
   if (!isHexKey(hex)) {
     throw new Error(`chave ${kind} Ed25519 inválida: esperado 64 chars hex (32 bytes), veio ${String(hex ?? "").length}`);
@@ -44,6 +44,7 @@ const rawOf = (hex, kind) => {
 };
 const spkiRaw = (key) => key.export({ type: "spki", format: "der" }).subarray(SPKI_PREFIX.length);
 
+/** Converte a chave PÚBLICA hex (32 bytes) num KeyObject utilizável pelo `crypto.verify`. */
 export function publicKeyFromHex(hex) {
   return createPublicKey({ key: Buffer.concat([SPKI_PREFIX, rawOf(hex, "pública")]), format: "der", type: "spki" });
 }

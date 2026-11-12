@@ -22,6 +22,16 @@ Cada item muda o uso do produto. Recomendação entre parênteses de cada um.
   progresso evita que o usuário ache que travou.)
 - **`stopEngine(name)` na lib.** Não cabe no teto do runtime (27000 B) sem cortar outra coisa; o teto nunca foi recalibrado. (Recomendo
   manter o teto e a lib sem `stop`: quem precisa desligar usa a CLI.)
+- **Chave do pacote como default também em `provision` e `fetchArtifact` da lib.** Só `ensureEngine` ganhou o default; quem chama
+  essas duas direto segue em TOFU (a CLI e o `fetch` já passam a chave). Muda o comportamento de quem já as usa. (Recomendo construir: é a
+  mesma garantia, e uma rotação já aborta no `ensureEngine`; avisar na nota de versão.)
+- **Lib recusar quando não há chave do pacote.** Motor fora do manifest embarcado, ou manifest ilegível, cai em TOFU calado no
+  `ensureEngine`; a CLI e o `fetch` recusam esse caso. Recusar na lib quebra quem instala motores de registry próprio ou fora do pacote.
+  (Recomendo manter o TOFU para motor fora do pacote, que é o contrato declarado, e só falhar alto quando o manifest embarcado existir e
+  estiver ilegível.)
+- **`fetch --dest` dentro do home do motor e `doctor --fix`.** Um `vxk.tgz` baixado de propósito no home do motor é igual a uma sobra do
+  `provision` e o `--fix` o apaga. (Recomendo recusar `--dest` dentro do home de um motor do manifest: um erro claro no `fetch` custa
+  menos do que distinguir os dois arquivos.)
 - **Rotação de chave de motor sem passo manual nas máquinas.** Hoje, trocar a chave de um motor faz toda máquina que já o tinha abortar
   (`checkTrust` em `kit/trust.mjs`), e a rotação legítima exige apagar a entrada do `trust.json` à mão. **Decidido** (Jarvis, 09/11):
   fica tratada no esquema de confiança da pendência aberta 3a178e; até o dono escolher, nenhum passo manual por máquina é introduzido.

@@ -118,7 +118,7 @@ npx engine-kit doctor --json [--engine <motor>]   # mesmo diagnóstico em JSON, 
 ```
 
 O `--fix` também remove as sobras do `provision` (`stage-<versão>`, o artefato `.tgz`/`.part` e `<bin>.old-<pid>` no home do motor),
-nunca com instalação em curso (`provision.lock` recente); o diagnóstico sem `--fix` só as avisa.
+nunca com instalação em curso (`provision.lock` recente ou com o processo dono ainda vivo); o diagnóstico sem `--fix` só as avisa.
 
 O diagnóstico avisa, sem alterar nada, quando o registry não respondeu (o descritor veio do cache) e quando a chave
 publicada pelo registry difere da gravada em `trust.json` (o próximo `ensure` abortaria).
@@ -246,7 +246,7 @@ assim:
 |---|---|---|
 | **TOFU** (padrão, automático) | a chave do 1º contato é gravada em `~/.engine-kit/trust.json`; qualquer troca depois = **ABORT** | repo comprometido **depois** da adoção — o caso realista |
 | **Pin do consumidor** | `ensureEngine(nome, { trustedKeys: { "<motor>": "<hex>" } })`; divergência = **ABORT** já no 1º contato | não depende do registry em momento nenhum (padrão do `vox-engine`) |
-| **Chave no pacote** (`npx engine-kit ensure`) | o comando fixa a chave do `manifest.json` embarcado no pacote do npm | registry comprometido **antes** do 1º contato: trocar a chave exige publicar um engine-kit novo, e a publicação deixa proveniência pública |
+| **Chave no pacote** (`npx engine-kit ensure` e `ensureEngine` no registry público) | o comando e a lib fixam a chave do `manifest.json` embarcado no pacote do npm | registry comprometido **antes** do 1º contato: trocar a chave exige publicar um engine-kit novo, e a publicação deixa proveniência pública |
 
 Rotação legítima é **ato explícito**: apagar a entrada em `~/.engine-kit/trust.json`. Um `trust.json` que existe e
 não se lê falha fechado: `ensure`, `pin`, `unpin`, `ensureEngine` e o doctor recusam explicando e não regravam o arquivo,
@@ -268,6 +268,7 @@ kit/
   resolve.mjs      # descobre o motor no registry (cache 6h, degrada p/ cache obsoleto)
   provision.mjs    # baixa/atualiza: SHA256 + assinatura fail-closed, lock e swap atômico
   lifecycle.mjs    # garante o processo vivo (daemon) ou entrega o binário (cli)
+  register.mjs     # registerNeuralLink: roda o install() do neural-link instalado (ensure neural-link --register)
   trust.mjs        # trust.json por motor: chave do 1º contato, maior versão vista (anti-rollback) e o pin
   cli.mjs          # comando `engine-kit` (bin do pacote): ensure, fetch, pin, unpin, stop e doctor
   ensure.mjs       # ensure, pin, unpin e stop: resolve → provision com a chave do manifest embarcado no pacote

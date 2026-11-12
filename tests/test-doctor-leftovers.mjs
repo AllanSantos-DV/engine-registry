@@ -60,6 +60,17 @@ check("lock vencido: --fix remove as 4 sobras e diz o que removeu", todas() === 
 check("o motor instalado e a pasta run/ ficam intactos", existsSync(join(home, "bin", "vxk-mcp.mjs")) && existsSync(join(home, "run")));
 check("o --fix de motor OK sai com exit 0", fix.code === 0, `exit=${fix.code}`);
 
+writeFileSync(lock, String(process.pid));
+utimesSync(lock, velho, velho);
+plantar();
+await run(["--fix"]);
+check("lock velho mas com o processo dono vivo: --fix não apaga nada", todas() === 4);
+
+rmSync(lock);
+rmSync(sobras[0], { recursive: true }); rmSync(sobras[1], { recursive: true }); rmSync(sobras[2]);
+await run(["--fix"]);
+check("o .part sozinho também é sobra", !existsSync(sobras[3]));
+
 server.close();
 rmSync(HOME, { recursive: true, force: true });
 console.log(`\n== ${failures === 0 ? "TUDO VERDE" : `${failures} FALHA(S)`} ==`);

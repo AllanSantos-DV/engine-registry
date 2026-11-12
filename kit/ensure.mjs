@@ -15,6 +15,7 @@ import { resolve, fill } from "./resolve.mjs";
 import { provision, installedVersion, satisfiesPin } from "./provision.mjs";
 import { shutdown } from "./lifecycle.mjs";
 import { pinOf, readTrust, saveTrust } from "./trust.mjs";
+export { firstContactKeys } from "./trust.mjs";
 import { pointerOf } from "./diagnose.mjs";
 
 const BUNDLED_MANIFEST = new URL("../manifest.json", import.meta.url);

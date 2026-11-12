@@ -42,7 +42,11 @@ try { readTrust(); } catch (e) { console.error(`FALHOU: ${e.message}`); process.
  */
 function leftovers(engine) {
   const bin = join(engine.homeDir, engine.install.extractTo ?? "bin");
-  try { if (Date.now() - statSync(join(engine.homeDir, "provision.lock")).mtimeMs < 120000) return []; } catch {}
+  const lock = join(engine.homeDir, "provision.lock");
+  try {
+    const pid = Number(readFileSync(lock, "utf8"));
+    if (Date.now() - statSync(lock).mtimeMs < 120000 || (pid > 0 && (process.kill(pid, 0), true))) return [];
+  } catch (e) { if (e.code === "EPERM") return []; }
   const ls = (dir, isLeft) => { try { return readdirSync(dir).filter(isLeft).map((n) => join(dir, n)); } catch { return []; } };
   const asset = engine.assetName;
   return [
