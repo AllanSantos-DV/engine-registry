@@ -8,6 +8,18 @@ import { pathToFileURL } from "node:url";
  * @param {string} entryPath entrypoint instalado do dispatcher.
  */
 export async function registerNeuralLink(entryPath) {
-  const installMod = await import(pathToFileURL(join(dirname(entryPath), "install.js")).href);
-  return installMod.install({});
+  return (await installModule(entryPath)).install({});
 }
+
+/**
+ * Roda o `uninstall()` do próprio neural-link, que desfaz o que o `install()` gravou. Lança se o motor instalado ainda não
+ * expõe `uninstall()`: o kit não adivinha quais arquivos do config global são do motor.
+ * @param {string} entryPath entrypoint instalado do dispatcher.
+ */
+export async function unregisterNeuralLink(entryPath) {
+  const mod = await installModule(entryPath);
+  if (typeof mod.uninstall !== "function") { throw new Error("o neural-link instalado não expõe uninstall(): atualize o motor (engine-kit ensure neural-link)"); }
+  return mod.uninstall({});
+}
+
+const installModule = (entryPath) => import(pathToFileURL(join(dirname(entryPath), "install.js")).href);

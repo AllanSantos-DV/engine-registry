@@ -17,6 +17,7 @@ const { generateKeyPairHex, signBlob } = await import("../kit/index.mjs");
 const { tarBinary } = await import("../kit/provision.mjs");
 const { ensureCommand } = await import("../kit/ensure.mjs");
 const { registerNeuralLink } = await import("../consumers/neural-link.mjs");
+const { unregisterNeuralLink } = await import("../kit/register.mjs");
 
 let failures = 0;
 const check = (name, cond, detail = "") => { if (!cond) failures++; console.log(`${cond ? "  OK  " : " FALHA"} ${name}${detail ? ` — ${detail}` : ""}`); };
@@ -64,6 +65,21 @@ export function install() { writeFileSync(${JSON.stringify(MARCA)}, "{}"); retur
   check("falha do install() do motor sobe para quem chamou (o CLI mostra FALHOU)", erro?.message === "config global sem permissão de escrita", String(erro));
 }
 
+{
+  const r = await instalar(join(RUN, "home-unreg"), `export function install() { return {}; }
+export function uninstall() { return { removed: ["a", "b"] }; }
+`);
+  const un = await unregisterNeuralLink(r.entryPath);
+  check("unregisterNeuralLink roda o uninstall() do binário instalado e devolve o resultado dele", un.removed.length === 2, JSON.stringify(un));
+}
+
+{
+  const r = await instalar(join(RUN, "home-sem-uninstall"), fakeInstall);
+  let erro = null;
+  try { await unregisterNeuralLink(r.entryPath); } catch (e) { erro = e; }
+  check("motor sem uninstall(): o unregister falha alto em vez de adivinhar o que apagar", /não expõe uninstall/.test(erro?.message ?? ""), String(erro));
+}
+
 const cli = (args) => new Promise((resolve) => {
   const p = spawn(process.execPath, ["kit/cli.mjs", ...args], { cwd: new URL("..", import.meta.url), windowsHide: true, env: { ...process.env, ENGINE_KIT_NO_AUTO_UPDATE: "1" } });
   let out = "";
@@ -72,8 +88,13 @@ const cli = (args) => new Promise((resolve) => {
 });
 for (const args of [["ensure", "vxk", "--register"], ["pin", "neural-link", "--register"], ["doctor", "--register"]]) {
   const r = await cli(args);
-  check(`\`${args.join(" ")}\`: --register fora do ensure neural-link é recusado`, r.code === 1 && /--register só vale para/.test(r.out), r.out.trim());
+  check(`\`${args.join(" ")}\`: --register fora do ensure neural-link é recusado`, r.code === 1 && /--register e --unregister só valem para/.test(r.out), r.out.trim());
 }
+const ambas = await cli(["ensure", "neural-link", "--register", "--unregister"]);
+check("--register e --unregister juntos são recusados", ambas.code === 1 && /não combinam/.test(ambas.out), ambas.out.trim());
+const solta = await cli(["stop", "vxk", "--unregister"]);
+check("--unregister fora do ensure neural-link é recusado", solta.code === 1 && /só valem para/.test(solta.out), solta.out.trim());
+check("o uso do bin lista --unregister", /--unregister/.test((await cli(["--help"])).out));
 check("o uso do bin lista --register e o stop", /--register/.test((await cli(["--help"])).out) && /engine-kit stop/.test((await cli(["--help"])).out));
 check("a CLI registra pelo kit, sem importar o adaptador de consumers/", !/consumers\//.test(readFileSync(new URL("../kit/cli.mjs", import.meta.url), "utf8")));
 check("o adaptador de consumers/ segue exportando registerNeuralLink", typeof (await import("../consumers/neural-link.mjs")).registerNeuralLink === "function");
