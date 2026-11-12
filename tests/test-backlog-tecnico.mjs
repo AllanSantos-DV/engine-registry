@@ -3,7 +3,7 @@
 // HOME, trust.json, LOCALAPPDATA e registries isolados; nenhum daemon real é tocado.
 //
 //   node tests/test-backlog-tecnico.mjs
-import { mkdirSync, writeFileSync, readFileSync, mkdtempSync, rmSync, existsSync, utimesSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, mkdtempSync, rmSync, existsSync, utimesSync, readdirSync } from "node:fs";
 import { spawn, execFileSync } from "node:child_process";
 import { createServer } from "node:http";
 import { createHash } from "node:crypto";
@@ -155,6 +155,14 @@ globalThis.fetch = async (u) => {
   publicar("1.2.3");
   const ok = await rodar();
   check("artefato da versão anunciada passa e imprime a versão conferida", ok.code === 0 && /versão no \.tgz : v1\.2\.3 OK/.test(ok.out), `exit ${ok.code} ${ok.err.slice(0, 200)}`);
+  const arquivos = (d) => readdirSync(d, { recursive: true }).map(String).sort();
+  const cacheDir = join(process.env.LOCALAPPDATA, "engine-kit", "verify");
+  const tmpAntes = readdirSync(tmpdir()).filter((n) => n.startsWith("engine-kit-verify-release-"));
+  const antes = arquivos(cacheDir);
+  const dois = await rodar();
+  const depois = arquivos(cacheDir);
+  check("segunda execução com a mesma entrada passa e não cria nenhum arquivo em LOCALAPPDATA/engine-kit/verify", dois.code === 0 && depois.length === antes.length && depois.join() === antes.join(), `${antes.length} → ${depois.length}: ${depois.filter((n) => !antes.includes(n)).join(",")}`);
+  check("nenhuma pasta aleatória engine-kit-verify-release-* no tmpdir", readdirSync(tmpdir()).filter((n) => n.startsWith("engine-kit-verify-release-")).length === tmpAntes.length);
   publicar("1.0.0");
   const errado = await rodar();
   check("artefato assinado de OUTRA versão é recusado com o motivo", errado.code === 1 && /não é a versão anunciada/.test(errado.err) && /v1\.0\.0/.test(errado.err), `exit ${errado.code} ${errado.err.slice(0, 300)}`);

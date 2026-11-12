@@ -11,10 +11,9 @@
 // Por que existe: "publiquei" não é prova. Asset faltando, .sig esquecido, tag errada e artefato
 // do build anterior só aparecem quando um consumidor tenta instalar — em produção. Este passo
 // puxa isso para dentro do publish. Também prova a metade negativa: adulterado é RECUSADO.
-import { readFileSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { versaoDivergente } from "./fetch.mjs";
+import { versaoDivergente, verifyRoot } from "./fetch.mjs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { resolve } from "./resolve.mjs";
@@ -74,11 +73,10 @@ const actual = createHash("sha256").update(asset).digest("hex");
 if (actual !== sha) { die(`SHA256 divergente (release=${sha.slice(0, 12)}… baixado=${actual.slice(0, 12)}…)`); }
 console.log(`sha256         : ${actual} OK`);
 
-const staging = mkdtempSync(join(tmpdir(), "engine-kit-verify-release-"));
-const staged = join(staging, engine.assetName);
+mkdirSync(verifyRoot(), { recursive: true });
+const staged = join(verifyRoot(), `${engine.name}-${engine.version}-${engine.assetName}`);
 writeFileSync(staged, asset);
 const divergente = versaoDivergente(staged, engine);
-rmSync(staging, { recursive: true, force: true });
 if (divergente) { die(`${divergente.replace(/ → ABORT \(arquivo removido\)$/, "")} — o artefato publicado não é a versão anunciada`); }
 console.log(`versão no .tgz : v${engine.version} OK`);
 

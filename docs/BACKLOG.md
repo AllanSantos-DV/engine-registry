@@ -14,10 +14,11 @@ Cada item muda o uso do produto. O candidato (k) traz ganho, esforço (pequeno, 
   chama o `uninstall()` do motor instalado, mas o neural-link só exporta `install()`: hoje o comando falha alto dizendo isso. O motor passa a exportar
   `uninstall({})`, que remove os `_dispatcher-<Evento>.json` e devolve `{ removed: [...] }`. Nada a mudar neste repositório.
 
-- **Rotação de chave de motor sem passo manual nas máquinas.** Hoje, trocar a chave de um motor faz toda máquina que já o tinha abortar
-  (`checkTrust` em `kit/trust.mjs`), e a rotação legítima exige apagar a entrada do `trust.json` à mão. **Decidido** (Jarvis, 09/11):
-  fica tratada no esquema de confiança da pendência aberta 3a178e; até o dono escolher, nenhum passo manual por máquina é introduzido.
-  Contexto: `docs/research/2026-11-09-pin-por-motor-acoplamento-e-custodia-de-chaves.md`.
+- **Decisão do dono: rotação de chave de motor sem passo manual nas máquinas.** Hoje, trocar a chave de um motor faz toda máquina que já o tinha abortar
+  (`checkTrust` em `kit/trust.mjs`), e a rotação legítima exige apagar a entrada do `trust.json` à mão. Está atada ao esquema de confiança da pendência aberta 3a178e;
+  até o dono escolher, nenhum passo manual por máquina é introduzido. Contexto: `docs/research/2026-11-09-pin-por-motor-acoplamento-e-custodia-de-chaves.md`.
+  Efeito para o usuário final: quem já tem o motor instalado hoje precisa de um engine-kit novo (`npx engine-kit@latest ensure <motor>`) quando a chave rotaciona; com a rotação assinada pela chave antiga, a troca passa a ser automática e sem comando extra, ao custo de guardar uma cadeia de chaves.
+  Recomendação: decidir junto com 3a178e, adotando a rotação assinada pela chave anterior (a máquina aceita a chave nova só se a antiga a assinou) e mantendo a recusa fail-closed para qualquer outra troca.
 - **Decidido (Jarvis, 12/11): segue do dono.** **Esquema de confiança do registry: assinatura sem chave e publicação do kit com aprovação.** Pendência aberta 3a178e: muda como o dono
   publica o kit (um clique de aprovação 2FA por release) e o que ele guarda. Recomendação: esquema D, com os motores assinados sem chave
   (keyless) no CI hospedado, nos três repositórios pesados (native-java, cerne, vox-engine), e o engine-kit publicado no npm só com a
@@ -33,15 +34,17 @@ Cada item muda o uso do produto. O candidato (k) traz ganho, esforço (pequeno, 
   `updateEntry` e a chave de cache por `registryUrl` que já existe em `kit/resolve.mjs`. Recomendação: construir por registry e nome, com
   migração; é decisão do esquema de confiança, então fica atrás da pendência 3a178e.
 
-- **Lente de feature irmã (12/11): oito candidatos, todos mudam o uso ou custam teto do runtime; vão ao Jarvis.** Nada construído sem decisão: o runtime está a 247 B do teto (33800).
-  (1) Rollback automático quando a versão nova não sobe (`kit/index.mjs`, `kit/provision.mjs` apaga o `aside` logo após o swap): ganho, motor atualizado que não anuncia não fica quebrado; esforço médio; reuso do `aside` e do `allowDowngrade`; o `ensure` passaria a dizer "revertido para vX". Recomendação: construir, é o mais valioso.
-  (2) Diagnóstico do doctor como API da lib (hoje só script): ganho, painel ou hook leem o estado sem subprocesso; médio; reuso de `kit/diagnose.mjs` e das linhas do `doctor --json`. Recomendação: construir depois de (1), no ferramental, fora do teto do runtime.
-  (3) Retentativa com backoff em falha transitória de rede: pequeno, reuso do padrão de `renameRetry`; custa bytes do runtime. Recomendação: só se alguém reclamar de falha transitória.
-  (4) Espelho de registry e proxy: médio; a confiança não depende da origem (a assinatura é conferida em qualquer espelho). Recomendação: esperar um caso real de rede corporativa.
-  (5) Callback de progresso de download (`onProgress`): pequeno; custa bytes do runtime. Recomendação: só com um consumidor com interface.
-  (6) Verificação sob demanda da instalação em disco (hash por arquivo extraído, estado ADULTERADO no doctor): médio; parente do monitor agendado de integridade já levado ao dono. Recomendação: junto com ele.
-  (7) Adaptadores prontos para embed-house e vxk (hoje só mcp-gateway e neural-link): pequeno, sem mudar o uso; o consumidor deixa de reescrever o handshake. Recomendação: construir quando um segundo consumidor pedir.
-  (8) Canais estável e beta (`--channel`): grande, muda schema e publicação. Recomendação: não construir agora.
+- **Decisão do dono: oito candidatos da lente de feature irmã, agrupados.** Todos mudam o uso ou gastam o teto do runtime (a 247 B do limite, 33800); nada foi construído sem decisão.
+  (1) Rollback automático quando a versão nova não sobe (`kit/index.mjs`; `kit/provision.mjs` apaga o `aside` logo após o swap): esforço médio, reusa o `aside` e o `allowDowngrade`; o `ensure` passaria a dizer "revertido para vX".
+  (2) Diagnóstico do doctor como API da lib (hoje só script): médio, reusa `kit/diagnose.mjs` e as linhas do `doctor --json`; painel e hook leem o estado sem subprocesso.
+  (3) Retentativa com backoff em falha transitória de rede: pequeno, reusa o padrão de `renameRetry`; custa bytes do runtime.
+  (4) Espelho de registry e proxy: médio; a assinatura é conferida em qualquer origem.
+  (5) Callback de progresso de download (`onProgress`): pequeno; custa bytes do runtime.
+  (6) Verificação sob demanda da instalação em disco (hash por arquivo extraído, estado ADULTERADO no doctor): médio; parente do monitor agendado de integridade.
+  (7) Adaptadores prontos para embed-house e vxk: pequeno, sem mudar o uso.
+  (8) Canais estável e beta (`--channel`): grande, muda schema e publicação.
+  Efeito para o usuário final: (1) o motor não fica quebrado depois de uma atualização ruim; (2) e (6) ganham diagnóstico e detecção de adulteração; os demais só aparecem para quem usa rede restrita, interface própria ou pré-lançamentos.
+  Recomendação: construir 1, 2 e 6 primeiro, nessa ordem, no ferramental quando possível; 3, 4, 5, 7 só quando alguém pedir; 8 não construir agora.
 
 ## Decidido
 
@@ -71,7 +74,7 @@ Cada item muda o uso do produto. O candidato (k) traz ganho, esforço (pequeno, 
   recusa de app diz que é app e aponta o `fetch`; o USAGE lista `--registry-url`, `--local` e `--version` onde valem. O `doctor --fix`
   com chave embarcada fica sem teste e2e: o `provision` baixa do GitHub antes de checar a chave, então só há prova com rede.
 - **Resolvido (Jarvis, 2026-11-12): CI hospedado só com checagem estática.** `test.yml` e `pages.yml` roteiam `runs-on` pela variável de repositório
-  `CI_RUNNER` (vazia ou `hosted`: `ubuntu-latest`; `local`: runner persistente); as checagens com rede ficam no job `live`, só no runner local.
+  `CI_RUNNER` (vazia ou `hosted`: `ubuntu-latest`; `local`: runner persistente); as checagens com rede (`test:pages-live`, `test:versions-live`) rodam só na checagem local antes do push.
   Teste: `tests/test-workflows-hospedados.mjs`; contingência em `docs/billing-fallback.md`. O repositório ainda não tem runner local
   registrado: isso é do self-forge.
 - **Resolvido (Jarvis, 2026-11-12): achados técnicos da segunda lente.** Adaptador do mcp-gateway não sinaliza pid cuja porta não responde como o gateway; `shutdown` sem pid só age com runtime fresco; o lock do `provision` confere a major e espera até `LOCK_STALE_MS`; `checkTrust` aborta se outro processo gravou outra chave e sinaliza `saved:false`; `updateEntry` repete o `rename`; docs de `version` corrigidos. Testes em `tests/test-tecnico.mjs`.

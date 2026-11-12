@@ -106,7 +106,7 @@ console.log("== onBeforeReplace do mcp-gateway: drenar antes de sinalizar ==\n")
 }
 
 {
-  const g = await subir("drena", { comToken: false });
+  const g = await subir("drena", { comToken: false, callMs: 8000 });
   const logs = [];
   await onBeforeReplace({ home: g.home, drainMs: 10000, log: (m) => logs.push(m) });
   await g.exitCode;

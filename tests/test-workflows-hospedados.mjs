@@ -72,9 +72,8 @@ for (const f of ROTEAVEIS) {
 
 check("test.yml: PR de fork não roda nada (o código de fora não chega ao runner local)",
   jobs(semComentario(texto["test.yml"])).every((j) => j.cabecalho.includes("github.event.pull_request.head.repo.full_name == github.repository")));
-check("test.yml: as checagens com rede só existem no runner local (job live)",
-  jobs(semComentario(texto["test.yml"])).filter((j) => j.passos.some((p) => /test:(pages|versions)-live/.test(p)))
-    .every((j) => j.nome === "live" && new RegExp(`^    if: ${LOCAL}`, "m").test(j.cabecalho)));
+check("test.yml: nenhum job hospedado roda as checagens com rede (ficam na checagem local antes do push)",
+  !/test:(pages|versions)-live/.test(semComentario(texto["test.yml"])));
 check("pages.yml: o site completo (teste) só roda no runner local",
   jobs(semComentario(texto["pages.yml"])).flatMap((j) => j.passos).filter((p) => /tests\/test-site/.test(p)).every((p) => p.includes(`if: ${LOCAL}`)));
 check("publish.yml continua hospedado em Linux (proveniência do npm)", /runs-on: ubuntu-latest/.test(texto["publish.yml"]) && !/self-hosted/.test(semComentario(texto["publish.yml"])));

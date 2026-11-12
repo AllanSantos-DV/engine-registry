@@ -14,6 +14,9 @@ import { verifyAppRelease, findApp } from "./app-release.mjs";
 import { bundledManifest } from "./ensure.mjs";
 import { pinOf } from "./trust.mjs";
 
+/** Raiz estável das conferências de artefato; o `verify-release` põe aqui o asset baixado. */
+export const verifyRoot = () => join(process.env.LOCALAPPDATA || join(homedir(), ".cache"), "engine-kit", "verify");
+
 /**
  * A assinatura prova quem publicou o artefato, não qual versão ele é: uma release antiga legitimamente assinada passaria. Só confere
  * artefato `.tgz` (o `provision` faz a mesma conferência ao instalar); instalador de outro formato fica como veio.
@@ -21,7 +24,7 @@ import { pinOf } from "./trust.mjs";
  */
 export function versaoDivergente(arquivo, engine) {
   if (!/\.(tgz|tar\.gz)$/i.test(arquivo)) { return null; }
-  const dir = join(process.env.LOCALAPPDATA || join(homedir(), ".cache"), "engine-kit", "verify", `${engine.name}-${engine.version}`);
+  const dir = join(verifyRoot(), `${engine.name}-${engine.version}`);
   const marker = join(dir, ".sha256");
   const hash = createHash("sha256").update(readFileSync(arquivo)).digest("hex");
   let feito = false;

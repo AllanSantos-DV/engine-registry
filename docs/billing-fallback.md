@@ -11,7 +11,7 @@ execução fica vermelha sem rodar um passo. O CI deste repositório tem uma sa�
   Windows/macOS ou rodar teste fora do runner local.
 - Hospedado, só checagem estática leve: o teto de código do kit (`node kit/budget.mjs`) e o build do site. A suíte, o
   Windows e as checagens com rede (`test:pages-live`, `test:versions-live`) rodam na máquina local antes do push; no
-  runner local, o job `live` de `test.yml` e o teste do site completo de `pages.yml` só existem com `CI_RUNNER=local`.
+  runner local, o teste do site completo de `pages.yml` só existe com `CI_RUNNER=local`.
 - O runner é persistente: cada job começa apagando `$GITHUB_WORKSPACE` e `$RUNNER_TEMP` antes do checkout. Pull request de
   fork não roda nada.
 - `publish.yml` fica hospedado de propósito: a proveniência do npm exige o OIDC do runner do GitHub.

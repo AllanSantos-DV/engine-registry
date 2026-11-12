@@ -1,9 +1,8 @@
 name: test
 
-# Hospedado, só checagem estática leve: o teto de código do kit (sem rede, sem suíte). As checagens com rede (página de cada
-# motor no ar e cada produto do manifest na versão da última release) rodam no runner local: o job `live` só existe com a
-# variável de repositório CI_RUNNER=local. A suíte e o Windows ficam na checagem local antes do push. Contingência de
-# cobrança: docs/billing-fallback.md.
+# Hospedado, só checagem estática leve: o teto de código do kit (sem rede, sem suíte). A suíte, o Windows e as checagens
+# com rede (test:pages-live, test:versions-live) rodam na checagem local antes do push. Contingência de cobrança:
+# docs/billing-fallback.md.
 # Push só na main: a develop entra na main por fast-forward com o mesmo SHA, e um push em cada uma rodava o mesmo commit duas vezes.
 on:
   push:
@@ -37,23 +36,3 @@ jobs:
           node-version: 22
       - name: Teto de código do kit
         run: node kit/budget.mjs
-
-  live:
-    if: vars.CI_RUNNER == 'local' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: ${{ vars.CI_RUNNER == 'local' && fromJSON('["self-hosted","Linux"]') || 'ubuntu-latest' }}
-    timeout-minutes: 10
-    steps:
-      - name: Limpar pastas de trabalho do runner persistente
-        shell: bash
-        run: find "$GITHUB_WORKSPACE" "$RUNNER_TEMP" -mindepth 1 -delete
-
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      # Página de cada motor no ar, com vídeo e na ordem (só um motor com pagesPendente é tolerado).
-      - run: npm run test:pages-live
-      # Cada produto do manifest na versão da última release publicada.
-      - run: npm run test:versions-live
-        env:
-          GH_TOKEN: ${{ github.token }}
