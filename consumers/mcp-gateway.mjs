@@ -94,8 +94,7 @@ export function readToken({ home = resolveHome(), defaultHome = DEFAULT_HOME, en
  * servindo. `degraded` é ACEITO — significa que o gateway está de pé e atendendo, com um
  * ou mais backends em reconexão; `starting` não serve (ainda conectando pela primeira vez).
  */
-async function healthCheck() {
-  const port = configuredPort();
+async function healthCheck(_runtime, port = configuredPort()) {
   try {
     const res = await fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(2000) });
     if (!res.ok) { return null; }
@@ -129,6 +128,7 @@ export async function onBeforeReplace({ home = resolveHome(), drainMs = 60000, r
     if (res.ok && await waitExit(rt.pid, drainMs)) { return; }
     log(`mcp-gateway: drain HTTP ${res.status}, ainda vivo; sinalizando`);
   } catch (e) { log(`mcp-gateway: drain falhou (${e.message}); sinalizando`); }
+  if (!(await healthCheck(null, rt.port))) { log("mcp-gateway: a porta do runtime.json não responde como o gateway; o pid pode ser de outro processo e não será sinalizado"); return; }
   try { process.kill(rt.pid, "SIGTERM"); } catch { return; }
   await new Promise((r) => setTimeout(r, 1500));
 }

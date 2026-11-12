@@ -31,6 +31,7 @@ import { join } from 'node:path';
 const home = process.env.FAKE_HOME, mode = process.env.FAKE_MODE;
 const emCurso = new Promise((r) => setTimeout(r, Number(process.env.FAKE_CALL_MS || 800))).then(() => writeFileSync(join(home, 'em-curso-terminou'), 'ok'));
 http.createServer((req, res) => {
+  if (req.url === '/health') { res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ name: 'mcp-gateway', status: 'ok' })); return; }
   if (req.url !== '/admin/drain' || req.method !== 'POST' || mode === 'sem-rota') { res.writeHead(404).end(); return; }
   if (req.headers.authorization !== 'Bearer ${TOKEN}') { res.writeHead(401).end(); return; }
   if (mode === 'contrato') {

@@ -100,7 +100,7 @@ export async function shutdown(engine, { log = () => {}, timeoutMs = 5000, waitB
   // no Windows com EPERM, exatamente o problema que esta função existe para evitar.
   const rt = readRuntime(engine);
   // Sem porta, ou com pid morto, não há o que derrubar: o token não deve ir a uma porta que pode ser de outro processo.
-  if (!rt?.port || (rt.pid && await waitExit(rt.pid, 0))) { return NADA; }
+  if (!rt?.port || (rt.pid ? await waitExit(rt.pid, 0) : !readFreshRuntime(engine))) { return NADA; }
 
   const { shutdownTokenField: field, shutdownTokenHeader: header } = engine.runtime;
   const headers = field && header && rt[field] ? { [header]: rt[field] } : {};

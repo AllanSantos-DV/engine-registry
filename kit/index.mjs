@@ -29,8 +29,9 @@ import { pinOf } from "./trust.mjs";
  * @param {string} name nome do motor no registry.
  * @param {object} opts
  * @param {(runtime:object)=>Promise<object|null>} opts.healthCheck validação de saúde/protocolo (obrigatória).
- * @param {string=} opts.version versão EXATA pedida pelo consumidor (default: a do registry). Motor fixado
- *        pelo dono (`engine-kit pin`) fica na versão fixada; se ela difere da pedida, `available:false`.
+ * @param {string=} opts.version versão-alvo do descritor (default: a do registry); uma instalada da mesma major e
+ *        igual ou maior é reusada. Motor fixado pelo dono (`engine-kit pin`) fica na versão exata fixada; se ela
+ *        difere da pedida, `available:false`.
  * @param {boolean=} opts.allowNetwork permite baixar/atualizar (default true).
  * @param {Record<string,string>=} opts.trustedKeys chaves públicas FIXADAS pelo consumidor
  *        (`{ "<motor>": "<hex>" }`). Divergência com o registry = ABORT. Default no registry público: a chave do

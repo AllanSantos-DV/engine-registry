@@ -154,7 +154,9 @@ async function verifyAuthenticity(engine, blob, { log, fetcher, trustedKeys }) {
   // registry comprometido. Confronta com a raiz de confiança LOCAL antes de usá-la.
   const t = checkTrust(engine.name, publicKey, { trustedKeys });
   if (!t.ok) { return { ok: false, reason: t.reason }; }
-  if (t.tofu) {
+  if (t.saved === false) {
+    log(`[engine-kit] ${engine.name}: chave aceita, mas NÃO gravada em ${trustPath()} — o próximo ensure repete o primeiro contato`);
+  } else if (t.tofu) {
     const how = trustedKeys?.[engine.name] ? "chave FIXADA pelo consumidor conferiu e foi gravada" : "chave pública gravada na 1ª vez (TOFU)";
     log(`[engine-kit] ${engine.name}: ${how} em ${trustPath()} — trocas futuras serão ABORT`);
   }
@@ -224,7 +226,7 @@ export async function fetchArtifact(engine, { log = () => {}, destDir = process.
  * adivinha como derrubar um daemon: quem sabe é o descritor/consumidor).
  * @returns {Promise<{ok:true, entryPath:string, version:string, reused?:boolean, installed?:boolean} | {ok:false, reason:string}>}
  */
-export async function provision(engine, { log = () => {}, allowNetwork = true, onBeforeReplace, downloadTimeoutMs = 120000, fetcher = fetchBuf, trustedKeys, allowDowngrade, exact } = {}) {
+export async function provision(engine, { log = () => {}, allowNetwork = true, onBeforeReplace, downloadTimeoutMs = 120000, fetcher = fetchBuf, trustedKeys, allowDowngrade, exact, lockWaitMs = LOCK_STALE_MS } = {}) {
   const home = engine.homeDir;
   const binDir = join(home, engine.install.extractTo ?? "bin");
   const entryPath = join(home, engine.install.entry);
@@ -276,15 +278,14 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
   // Um lock órfão (processo morto) é reclamado por idade — não trava a máquina para sempre.
   const lockFd = claimLock(lock);
   if (lockFd === null) {
-    for (let i = 0; i < 40; i++) {
+    for (const fim = Date.now() + lockWaitMs; Date.now() < fim; await sleep(1000)) {
       if (existsSync(entryPath)) {
         const inst = installedVersion(binDir);
         // Se o vencedor terminou mas a versão continua ilegível, não invente: sinalize.
-        if (inst && (!exact || inst === engine.version)) { return { ok: true, entryPath, version: inst, reused: true }; }
+        if (inst && (exact ? inst === engine.version : satisfiesPin(inst, engine.version))) { return { ok: true, entryPath, version: inst, reused: true }; }
       }
-      await sleep(1000);
     }
-    return { ok: false, reason: `${engine.name}: provision-locked-timeout (outro consumidor está instalando há >40s)` };
+    return { ok: false, reason: `${engine.name}: provision-locked-timeout (outro consumidor está instalando há >${lockWaitMs / 1000}s)` };
   }
 
   try {
