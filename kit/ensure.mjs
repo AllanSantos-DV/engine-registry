@@ -29,7 +29,7 @@ export function bundledManifest() {
 /**
  * @param {string} name motor no registry.
  * @param {object} opts
- * @param {string=} opts.version pin de versão (default: a do registry).
+ * @param {string=} opts.version versão EXATA (default: a do registry): uma instalada diferente, maior ou menor, é trocada por ela.
  * @param {string=} opts.registryUrl manifest remoto (default: registry público).
  * @param {object=} opts.bundled manifest embarcado (default: o deste pacote; testes injetam).
  * @param {object=} opts.manifest manifest do registry já carregado (testes; pula rede e cache).
@@ -76,7 +76,7 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
     log,
     trustedKeys: { [name]: publicKey },
     allowDowngrade: Boolean(version),
-    exact: Boolean(pin),
+    exact: Boolean(pin || version),
     ...(fetcher ? { fetcher } : {}),
     // Windows: arquivo em uso não se sobrescreve. Derruba o daemon pelo shutdownPath que o registry declara.
     onBeforeReplace: async () => {

@@ -223,13 +223,15 @@ const serveJson = async (obj) => {
   const m = { engines: [engineOf(home, "1.2.3")] };
   const dest = join(RUN, "dest-fetch");
   const verify = join(process.env.LOCALAPPDATA, "engine-kit", "verify", "fake-engine-1.2.3");
-  const r1 = await fetchCommand("fake-engine", { bundled: m, manifest: m, fetcher: downloads("1.2.3"), destDir: dest });
+  const release = downloads("1.2.3");
+  const r1 = await fetchCommand("fake-engine", { bundled: m, manifest: m, fetcher: release, destDir: dest });
   check("a primeira execução confere o artefato", r1.ok, r1.ok ? "" : r1.reason);
   check("a conferência vive em LOCALAPPDATA/engine-kit/verify/<motor>-<versão> com o marcador do hash", existsSync(join(verify, "package.json")) && /^[0-9a-f]{64}$/.test(readFileSync(join(verify, ".sha256"), "utf8")));
   const nomes = () => realTree(RUN).split("\n").map((l) => l.split("|")[0]).join("\n");
   const antes = nomes(), verifAntes = realTree(verify);
-  const r2 = await fetchCommand("fake-engine", { bundled: m, manifest: m, fetcher: downloads("1.2.3"), destDir: dest });
-  check("a segunda execução com a mesma entrada passa e não cria nem altera arquivo", r2.ok && nomes() === antes && realTree(verify) === verifAntes, r2.ok ? "" : r2.reason);
+  const r2 = await fetchCommand("fake-engine", { bundled: m, manifest: m, fetcher: release, destDir: dest });
+  const depois = nomes(), a = antes.split("\n");
+  check("a segunda execução com a mesma entrada passa e não cria nem altera arquivo", r2.ok && depois === antes && realTree(verify) === verifAntes, r2.ok ? JSON.stringify({ novos: depois.split("\n").filter((n) => !a.includes(n)), verify: realTree(verify) === verifAntes }) : r2.reason);
   const novos = readdirSync(tmpdir()).filter((n) => n.startsWith("engine-kit-fetch-") && !tmpAntes.has(n));
   check("nenhuma pasta aleatória engine-kit-fetch-* fica no tmpdir", novos.length === 0, novos.join(","));
   const errado = await fetchCommand("fake-engine", { bundled: { engines: [engineOf(home, "1.2.3")] }, manifest: m, fetcher: downloads("1.2.3", tgzOf("1.0.0")), destDir: join(RUN, "dest-errado") });

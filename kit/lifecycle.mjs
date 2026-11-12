@@ -91,7 +91,7 @@ async function portClosed(port, ms) {
  * @returns {Promise<{ok:true, stopped:boolean} | {ok:false, reason:string}>} nunca lança.
  */
 const NADA = { ok: true, stopped: false };
-export async function shutdown(engine, { log = () => {}, timeoutMs = 5000, waitBusyMs = 120000, semRelaunch = false } = {}) {
+export async function shutdown(engine, { log = () => {}, timeoutMs = 90000, waitBusyMs = 120000, semRelaunch = false } = {}) {
   const declared = engine.runtime?.shutdownPath;
   if (!declared) { return NADA; }
   const path = semRelaunch ? declared.replace(/([?&])relaunch=1&?/, "$1").replace(/[?&]$/, "") : declared;

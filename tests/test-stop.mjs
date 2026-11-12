@@ -22,7 +22,7 @@ const vivo = (pid) => { try { process.kill(pid, 0); return true; } catch { retur
 const real = JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8")).engines;
 const RUNTIME = real.find((e) => e.name === "vxk").runtime;
 check("o vxk do manifest declara o shutdownPath que o stop usa", RUNTIME?.shutdownPath === "/shutdown");
-check("o mcp-gateway do manifest não declara shutdownPath (o stop recusa em vez de adivinhar)", !real.find((e) => e.name === "mcp-gateway").runtime?.shutdownPath);
+check("o vox-engine do manifest não declara shutdownPath (o stop recusa em vez de adivinhar)", !real.find((e) => e.name === "vox-engine").runtime?.shutdownPath);
 
 const DAEMON = join(RUN, "fake-daemon.mjs");
 writeFileSync(DAEMON, `

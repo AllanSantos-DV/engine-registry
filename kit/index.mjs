@@ -23,7 +23,7 @@ import { resolve } from "./resolve.mjs";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { provision, satisfiesPin, installedVersion, autoUpdateEnabled } from "./provision.mjs";
-import { lifecycle, findAlive } from "./lifecycle.mjs";
+import { lifecycle, findAlive, shutdown } from "./lifecycle.mjs";
 import { pinOf, setPin } from "./trust.mjs";
 
 /**
@@ -31,6 +31,12 @@ import { pinOf, setPin } from "./trust.mjs";
  * @returns {{ok:true, was:string|null} | {ok:false, reason:string}} `was` = pin anterior.
  */
 export const unpin = (name) => setPin(name, null);
+
+/**
+ * Fixa o motor na versão exata (`engine-kit pin`): a atualização automática o pula. Não instala; `ensureEngine({ version })` traz o artefato.
+ * @returns {{ok:true, was:string|null} | {ok:false, reason:string}} `was` = pin anterior.
+ */
+export const pin = (name, version) => setPin(name, version);
 
 /** Registry fora e sem cache: um motor já vivo continua atendendo, descrito pelo manifest embarcado. */
 async function vivoSemRegistry(name, healthCheck, reason) {
@@ -62,11 +68,14 @@ async function vivoSemRegistry(name, healthCheck, reason) {
  *        a chave da 1ª instalação é gravada e qualquer troca posterior aborta.
  * @param {string=} opts.registryUrl URL do manifest (default: registry público; testes apontam para um local).
  * @param {(url:string,timeoutMs:number)=>Promise<Buffer>=} opts.fetcher download injetável (testes).
- * @param {()=>Promise<void>=} opts.onBeforeReplace shutdown do motor antes de sobrescrever (Windows).
+ * @param {(()=>Promise<void>)|false=} opts.onBeforeReplace shutdown do motor antes de sobrescrever (Windows). Sem ele, o kit usa o
+ *        `shutdownPath` do descritor (motor sem `shutdownPath` não é tocado); `false` desliga.
+ * @param {boolean=} opts.allowDowngrade com `version`, instala EXATAMENTE essa versão mesmo que haja uma maior da mesma major (rollback);
+ *        o pin do dono continua mandando.
  * @returns {Promise<{available:true, runtime:object, health:object, engine:object} | {available:false, reason:string}>}
  */
 export async function ensureEngine(name, opts = {}) {
-  const { healthCheck, version, allowNetwork = true, registryUrl, log = () => {}, bootTimeoutMs, onBeforeReplace, env, trustedKeys, refresh = false, fetcher } = opts;
+  const { healthCheck, version, allowNetwork = true, registryUrl, log = () => {}, bootTimeoutMs, onBeforeReplace, env, trustedKeys, refresh = false, fetcher, allowDowngrade = false } = opts;
 
   let pin;
   try { pin = pinOf(name); } catch (e) { return { available: false, reason: e.message }; }
@@ -82,7 +91,10 @@ export async function ensureEngine(name, opts = {}) {
   let installed = previous, updateAvailable;
   if (keep) { updateAvailable = r.engine.version; }
   else {
-    const p = await provision(r.engine, { log, allowNetwork, onBeforeReplace, trustedKeys, exact: Boolean(pin), ...(fetcher ? { fetcher } : {}) });
+    const antes = onBeforeReplace === undefined
+      ? async () => { const s = await shutdown(r.engine, { log }); if (!s.ok) { log(`aviso: ${s.reason} — o swap pode falhar com o motor vivo`); } }
+      : onBeforeReplace || undefined;
+    const p = await provision(r.engine, { log, allowNetwork, onBeforeReplace: antes, trustedKeys, exact: Boolean(pin) || (allowDowngrade && Boolean(version)), ...(fetcher ? { fetcher } : {}) });
     if (!p.ok) { return { available: false, reason: p.reason }; }
     installed = p.version;
   }

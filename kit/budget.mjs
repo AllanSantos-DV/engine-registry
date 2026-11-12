@@ -100,9 +100,10 @@ const ROOT = resolvePath(KIT, "..");
 //   `shutdown` aceita `semRelaunch` para o `stop` não relançar o harness. Ferramental, +0.2 KB: o doctor avisa chave do registry ≠ chave embarcada. Adaptador do gateway, +1.2 KB:
 //   o token passa a ser lido de forma assíncrona e com limite de tempo (`readTokenAsync`), sem bloquear a ativação do host; `readToken` síncrono segue exportado. Nenhum código funcional foi cortado.
 //   2026-11-12 tooling 51900 → 52200: o `doctor --fix` passou a respeitar `ENGINE_KIT_NO_AUTO_UPDATE` (pula o motor desatualizado, como o `ensure` e a lib). Nenhum código funcional foi cortado.
+//   2026-11-12 runtime 33600 → 33800 e tooling 52200 → 54600: ensureEngine passa a desligar o daemon pelo shutdownPath por padrão, aceita allowDowngrade e exporta `pin`; o prazo do shutdown cobre a drenagem do gateway. Ferramental: `--json` em ensure/fetch/pin/stop (forma do doctor), `ensure --version` exato e o verify-release confere a versão dentro do .tgz. Nenhum código funcional foi cortado.
 const BUDGETS = {
-  runtime: { codeBytes: 33600, baseline: 24519, loc: 900 },
-  tooling: { codeBytes: 52200, baseline: 16420, loc: 1050 },
+  runtime: { codeBytes: 33800, baseline: 24519, loc: 900 },
+  tooling: { codeBytes: 54600, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

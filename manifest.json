@@ -155,7 +155,10 @@
         "healthPath": "/health",
         "defaultPort": 7337,
         "authFile": "auth-token",
-        "heartbeatMs": 30000
+        "shutdownPath": "/admin/shutdown",
+        "heartbeatMs": 30000,
+        "shutdownTokenField": "shutdownToken",
+        "shutdownTokenHeader": "x-shutdown-token"
       },
       "platforms": [
         "any"

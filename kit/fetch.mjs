@@ -19,7 +19,7 @@ import { pinOf } from "./trust.mjs";
  * artefato `.tgz` (o `provision` faz a mesma conferência ao instalar); instalador de outro formato fica como veio.
  * @returns {string|null} o motivo da recusa, ou null se confere.
  */
-function versaoDivergente(arquivo, engine) {
+export function versaoDivergente(arquivo, engine) {
   if (!/\.(tgz|tar\.gz)$/i.test(arquivo)) { return null; }
   const dir = join(process.env.LOCALAPPDATA || join(homedir(), ".cache"), "engine-kit", "verify", `${engine.name}-${engine.version}`);
   const marker = join(dir, ".sha256");

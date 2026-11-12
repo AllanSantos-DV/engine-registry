@@ -21,6 +21,7 @@ const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-ur
   "     engine-kit pin <motor> [--version <x.y.z>] [--registry-url <url>]   fixa a versão instalada (ou instala e fixa x.y.z)\n" +
   "     engine-kit unpin <motor>                     solta o motor para voltar a atualizar\n" +
   "     engine-kit fetch <motor|app> [--version <x.y.z>] [--dest <pasta>] [--registry-url <url>]   baixa e confere (sha256 + Ed25519) sem instalar\n" +
+  "     (ensure, pin, fetch e stop aceitam --json: um objeto JSON no formato das linhas do doctor --json, também na falha)\n" +
   "     engine-kit stop <motor> [--registry-url <url>]   desliga o motor pelo shutdownPath que o registry declara\n" +
   "     engine-kit ensure neural-link --register     além de instalar, registra os hooks no config global do usuário\n" +
   "     engine-kit ensure neural-link --unregister   além de instalar, desfaz esse registro (precisa de um neural-link que exponha uninstall)\n" +
@@ -33,11 +34,11 @@ const VERBS = ["ensure", "pin", "unpin", "fetch", "stop", "doctor"];
 const [cmd, name] = args;
 const COM_VALOR = ["--version", "--registry-url", "--dest", "--engine"];
 const FLAGS = {
-  ensure: ["--version", "--registry-url", "--register", "--unregister"],
-  pin: ["--version", "--registry-url"],
+  ensure: ["--version", "--registry-url", "--register", "--unregister", "--json"],
+  pin: ["--version", "--registry-url", "--json"],
   unpin: [],
-  fetch: ["--version", "--registry-url", "--dest"],
-  stop: ["--registry-url"],
+  fetch: ["--version", "--registry-url", "--dest", "--json"],
+  stop: ["--registry-url", "--json"],
   doctor: ["--fix", "--json", "--engine", "--local", "--registry-url"],
 };
 /** Primeira flag que o verbo não aceita, ou argumento solto além do nome do motor. */
@@ -49,7 +50,31 @@ const sobra = () => {
     if (!aceitas.includes(args[i])) { return `${args[i]} não vale para \`${cmd}\``; }
     if (COM_VALOR.includes(args[i])) { i++; }
   }
-  return args.includes("--json") && args.includes("--fix") ? "--json e --fix não combinam: o --fix imprime o progresso, não JSON" : null;
+  if (args.includes("--json") && args.includes("--fix")) { return "--json e --fix não combinam: o --fix imprime o progresso, não JSON"; }
+  return args.includes("--json") && ["--register", "--unregister"].some((f) => args.includes(f)) ? "--json não combina com --register/--unregister: o registro dos hooks imprime texto" : null;
+};
+const asJson = args.includes("--json");
+const log = (m) => { if (!asJson) { console.log(m); } };
+
+/** Retorno de um verbo no formato das linhas do `doctor --json` (name, state, detail, warns, pin); o resto é do verbo. */
+const jsonOf = (verb, name, r) => {
+  if (!r.ok) { return { name, ok: false, state: "ERRO", detail: r.reason, warns: [], pin: null }; }
+  const warns = [
+    ...(r.staleCache ? ["registry inacessível: descritor do cache vencido"] : []),
+    ...(r.available ? [`v${r.available} disponível; ENGINE_KIT_NO_AUTO_UPDATE ligado`] : []),
+    ...(r.pointer && !["OK", "AUSENTE"].includes(r.pointer.state) ? [`ponteiro cli.json ${r.pointer.state}: ${r.pointer.detail}`] : []),
+  ];
+  const base = { name, ok: true, warns, pin: r.pinned ?? null };
+  if (verb === "stop") { return { ...base, state: r.stopped ? "PARADO" : "SEM PROCESSO", detail: r.stopped ? "desligado" : "nada vivo para desligar", stopped: r.stopped }; }
+  if (verb === "fetch") { return { ...base, state: "BAIXADO", detail: `v${r.version} conferido, não instalado`, version: r.version, files: r.files }; }
+  if (verb === "pin") { return { ...base, state: "FIXADO", detail: `v${r.pinned} fixado`, version: r.version }; }
+  const state = r.reused ? "OK" : r.previous ? "ATUALIZADO" : "INSTALADO";
+  return { ...base, state, detail: r.previous ? `v${r.previous} → v${r.version}` : `v${r.version}${r.reused ? " reusado" : ""}`, version: r.version, signed: r.signed ?? null, entryPath: r.entryPath, kind: r.kind, ...(r.previous ? { previous: r.previous } : {}), ...(r.pointer ? { pointer: r.pointer } : {}) };
+};
+const done = (verb, r, text) => {
+  if (asJson) { console.log(JSON.stringify(jsonOf(verb, name, r), null, 2)); if (!r.ok) { process.exitCode = 1; } return; }
+  if (!r.ok) { console.error(`FALHOU ${name}: ${r.reason}`); process.exitCode = 1; return; }
+  text();
 };
 const avisoCache = (r) => { if (r.staleCache) { console.log(`aviso: registry inacessível; ${name} usou o descritor em cache vencido`); } };
 const semValor = ["--dest", "--registry-url", "--engine"].find((f) => args.includes(f) && (flag(f) ?? "-").startsWith("-"));
@@ -86,21 +111,19 @@ if (cmd === "--help" || cmd === "-h") {
     if (!r.ok) { console.error(`FALHOU ${name}: ${r.reason}`); process.exitCode = 1; }
     else { console.log(r.was ? `OK ${name} solto (estava fixado em v${r.was}); o próximo ensure traz a versão do registry` : `OK ${name} não estava fixado`); }
   } else if (cmd === "stop") {
-    const r = await stopCommand(name, { registryUrl: flag("--registry-url"), log: (m) => console.log(m) });
-    if (!r.ok) { console.error(`FALHOU ${name}: ${r.reason}`); process.exitCode = 1; }
-    else { console.log(r.stopped ? `OK ${name} desligado` : `OK ${name}: nada vivo para desligar`); avisoCache(r); }
+    const r = await stopCommand(name, { registryUrl: flag("--registry-url"), log });
+    done("stop", r, () => { console.log(r.stopped ? `OK ${name} desligado` : `OK ${name}: nada vivo para desligar`); avisoCache(r); });
   } else if (cmd === "fetch") {
-    const r = await fetchCommand(name, { version: flag("--version"), registryUrl: flag("--registry-url"), destDir: flag("--dest"), log: (m) => console.log(m) });
-    if (!r.ok) { console.error(`FALHOU ${name}: ${r.reason}`); process.exitCode = 1; }
-    else { for (const f of r.files) { console.log(`OK ${name} v${r.version} (${f.signed ? "assinatura Ed25519 conferida" : "SEM assinatura no registry"}), não instalado: ${f.path}`); } avisoCache(r); }
+    const r = await fetchCommand(name, { version: flag("--version"), registryUrl: flag("--registry-url"), destDir: flag("--dest"), log });
+    done("fetch", r, () => { for (const f of r.files) { console.log(`OK ${name} v${r.version} (${f.signed ? "assinatura Ed25519 conferida" : "SEM assinatura no registry"}), não instalado: ${f.path}`); } avisoCache(r); });
   } else if (cmd === "pin") {
-    const r = await pinCommand(name, { version: flag("--version"), registryUrl: flag("--registry-url"), log: (m) => console.log(m) });
-    if (!r.ok) { console.error(`FALHOU ${name}: ${r.reason}`); process.exitCode = 1; }
-    else { console.log(`OK ${name} fixado em v${r.pinned}; a atualização automática pula este motor (engine-kit unpin ${name} solta)`); avisoCache(r); }
+    const r = await pinCommand(name, { version: flag("--version"), registryUrl: flag("--registry-url"), log });
+    done("pin", r, () => { console.log(`OK ${name} fixado em v${r.pinned}; a atualização automática pula este motor (engine-kit unpin ${name} solta)`); avisoCache(r); });
   } else {
     const autoUpdate = autoUpdateEnabled();
-    const r = await ensureCommand(name, { version: flag("--version"), registryUrl: flag("--registry-url"), autoUpdate, log: (m) => console.log(m) });
-    if (r.ok) {
+    const r = await ensureCommand(name, { version: flag("--version"), registryUrl: flag("--registry-url"), autoUpdate, log });
+    if (asJson) { done("ensure", r); }
+    else if (r.ok) {
       const how = r.reused ? "já instalado, reusado" : r.signed ? "assinatura Ed25519 conferida" : "SEM assinatura no registry";
       if (r.previous) { console.log(`motor atualizado: ${name} v${r.previous} → v${r.version}`); }
       console.log(`OK ${name} v${r.version} (${how}) em ${r.entryPath}`);
