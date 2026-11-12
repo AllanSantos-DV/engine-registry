@@ -71,6 +71,9 @@ p{margin:0}
 .para{color:var(--mut);font-size:14.5px}
 .para b{color:var(--txt);font-weight:600}
 .card .acoes{margin-top:auto;padding-top:6px}
+.cmd{color:var(--mut);font-size:14.5px;margin:0}
+.cmd b{color:var(--txt);font-weight:600}
+.cmd code{font:500 13px var(--f-mono);color:var(--menta);overflow-wrap:anywhere}
 
 /* tabela de correlação */
 .tabela-wrap{margin-top:28px;overflow-x:auto;border:1px solid var(--linha);border-radius:14px;background:var(--bg2)}

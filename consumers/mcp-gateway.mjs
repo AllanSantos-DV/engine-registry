@@ -20,6 +20,7 @@ import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import { ensureEngine } from "../kit/index.mjs";
 import { waitExit } from "../kit/lifecycle.mjs";
+import { firstContactKeys } from "../kit/ensure.mjs";
 
 const DEFAULT_HOME = join(homedir(), ".mcp-gateway");
 const DEFAULT_PORT = 7337;
@@ -178,11 +179,12 @@ export function readInstructions() {
 }
 
 /**
- * Garante o agregador MCP instalado e vivo.
- * @returns {Promise<{available:true, url:string, token:string|null, port:number, backends:string[], health:object, instructions:ReturnType<typeof readInstructions>}
+ * Garante o agregador MCP instalado e vivo. `token: null` com `available:true` vem com `tokenReason`.
+ * `staleCache` marca descritor de cache vencido (registry inacessível); `version` é a instalada.
+ * @returns {Promise<{available:true, url:string, token:string|null, tokenReason?:string, port:number, backends:string[], health:object, version?:string, staleCache?:true, instructions:ReturnType<typeof readInstructions>}
  *                  | {available:false, reason:string}>}
  */
-export async function ensureGateway({ log = () => {}, version, allowNetwork = true, bootTimeoutMs = 45000, registryUrl, fetcher } = {}) {
+export async function ensureGateway({ log = () => {}, version, allowNetwork = true, bootTimeoutMs = 45000, registryUrl, fetcher, refresh, trustedKeys = firstContactKeys(ENGINE_NAME, registryUrl) } = {}) {
   const r = await ensureEngine("mcp-gateway", {
     healthCheck,
     onBeforeReplace: () => onBeforeReplace({ log }),
@@ -192,15 +194,21 @@ export async function ensureGateway({ log = () => {}, version, allowNetwork = tr
     bootTimeoutMs,
     registryUrl,
     fetcher,
+    refresh,
+    trustedKeys,
     env: { MCP_GATEWAY_DATA_DIR: resolveHome() },
   });
   if (!r.available) { return r; }
 
   const port = r.health.port ?? configuredPort();
+  const token = readToken({ log });
   return {
     available: true,
     url: `http://127.0.0.1:${port}/mcp`,
-    token: readToken({ log }),
+    token,
+    ...(token ? {} : { tokenReason: "token do gateway não encontrado (cofre, MCP_GATEWAY_TOKEN, auth-token no HOME do motor); o /mcp pode responder 401" }),
+    version: r.engine.installedVersion,
+    ...(r.engine.staleCache ? { staleCache: true } : {}),
     port,
     backends: r.health.backends ?? [],
     health: r.health,

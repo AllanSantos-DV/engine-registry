@@ -7,6 +7,7 @@
 //   npx engine-kit pin <motor> [--version <x.y.z>]   # congela UM motor; a atualização automática pula só ele
 //   npx engine-kit unpin <motor>                     # o motor volta a receber atualizações
 //   npx engine-kit fetch <motor|app> [--dest <pasta>] # baixa e confere sha256 + Ed25519 SEM instalar
+//   npx engine-kit doctor [--fix] [--engine <motor>]  # concilia os motores instalados com o registry
 //
 // Por padrão o kit se atualiza (roda de novo como a última versão do npm) e atualiza o motor instalado.
 // ENGINE_KIT_NO_AUTO_UPDATE=1 desliga os dois e deixa só o aviso de versão nova (ver update.mjs).
@@ -19,17 +20,19 @@ const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-ur
   "     engine-kit pin <motor> [--version <x.y.z>]   fixa a versão instalada (ou instala e fixa x.y.z)\n" +
   "     engine-kit unpin <motor>                     solta o motor para voltar a atualizar\n" +
   "     engine-kit fetch <motor|app> [--version <x.y.z>] [--dest <pasta>]   baixa e confere (sha256 + Ed25519) sem instalar\n" +
+  "     engine-kit doctor [--fix] [--engine <motor>]   diagnostica os motores instalados (--fix instala o que falta e atualiza o que está velho)\n" +
   "ENGINE_KIT_NO_AUTO_UPDATE=1 desliga a atualização automática do kit e dos motores (fica só o aviso).";
 
 const args = process.argv.slice(2);
 const flag = (n) => { const i = args.indexOf(n); return i === -1 ? undefined : args[i + 1]; };
+const VERBS = ["ensure", "pin", "unpin", "fetch", "doctor"];
 const [cmd, name] = args;
-const semValor = ["--dest", "--registry-url"].find((f) => args.includes(f) && (flag(f) ?? "-").startsWith("-"));
+const semValor = ["--dest", "--registry-url", "--engine"].find((f) => args.includes(f) && (flag(f) ?? "-").startsWith("-"));
 
 if (cmd === "--help" || cmd === "-h") {
   console.log(USAGE);
-} else if (!["ensure", "pin", "unpin", "fetch"].includes(cmd) || !name || name.startsWith("-")) {
-  console.error(cmd && !["ensure", "pin", "unpin", "fetch"].includes(cmd) ? `comando desconhecido: ${cmd}\n${USAGE}` : USAGE);
+} else if (!VERBS.includes(cmd) || (cmd !== "doctor" && (!name || name.startsWith("-")))) {
+  console.error(cmd && !VERBS.includes(cmd) ? `comando desconhecido: ${cmd}\n${USAGE}` : USAGE);
   process.exitCode = 1;
 } else if (semValor) {
   console.error(`${semValor} precisa de um valor`);
@@ -42,6 +45,8 @@ if (cmd === "--help" || cmd === "-h") {
   const u = await selfUpdate(args);
   if (u.action === "relaunched") {
     process.exitCode = u.status;
+  } else if (cmd === "doctor") {
+    await import("./doctor.mjs");
   } else if (cmd === "unpin") {
     const r = unpinCommand(name);
     if (!r.ok) { console.error(`FALHOU ${name}: ${r.reason}`); process.exitCode = 1; }

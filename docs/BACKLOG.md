@@ -22,15 +22,21 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
 - **`engine-kit stop <motor>` (decisão do dono, ainda pendente).** Desliga pelo `shutdownPath` declarado; o mcp-gateway
   precisaria do drain do adaptador. Ganho, esforço e peças em `docs/research/2026-11-11-lente-feature-irma-engine-kit-0.2.6.md`.
 
-- **Achados da lente de feature irmã (2026-11-12) deixados para depois.** (1) `ensureGateway` devolve `available:true` com
-  `token: null` quando o cofre não se lê, e o agente só descobre pelo 401 (`consumers/mcp-gateway.mjs`); precisa decidir se
-  gateway sem senha é válido. (2) o bin do `npx` não expõe o `doctor` nem lista os pins: quem não clonou não concilia a
-  máquina. (3) o adaptador do gateway não repassa `trustedKeys`, `refresh`, a versão instalada nem `staleCache`.
-  (4) os cards dos motores levam a "Baixar a versão atual" em vez de um comando, e a vitrine não ensina `pin`, `--version`
-  nem `ENGINE_KIT_NO_AUTO_UPDATE`. (5) motor `self-managed` termina em FALHOU sem dizer onde está o instalador.
-  Detalhe em `docs/research/2026-11-12-fetch-instrucoes-e-cards-de-apps.md`.
+- **Candidatos da lente de feature irmã (2026-11-12) que mudam o uso ou mexem fora deste repositório.** (a) `ensure neural-link`
+  pela CLI rodar o `install()` do motor (registra hooks no config global do usuário); (b) verbo que sobe um daemon
+  depois do `ensure`; (c) verbo para remover um motor, junto do `stop`; (d) atualizar o mcp-gateway vivo pela CLI: o
+  gateway só derruba por `POST /admin/drain` com bearer e corpo, então a mudança é no protocolo do mcp-gateway
+  (projeto dono), não no kit. Detalhe em `docs/research/2026-11-12-backlog-zerado-doctor-pelo-bin-e-campos-do-adaptador.md`.
 
 ## Decidido
+
+- **Resolvido (Jarvis, 2026-11-12): achados técnicos da lente de feature irmã.** (1) `ensureGateway` devolve `tokenReason`
+  quando `token` é null; (2) `npx engine-kit doctor [--fix] [--engine <motor>]` existe e lista os fixados; (3) o adaptador
+  repassa `trustedKeys` (a chave embarcada, só no registry público) e `refresh`, e devolve `version` e `staleCache`;
+  (4) cada card de motor traz o comando (`ensure` ou `fetch`) e a vitrine ensina `pin`, `--version` e
+  `ENGINE_KIT_NO_AUTO_UPDATE`; (5) o `ensure` de motor self-managed aponta a release do instalador e o `fetch`.
+  Testes: `tests/test-gateway-adapter-fields.mjs`, `tests/test-doctor-cli.mjs`, `tests/test-ensure-self-managed.mjs`,
+  `tests/test-site.mjs`. Detalhe em `docs/research/2026-11-12-backlog-zerado-doctor-pelo-bin-e-campos-do-adaptador.md`.
 
 - **Resolvido (Jarvis, 2026-11-09): `trust.json` ilegível falha fechado.** `readTrust` lança quando o arquivo existe e não
   se lê; `ensure`, `pin`, `unpin`, `ensureEngine` e o doctor recusam explicando e não regravam o arquivo

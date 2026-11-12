@@ -67,6 +67,7 @@
         <h3>Vox Engine</h3>
         <p class="res">Dita, transcreve, traduz e lê em voz alta — com um único motor de voz local compartilhado por todos os apps.</p>
         <p class="para"><b>Para quem:</b> quem dita textos, transcreve gravações ou quer ouvir a resposta do agente. <b>Como usa:</b> instala uma vez e os aplicativos pedem voz ao mesmo motor.</p>
+        <p class="cmd"><b>Baixar e conferir o instalador:</b> <code>npx engine-kit fetch vox-engine</code></p>
         <div class="acoes"><a class="btn pri peq" href="https://allansantos-dv.github.io/vox-engine/" target="_blank" rel="noopener noreferrer">Página do produto<span class="sr"> (abre em nova aba)</span> ↗</a></div>
       </article>
       <article class="card c-ambar" id="m-vxk" data-motor="vxk">
@@ -74,6 +75,7 @@
         <h3>VXK</h3>
         <p class="res">Seu agente escreve o roteiro; o VXK entrega a explicação pronta, em página animada e narrada que abre offline.</p>
         <p class="para"><b>Para quem:</b> quem pede ao agente para explicar algo difícil com imagem e voz. <b>Como usa:</b> o agente chama o VXK por MCP e recebe um arquivo HTML, um vídeo MP4 ou um PDF.</p>
+        <p class="cmd"><b>Instalar:</b> <code>npx engine-kit ensure vxk</code></p>
         <div class="acoes"><a class="btn pri peq" href="https://allansantos-dv.github.io/visual-explainer/" target="_blank" rel="noopener noreferrer">Página do produto<span class="sr"> (abre em nova aba)</span> ↗</a></div>
       </article>
       <article class="card c-menta" id="m-mcp-gateway" data-motor="mcp-gateway">
@@ -81,6 +83,7 @@
         <h3>mcp-gateway</h3>
         <p class="res">Conecta uma vez em cada servidor MCP e entrega todas as ferramentas por um endereço só, com senha.</p>
         <p class="para"><b>Para quem:</b> quem abre várias sessões de agente e não quer um processo por servidor em cada uma. <b>Como usa:</b> cada sessão aponta para o mesmo endereço local.</p>
+        <p class="cmd"><b>Instalar:</b> <code>npx engine-kit ensure mcp-gateway</code></p>
         <div class="acoes"><a class="btn pri peq" href="https://github.com/AllanSantos-DV/engine-registry/releases?q=mcp-gateway" target="_blank" rel="noopener noreferrer">Baixar a versão atual<span class="sr"> (abre em nova aba)</span> ↗</a></div>
       </article>
       <article class="card c-ceu" id="m-cerne" data-motor="cerne">
@@ -88,6 +91,7 @@
         <h3>Cerne</h3>
         <p class="res">Lê um vídeo por você: escolhe os quadros-chave, transcreve, traduz e guarda numa memória pesquisável.</p>
         <p class="para"><b>Para quem:</b> quem quer que o agente “assista” a um vídeo por link ou arquivo. <b>Como usa:</b> o agente pede a leitura por MCP e consulta o resultado depois.</p>
+        <p class="cmd"><b>Baixar e conferir o instalador:</b> <code>npx engine-kit fetch cerne</code></p>
         <div class="acoes"><a class="btn pri peq" href="https://github.com/AllanSantos-DV/engine-registry/releases?q=cerne" target="_blank" rel="noopener noreferrer">Baixar a versão atual<span class="sr"> (abre em nova aba)</span> ↗</a></div>
       </article>
       <article class="card c-viol" id="m-embed-house" data-motor="embed-house">
@@ -95,6 +99,7 @@
         <h3>embed-house</h3>
         <p class="res">Carrega o modelo de embeddings uma só vez e serve vetores a todos os consumidores, em vez de cada sessão carregar cerca de 147 MB.</p>
         <p class="para"><b>Para quem:</b> plugins e agentes que fazem busca por significado. <b>Como usa:</b> o app consulta um endereço local e recebe os vetores.</p>
+        <p class="cmd"><b>Instalar:</b> <code>npx engine-kit ensure embed-house</code></p>
         <div class="acoes"><a class="btn pri peq" href="https://github.com/AllanSantos-DV/engine-registry/releases?q=embed-house" target="_blank" rel="noopener noreferrer">Baixar a versão atual<span class="sr"> (abre em nova aba)</span> ↗</a></div>
       </article>
       <article class="card c-lima" id="m-neural-link" data-motor="neural-link">
@@ -102,6 +107,7 @@
         <h3>neural-link</h3>
         <p class="res">Recebe cada evento de hook do agente, pontua os handlers registrados e devolve uma única decisão composta.</p>
         <p class="para"><b>Para quem:</b> quem roda agentes com hooks no Copilot CLI, no VS Code ou no Claude Code. <b>Como usa:</b> o agente o chama a cada evento; ele não fica rodando em segundo plano.</p>
+        <p class="cmd"><b>Instalar:</b> <code>npx engine-kit ensure neural-link</code></p>
         <div class="acoes"><a class="btn pri peq" href="https://github.com/AllanSantos-DV/engine-registry/releases?q=neural-link" target="_blank" rel="noopener noreferrer">Baixar a versão atual<span class="sr"> (abre em nova aba)</span> ↗</a></div>
       </article>
       <article class="card c-coral" id="m-skill-engine" data-motor="skill-engine">
@@ -109,6 +115,7 @@
         <h3>skill-engine</h3>
         <p class="res">Busca as skills de repositórios git em quarentena, confere com regras fixas e só ativa o que sai limpo, nas pastas que cada agente lê.</p>
         <p class="para"><b>Para quem:</b> quem usa skills de terceiros no Claude Code, no Codex, no Copilot ou no OpenCode e quer conferir antes de ativar. <b>Como usa:</b> o comando <code>skill-engine</code> registra o repositório, verifica e ativa; ele não fica rodando em segundo plano.</p>
+        <p class="cmd"><b>Instalar:</b> <code>npx engine-kit ensure skill-engine</code></p>
         <div class="acoes"><a class="btn pri peq" href="https://github.com/AllanSantos-DV/engine-registry/releases?q=skill-engine" target="_blank" rel="noopener noreferrer">Baixar a versão atual<span class="sr"> (abre em nova aba)</span> ↗</a></div>
       </article>
       <article class="card c-claro" id="m-client-harness" data-motor="client-harness">
@@ -116,6 +123,7 @@
         <h3>client-harness</h3>
         <p class="res">Confere cada ação do agente contra as regras do cliente da pasta e recusa antes de gravar, com o motivo e o que usar no lugar.</p>
         <p class="para"><b>Para quem:</b> quem trabalha para vários clientes com o Claude Code ou o Codex e precisa que cada pasta siga o padrão do seu cliente. <b>Como usa:</b> o comando <code>client-harness start</code> sobe o serviço local que os hooks do agente consultam; a checagem leva cerca de 1 ms.</p>
+        <p class="cmd"><b>Instalar:</b> <code>npx engine-kit ensure client-harness</code></p>
         <div class="acoes"><a class="btn pri peq" href="https://allansantos-dv.github.io/harness-padroes-cliente/" target="_blank" rel="noopener noreferrer">Página do produto<span class="sr"> (abre em nova aba)</span> ↗</a></div>
       </article>
     </div>
@@ -188,6 +196,8 @@
     <div class="passos">
       <div class="passo"><h3>Escolha o motor</h3><p>Cada motor tem a sua página ou a versão atual para baixar. Os que precisam de instalador trazem o próprio e se atualizam sozinhos.</p></div>
       <div class="passo"><h3>Instale pelo kit</h3><p>Um comando do npm, sem clonar nada, confere a assinatura do motor, instala e depois o mantém atualizado.</p><pre>npx engine-kit ensure vxk</pre></div>
+      <div class="passo"><h3>Controle a versão</h3><p>Para travar um motor na versão instalada use <code>pin</code>; para escolher uma versão, <code>--version x.y.z</code>. <code>ENGINE_KIT_NO_AUTO_UPDATE=1</code> desliga a atualização automática e deixa só o aviso.</p><pre>npx engine-kit pin vxk
+npx engine-kit doctor</pre></div>
       <div class="passo"><h3>Use nos seus apps</h3><p>Os aplicativos e agentes encontram o motor que já está instalado e passam a compartilhá-lo. Atualizou? Todos recebem a nova versão ao mesmo tempo.</p></div>
     </div>
   </section>

@@ -81,7 +81,8 @@ e a **versão** do artefato; qualquer divergência aborta sem instalar nada. A c
 vem do `manifest.json` que viaja **dentro do pacote** (publicado no npm por publicação confiável, com
 proveniência): se o registry servir outra chave, é ABORT já na primeira instalação. Motor que o pacote não
 conhece é recusado (`npx engine-kit@latest ensure <motor>` traz o kit novo). Motores `self-managed`
-(`vox-engine`, `cerne`) seguem pelo próprio instalador.
+(`vox-engine`, `cerne`) seguem pelo próprio instalador: o `ensure` recusa apontando a página da release e o
+`engine-kit fetch <motor>`, que baixa e confere hash e assinatura sem instalar.
 
 Atualização automática, ligada por padrão: o kit consulta a última versão no npm e, se houver uma nova, roda o
 mesmo comando nela (o `npx` sem versão reusaria a da cache); o motor instalado é atualizado para a versão do
@@ -101,9 +102,11 @@ que dependa do `engine-kit`, ou o selo "Provenance" na página do pacote.
 ## Conciliar a máquina
 
 ```sh
-node kit/doctor.mjs          # diagnostica: o que reusar, atualizar ou baixar
-node kit/doctor.mjs --fix    # aplica
+npx engine-kit doctor [--engine <motor>]          # diagnostica: o que reusar, atualizar ou baixar
+npx engine-kit doctor --fix [--engine <motor>]    # aplica
 ```
+
+No clone do repositório, `node kit/doctor.mjs` faz o mesmo.
 
 Desatualizado → atualiza. Ausente → baixa. **Atualizado → reusa**. Fixado (`engine-kit pin`) → `FIXADO`, fica na
 versão fixada; instalado diferente do pin → `FORA DO PIN`, e o `--fix` instala a versão fixada. O diagnóstico não baixa nada,
@@ -144,8 +147,9 @@ Declare a dependência no manifesto do seu plugin:
 
 ### Adaptadores prontos
 
-Cada motor tem um adaptador em `consumers/` que já sabe o handshake dele — o consumidor não
-precisa escrever `healthCheck` nem descobrir onde mora o token:
+O `mcp-gateway` e o `neural-link` têm adaptador em `consumers/` que já sabe o handshake do motor — o consumidor
+não precisa escrever `healthCheck` nem descobrir onde mora o token (os outros motores usam `ensureEngine` com o `healthCheck`
+do consumidor, como no exemplo acima). Os dois fixam a chave do primeiro contato do manifest embarcado:
 
 ```js
 import { ensureGateway } from "engine-registry/consumers/mcp-gateway.mjs";
@@ -154,7 +158,9 @@ const gw = await ensureGateway({ log });
 if (!gw.available) { log(`gateway indisponível: ${gw.reason}`); return; }  // degrade SINALIZADO
 
 // gw.url    -> http://127.0.0.1:7337/mcp
-// gw.token  -> bearer (lido do cofre com ACL do dono)
+// gw.token  -> bearer (lido do cofre com ACL do dono); null vem com gw.tokenReason (o /mcp pode responder 401)
+// gw.version -> versão instalada; gw.staleCache -> true quando o descritor veio de cache vencido (registry inacessível)
+// A chave do primeiro contato (trustedKeys) é a do manifest embarcado; `refresh` e `registryUrl` passam adiante.
 // gw.backends -> ["files", "memory", ...]
 // gw.instructions -> { available: true, path, content } com o pacote de instruções do motor para o agente,
 //                    ou { available: false, reason } (o gateway continua disponível)
@@ -246,7 +252,7 @@ kit/
   provision.mjs    # baixa/atualiza: SHA256 + assinatura fail-closed, lock e swap atômico
   lifecycle.mjs    # garante o processo vivo (daemon) ou entrega o binário (cli)
   trust.mjs        # trust.json por motor: chave do 1º contato, maior versão vista (anti-rollback) e o pin
-  cli.mjs          # comando `engine-kit` (bin do pacote): ensure, fetch, pin e unpin
+  cli.mjs          # comando `engine-kit` (bin do pacote): ensure, fetch, pin, unpin e doctor
   ensure.mjs       # ensure, pin e unpin: resolve → provision com a chave do manifest embarcado no pacote
   fetch.mjs        # fetch: baixa e confere motor ou app sem instalar
   doctor.mjs       # concilia a máquina inteira (OK, DESATUALIZADO, AUSENTE, FIXADO...); --fix aplica

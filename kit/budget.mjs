@@ -62,10 +62,19 @@ const ROOT = resolvePath(KIT, "..");
 //   ferramental de quem instala; o caminho do `import "engine-kit"` não mudou.
 //   2026-11-12 adapter 5500 → 5600: `ensureGateway` passou a devolver `instructions` (a leitura de `readInstructions`, que o
 //   adaptador já tinha), +0.03 KB. O host recebe url, token e o pacote de instruções do motor numa chamada só.
+//   2026-11-12 tooling 41200 → 42000: o bin ganhou o verbo `doctor` (quem usa npx não clonou o repositório) e o `ensure` de motor
+//   self-managed passou a apontar a página da release e o `fetch`, +0.5 KB. Roda na mão de quem instala; o caminho do
+//   `import "engine-kit"` não mudou.
+//   2026-11-12 adapter 5600 → 6100: `ensureGateway` passou a devolver `version`, `staleCache` e `tokenReason`, a repassar `refresh` e a fixar
+//   a chave do primeiro contato do manifest embarcado (`firstContactKeys`, em kit/ensure.mjs), +0.5 KB. O host decide com o retorno, em vez de
+//   descobrir pelo 401 ou por uma chave trocada no registry.
+//   2026-11-12 tooling 42000 → 42200: `firstContactKeys` (a chave do primeiro contato do manifest embarcado) saiu do adaptador do gateway
+//   para o ensure.mjs e passou a servir também ao adaptador do neural-link, que estava em TOFU, +0.2 KB. O caminho do
+//   `import "engine-kit"` não mudou.
 const BUDGETS = {
   runtime: { codeBytes: 27000, baseline: 24519, loc: 900 },
-  tooling: { codeBytes: 41200, baseline: 16420, loc: 1050 },
-  adapter: { codeBytes: 5600, baseline: 1859, loc: 150 },
+  tooling: { codeBytes: 42200, baseline: 16420, loc: 1050 },
+  adapter: { codeBytes: 6100, baseline: 1859, loc: 150 },
 };
 
 // `split("\n")` num arquivo terminado em newline devolve um elemento vazio no fim — linha

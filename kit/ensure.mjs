@@ -11,7 +11,7 @@
 // NUNCA lança: devolve { ok, reason } para o cli decidir o exit code.
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { resolve } from "./resolve.mjs";
+import { resolve, fill } from "./resolve.mjs";
 import { provision, installedVersion, satisfiesPin } from "./provision.mjs";
 import { shutdown } from "./lifecycle.mjs";
 import { pinOf, readTrust, saveTrust } from "./trust.mjs";
@@ -23,6 +23,14 @@ const installedOf = (e) => existsSync(join(e.homeDir, e.install.entry)) ? instal
 /** Manifest que viaja dentro do pacote (lança se ilegível; `ensureCommand` transforma em reason). */
 export function bundledManifest() {
   return JSON.parse(readFileSync(BUNDLED_MANIFEST, "utf8"));
+}
+
+/** Chave do primeiro contato (manifest embarcado); só no registry público. Nunca lança. */
+export function firstContactKeys(name, registryUrl) {
+  try {
+    const key = registryUrl ? null : bundledManifest().engines?.find((e) => e.name === name)?.install?.publicKey;
+    return key ? { [name]: key } : undefined;
+  } catch { return undefined; }
 }
 
 /**
@@ -81,6 +89,11 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
       if (!s.ok) { log(`aviso: ${s.reason} — o swap pode falhar com o motor vivo`); }
     },
   });
+  if (!p.ok && engine.status === "self-managed") {
+    const { repo, tag } = engine.install;
+    const release = `https://github.com/${repo}/releases/tag/${fill(tag, { version: engine.version, platform: process.platform, arch: process.arch })}`;
+    return { ok: false, reason: `${p.reason} → instalador da v${engine.version}: ${release}; engine-kit fetch ${name} baixa e confere hash e assinatura sem instalar` };
+  }
   if (!p.ok) {
     // Rotação legítima de chave chega ao registry antes de chegar a este pacote: a saída é o kit novo.
     const hint = /FIXADA|não declara publicKey/.test(p.reason) ? ` — se a chave foi rotacionada de propósito, rode npx engine-kit@latest ensure ${name}` : "";

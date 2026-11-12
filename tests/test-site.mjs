@@ -86,6 +86,19 @@ const comandoNpx = passoInstalar.match(/<pre>npx engine-kit ensure ([a-z-]+)<\/p
 check("passo de instalação mostra `npx engine-kit ensure <motor>` com um motor do manifest", Boolean(comandoNpx) && engines.includes(comandoNpx[1]), passoInstalar.slice(0, 200));
 check("passo de instalação não manda clonar o repositório nem rodar o doctor", !/clone|doctor\.mjs/i.test(passoInstalar), passoInstalar.slice(0, 200));
 
+// cada card de motor traz o comando que o instala (ou, no motor com instalador próprio, o que baixa e confere o instalador)
+for (const c of cards) {
+  const e = manifest.engines.find((x) => x.name === c.motor);
+  const verbo = e.status === "self-managed" ? "fetch" : "ensure";
+  check(`card ${c.motor}: mostra o comando \`npx engine-kit ${verbo} ${c.motor}\``, c.html.includes(`<code>npx engine-kit ${verbo} ${c.motor}</code>`), c.html.slice(-220));
+}
+
+// o passo de versão ensina o que a vitrine antes não dizia, e cada comando citado existe no bin do kit
+const passoVersao = html.match(/<h3>Controle a versão<\/h3>[\s\S]*?<\/div>/)?.[0] ?? "";
+const uso = read(join(REPO, "kit", "cli.mjs"));
+check("passo de versão ensina pin, --version, doctor e ENGINE_KIT_NO_AUTO_UPDATE", /engine-kit pin /.test(passoVersao) && /--version x\.y\.z/.test(passoVersao) && /engine-kit doctor/.test(passoVersao) && /ENGINE_KIT_NO_AUTO_UPDATE=1/.test(passoVersao), passoVersao.slice(0, 240));
+check("os comandos do passo de versão existem no bin do kit", ["pin", "doctor"].every((v) => uso.includes(`engine-kit ${v}`)) && uso.includes("ENGINE_KIT_NO_AUTO_UPDATE"));
+
 // ---- 4) números da página batem com a fonte -------------------------------------------------------------------------------
 const txtMetricas = [...html.matchAll(/<div class="metrica"><b>([^<]+)<\/b>/g)].map((m) => m[1].replace("&lt;", "<"));
 check("métrica de motores = quantidade no manifest", txtMetricas.includes(String(engines.length)), `manifest: ${engines.length}`);

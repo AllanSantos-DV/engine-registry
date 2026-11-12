@@ -17,6 +17,7 @@
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { ensureEngine } from "../kit/index.mjs";
+import { firstContactKeys } from "../kit/ensure.mjs";
 
 /** Pin default: última versão do neural-link confirmada publicada no manifest deste kit. */
 const DEFAULT_PIN = "0.7.16";
@@ -33,15 +34,19 @@ const DEFAULT_PIN = "0.7.16";
  * @param {object} opts
  * @param {string=} opts.version pin de versão mínima (default: {@link DEFAULT_PIN}).
  * @param {(msg:string)=>void=} opts.log
+ * @param {string=} opts.registryUrl registry próprio (a chave embarcada do primeiro contato então não se aplica).
+ * @param {Record<string,string>=} opts.trustedKeys chave do primeiro contato (default: a do manifest embarcado).
+ * @param {boolean=} opts.refresh ignora o cache do descritor.
+ * @param {Function=} opts.fetcher download injetável (testes).
  * @param {boolean=} opts.allowNetwork permite baixar/atualizar (default true). Com `false` e um
  *        neural-link já instalado que satisfaça o pin, reusa sem tocar rede (comportamento do
  *        próprio `provision()` — não há necessidade de um caminho manual separado: o kit já
  *        reusa QUALQUER instalação existente que satisfaça o pin antes de olhar para a rede).
- * @returns {Promise<{available:true, entryPath:string, version:string, registered:object|null}
+ * @returns {Promise<{available:true, entryPath:string, version:string, registered:object|null, staleCache?:true}
  *                  | {available:false, reason:string}>}
  */
-export async function ensureNeuralLink({ version = DEFAULT_PIN, log = () => {}, allowNetwork = true } = {}) {
-  const r = await ensureEngine("neural-link", { version, allowNetwork, log });
+export async function ensureNeuralLink({ version = DEFAULT_PIN, log = () => {}, allowNetwork = true, registryUrl, refresh, fetcher, trustedKeys = firstContactKeys("neural-link", registryUrl) } = {}) {
+  const r = await ensureEngine("neural-link", { version, allowNetwork, log, registryUrl, refresh, fetcher, trustedKeys });
   if (!r.available) { return r; }
 
   const entryPath = r.bin;
@@ -62,5 +67,6 @@ export async function ensureNeuralLink({ version = DEFAULT_PIN, log = () => {}, 
     entryPath,
     version: r.engine?.installedVersion ?? version,
     registered,
+    ...(r.engine?.staleCache ? { staleCache: true } : {}),
   };
 }
