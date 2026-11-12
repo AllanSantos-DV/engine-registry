@@ -179,7 +179,7 @@ export function readInstructions() {
 
 /**
  * Garante o agregador MCP instalado e vivo.
- * @returns {Promise<{available:true, url:string, token:string|null, port:number, backends:string[], health:object}
+ * @returns {Promise<{available:true, url:string, token:string|null, port:number, backends:string[], health:object, instructions:ReturnType<typeof readInstructions>}
  *                  | {available:false, reason:string}>}
  */
 export async function ensureGateway({ log = () => {}, version, allowNetwork = true, bootTimeoutMs = 45000, registryUrl, fetcher } = {}) {
@@ -204,5 +204,6 @@ export async function ensureGateway({ log = () => {}, version, allowNetwork = tr
     port,
     backends: r.health.backends ?? [],
     health: r.health,
+    instructions: readInstructions(),
   };
 }

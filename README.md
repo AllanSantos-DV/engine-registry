@@ -68,7 +68,13 @@ npx engine-kit ensure vxk --version 0.23.0    # versão exata (downgrade permiti
 npx engine-kit pin vxk                        # congela o vxk na versão instalada
 npx engine-kit pin vxk --version 0.22.0       # instala essa versão (assinatura conferida) e congela
 npx engine-kit unpin vxk                      # o vxk volta a receber atualizações
+npx engine-kit fetch vxk                      # só baixa e confere (sha256 + Ed25519); nada é instalado
+npx engine-kit fetch agent-launcher           # idem para um app de `manifest.apps`
 ```
+
+`fetch` grava na pasta atual (ou em `--dest <pasta>`) o artefato que passou na conferência, com a mesma chave do
+primeiro contato do `ensure`. Não extrai, não executa e não toca o HOME do motor; a falha de conferência não deixa
+nenhum arquivo.
 
 O `npx` baixa o kit do npm e o kit baixa o motor da release, confere o **sha256**, a **assinatura Ed25519**
 e a **versão** do artefato; qualquer divergência aborta sem instalar nada. A chave pública do primeiro contato
@@ -150,6 +156,8 @@ if (!gw.available) { log(`gateway indisponível: ${gw.reason}`); return; }  // d
 // gw.url    -> http://127.0.0.1:7337/mcp
 // gw.token  -> bearer (lido do cofre com ACL do dono)
 // gw.backends -> ["files", "memory", ...]
+// gw.instructions -> { available: true, path, content } com o pacote de instruções do motor para o agente,
+//                    ou { available: false, reason } (o gateway continua disponível)
 ```
 
 ## Garantias do kit
@@ -238,8 +246,9 @@ kit/
   provision.mjs    # baixa/atualiza: SHA256 + assinatura fail-closed, lock e swap atômico
   lifecycle.mjs    # garante o processo vivo (daemon) ou entrega o binário (cli)
   trust.mjs        # trust.json por motor: chave do 1º contato, maior versão vista (anti-rollback) e o pin
-  cli.mjs          # comando `engine-kit` (bin do pacote): ensure, pin e unpin
+  cli.mjs          # comando `engine-kit` (bin do pacote): ensure, fetch, pin e unpin
   ensure.mjs       # ensure, pin e unpin: resolve → provision com a chave do manifest embarcado no pacote
+  fetch.mjs        # fetch: baixa e confere motor ou app sem instalar
   doctor.mjs       # concilia a máquina inteira (OK, DESATUALIZADO, AUSENTE, FIXADO...); --fix aplica
   update.mjs       # o kit se atualiza (relança na última versão do npm); ENGINE_KIT_NO_AUTO_UPDATE=1 desliga
   signature.mjs    # contrato ed25519-sha256-raw — assinar e verificar na MESMA fonte

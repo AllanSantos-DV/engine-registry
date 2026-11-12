@@ -7,6 +7,8 @@
 //
 // NUNCA lança: devolve { ok:false, reason } com o asset que falhou.
 import { createHash } from "node:crypto";
+import { mkdirSync, writeFileSync, renameSync } from "node:fs";
+import { join } from "node:path";
 import { fill } from "./resolve.mjs";
 import { verifyBlob, DEFAULT_ALGORITHM } from "./signature.mjs";
 
@@ -56,9 +58,10 @@ async function anonymousGet(url) {
  * Baixa TODOS os assets da entrada e confere sha256 e, havendo publicKey, a assinatura — mais a
  * metade negativa (adulterado é recusado).
  * @param opts.get  fetcher injetável (testes); padrão = GET anônimo.
+ * @param opts.destDir  se vier, grava os assets conferidos nessa pasta, só depois de TODOS conferirem (.part → rename).
  * @returns {Promise<{ok:true, assets:object[]} | {ok:false, reason:string}>}
  */
-export async function verifyAppRelease(app, { get = anonymousGet, log = () => {} } = {}) {
+export async function verifyAppRelease(app, { get = anonymousGet, log = () => {}, destDir } = {}) {
   const { publicKey, signatureRequired } = app.release;
   if (signatureRequired && !publicKey) {
     return { ok: false, reason: "signatureRequired sem publicKey na entrada do app — corrija antes de anunciar" };
@@ -66,6 +69,7 @@ export async function verifyAppRelease(app, { get = anonymousGet, log = () => {}
   const algorithm = app.release.signatureAlgorithm ?? DEFAULT_ALGORITHM;
   const { assets } = appAssetUrls(app);
   const results = [];
+  const blobs = [];
 
   for (const a of assets) {
     let blob, sha;
@@ -89,6 +93,17 @@ export async function verifyAppRelease(app, { get = anonymousGet, log = () => {}
     }
     log(`${a.name}: sha256 ${actual} OK${signed ? `, assinatura ${algorithm} OK` : ""}`);
     results.push({ name: a.name, platform: a.platform, sha256: actual, signed });
+    blobs.push(blob);
+  }
+  if (destDir) {
+    try {
+      mkdirSync(destDir, { recursive: true });
+      results.forEach((r, i) => {
+        r.path = join(destDir, r.name);
+        writeFileSync(`${r.path}.part`, blobs[i]);
+        renameSync(`${r.path}.part`, r.path);
+      });
+    } catch (e) { return { ok: false, reason: `não consegui gravar em ${destDir}: ${e.message}` }; }
   }
   return { ok: true, assets: results };
 }

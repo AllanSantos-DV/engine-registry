@@ -39,7 +39,7 @@ p{margin:0}
 .btn:hover{border-color:var(--menta);color:var(--txt)}
 .btn.pri{background:var(--menta);border-color:var(--menta);color:var(--tinta);font-weight:700}
 .btn.pri:hover{background:#a8ffd8;color:var(--tinta)}
-.btn.peq{min-height:40px;padding:8px 14px;font-size:14px}
+.btn.peq{min-height:44px;padding:8px 14px;font-size:14px}
 .btn svg{width:16px;height:16px;flex:none}
 
 /* seções */

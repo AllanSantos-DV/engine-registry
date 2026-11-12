@@ -19,10 +19,16 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
   `docs/research/2026-11-09-confianca-do-registry-sem-custodia-de-chave.md` e
   `docs/research/2026-11-09-chaves-contra-runners-sem-acl.md`.
 
-- **Candidatos da lente do engine-kit 0.2.6 que mudam o uso (decisão do dono).** `engine-kit fetch <motor|app>`
-  (baixa e confere sem instalar), `engine-kit stop <motor>` (desliga pelo `shutdownPath` declarado; o mcp-gateway
-  precisaria do drain do adaptador) e `ensureGateway` devolvendo também as instruções para agente (adaptador no teto
-  de tamanho). Ganho, esforço e peças em `docs/research/2026-11-11-lente-feature-irma-engine-kit-0.2.6.md`.
+- **`engine-kit stop <motor>` (decisão do dono, ainda pendente).** Desliga pelo `shutdownPath` declarado; o mcp-gateway
+  precisaria do drain do adaptador. Ganho, esforço e peças em `docs/research/2026-11-11-lente-feature-irma-engine-kit-0.2.6.md`.
+
+- **Achados da lente de feature irmã (2026-11-12) deixados para depois.** (1) `ensureGateway` devolve `available:true` com
+  `token: null` quando o cofre não se lê, e o agente só descobre pelo 401 (`consumers/mcp-gateway.mjs`); precisa decidir se
+  gateway sem senha é válido. (2) o bin do `npx` não expõe o `doctor` nem lista os pins: quem não clonou não concilia a
+  máquina. (3) o adaptador do gateway não repassa `trustedKeys`, `refresh`, a versão instalada nem `staleCache`.
+  (4) os cards dos motores levam a "Baixar a versão atual" em vez de um comando, e a vitrine não ensina `pin`, `--version`
+  nem `ENGINE_KIT_NO_AUTO_UPDATE`. (5) motor `self-managed` termina em FALHOU sem dizer onde está o instalador.
+  Detalhe em `docs/research/2026-11-12-fetch-instrucoes-e-cards-de-apps.md`.
 
 ## Decidido
 
@@ -52,7 +58,7 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
   `engine-kit ensure vxk` o desliga antes de trocar a instalação, em vez de falhar com "arquivos em uso" no Windows
   (`tests/test-ensure-daemon.mjs`). A vitrine e o README passaram a dizer que o vxk entrega HTML, vídeo MP4 e PDF.
 
-- **Candidatos da lente de 11/11 que mudam o uso (decisão do dono):** (1) a vitrine ensinar a instalar pelo canal npm
-  (`npx engine-kit ensure <motor>`) no lugar de clonar o repositório e rodar `node kit/doctor.mjs --fix`; (2) cartões dos
-  apps (`agent-launcher`, `smart-design`) na vitrine, lidos de `manifest.apps`, o que amplia a vitrine "dos motores".
-  Detalhes em `docs/research/2026-11-11-lente-feature-irma-engine-kit-0.2.9.md`.
+- **Decidido (dono, via Jarvis, 2026-11-12): construídos na develop.** `engine-kit fetch <motor|app>` (baixa e confere sem
+  instalar), `ensureGateway` devolvendo `instructions`, o passo "Instale pelo kit" da vitrine ensinando
+  `npx engine-kit ensure <motor>` e os cartões dos apps lidos de `manifest.apps`. Detalhe em
+  `docs/research/2026-11-12-fetch-instrucoes-e-cards-de-apps.md`.

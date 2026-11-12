@@ -44,7 +44,7 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-11-09 tooling 31000 → 34000: diagnóstico de vida (pid, porta, idade do runtime) e do ponteiro
 //   `cli.json` no doctor (diagnose.mjs), +2.7 KB. Só leitura, rodado na mão de quem diagnostica; o caminho do
 //   `import "engine-kit"` não mudou.
-//   2026-11-09 tooling 34000 → 37000 (loc 950 → 1050): pin por motor aprovado pelo dono — `engine-kit pin/unpin`
+//  2026-11-09 tooling 34000 → 37000 (loc 950 → 1050): pin por motor aprovado pelo dono — `engine-kit pin/unpin`
 //   (ensure.mjs, cli.mjs) e o estado FIXADO do doctor, +3.6 KB. No runtime o pin entrou sem subir o teto
 //   (dedup em provision/lifecycle pagou os bytes).
 //   2026-11-11 adapter 5000 → 5500: o adaptador do mcp-gateway passou a pedir `POST /admin/drain` (bearer) antes
@@ -53,10 +53,19 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-11-11 tooling 37000 → 37500: o `ensure` passou a avisar quando instala a partir do descritor em cache
 //   vencido (registry fora do ar) e quando o ponteiro `cli.json` do motor está quebrado, +0.3 KB (cli.mjs,
 //   ensure.mjs, reusando `pointerOf` do diagnose). O caminho do `import "engine-kit"` não mudou.
+//   2026-11-12 tooling 37500 → 40500: `engine-kit fetch <motor|app>` aprovado pelo dono (kit/fetch.mjs, o verbo no cli.mjs e a
+//   gravação opcional dos assets em app-release.mjs), +3.0 KB. Baixa e confere (sha256 + Ed25519) sem instalar, reusando
+//   `fetchArtifact` e `verifyAppRelease`; rodado na mão de quem instala, nunca importado por consumidor: o caminho do
+//   `import "engine-kit"` não mudou.
+//   2026-11-12 tooling 40500 → 41200: o `fetch` passou a respeitar o pin do motor e a recusar `--registry-url` em app, e o CLI
+//   a recusar `--dest` e `--registry-url` sem valor (antes a flag seguinte virava nome de pasta), +0.6 KB. Fail-loud no
+//   ferramental de quem instala; o caminho do `import "engine-kit"` não mudou.
+//   2026-11-12 adapter 5500 → 5600: `ensureGateway` passou a devolver `instructions` (a leitura de `readInstructions`, que o
+//   adaptador já tinha), +0.03 KB. O host recebe url, token e o pacote de instruções do motor numa chamada só.
 const BUDGETS = {
   runtime: { codeBytes: 27000, baseline: 24519, loc: 900 },
-  tooling: { codeBytes: 37500, baseline: 16420, loc: 1050 },
-  adapter: { codeBytes: 5500, baseline: 1859, loc: 150 },
+  tooling: { codeBytes: 41200, baseline: 16420, loc: 1050 },
+  adapter: { codeBytes: 5600, baseline: 1859, loc: 150 },
 };
 
 // `split("\n")` num arquivo terminado em newline devolve um elemento vazio no fim — linha

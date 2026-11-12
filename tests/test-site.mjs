@@ -65,6 +65,27 @@ for (const c of cards) {
 const semPages = engines.filter((n) => !PAGES_PROPRIO[n]);
 console.log(`  (info) sem Pages próprio ainda, o card leva à versão atual: ${semPages.join(", ")}`);
 
+// os apps (manifest.apps) têm a seção deles: um card por app, levando à página do produto, sem se misturar com os motores
+const apps = (manifest.apps ?? []).map((a) => a.name);
+const secaoApps = html.match(/<section class="secao" id="apps"[\s\S]*?<\/section>/)?.[0] ?? "";
+const cardsApps = [...secaoApps.matchAll(/<article class="card c-[a-z]+" id="a-([^"]+)" data-app="([^"]+)"[\s\S]*?<\/article>/g)].map((m) => ({ app: m[2], html: m[0] }));
+check("um card por app do manifest.json, nem a mais nem a menos", apps.length > 0 && JSON.stringify(cardsApps.map((c) => c.app).sort()) === JSON.stringify([...apps].sort()),
+  `cards: ${cardsApps.map((c) => c.app).join(", ")} | manifest: ${apps.join(", ")}`);
+for (const c of cardsApps) {
+  const app = manifest.apps.find((a) => a.name === c.app);
+  const href = c.html.match(/class="btn pri peq" href="([^"]+)"/)?.[1] ?? "";
+  check(`card do app ${c.app}: link da página do produto (homepage do manifest)`, href === app.homepage, href);
+  check(`card do app ${c.app}: abre fora com rel noopener`, /target="_blank" rel="noopener noreferrer"/.test(c.html));
+  check(`card do app ${c.app}: diz a plataforma e não fixa versão (a página não pode envelhecer a cada release)`, c.html.includes("Windows") && !/\d+\.\d+\.\d+/.test(c.html), c.html.slice(0, 160));
+}
+check("a seção dos apps não contamina a contagem de cards de motor", !/data-motor/.test(secaoApps));
+
+// o passo de instalação ensina o canal npm (sem clonar o repositório) e o comando existe no kit
+const passoInstalar = html.match(/<h3>Instale pelo kit<\/h3>[\s\S]*?<\/div>/)?.[0] ?? "";
+const comandoNpx = passoInstalar.match(/<pre>npx engine-kit ensure ([a-z-]+)<\/pre>/);
+check("passo de instalação mostra `npx engine-kit ensure <motor>` com um motor do manifest", Boolean(comandoNpx) && engines.includes(comandoNpx[1]), passoInstalar.slice(0, 200));
+check("passo de instalação não manda clonar o repositório nem rodar o doctor", !/clone|doctor\.mjs/i.test(passoInstalar), passoInstalar.slice(0, 200));
+
 // ---- 4) números da página batem com a fonte -------------------------------------------------------------------------------
 const txtMetricas = [...html.matchAll(/<div class="metrica"><b>([^<]+)<\/b>/g)].map((m) => m[1].replace("&lt;", "<"));
 check("métrica de motores = quantidade no manifest", txtMetricas.includes(String(engines.length)), `manifest: ${engines.length}`);

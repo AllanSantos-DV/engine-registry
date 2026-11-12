@@ -15,7 +15,7 @@
 <a class="sr" href="#conteudo">Pular para o conteúdo</a>
 <header class="topo"><div class="topo-in">
   <a class="marca" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="#12261e" stroke="#2a4a3e"/><path d="M9 21l7-10 7 10" fill="none" stroke="#6ef2b5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="21" r="2.6" fill="#6ef2b5"/><circle cx="16" cy="11" r="2.6" fill="#ffd166"/><circle cx="23" cy="21" r="2.6" fill="#ff8a5c"/></svg><span>engine-registry<small>motores compartilhados</small></span></a>
-  <nav class="nav" aria-label="Seções"><a href="#video">Vídeo</a><a href="#motores">Motores</a><a href="#conexoes">Como se conectam</a><a href="#uso">Como usar</a><a href="#numeros">Números</a></nav>
+  <nav class="nav" aria-label="Seções"><a href="#video">Vídeo</a><a href="#motores">Motores</a><a href="#apps">Aplicativos</a><a href="#conexoes">Como se conectam</a><a href="#uso">Como usar</a><a href="#numeros">Números</a></nav>
   <button class="btn pri" type="button" data-apresentar><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 4.5v15l13-7.5z"/></svg>Apresentar</button>
 </div></header>
 
@@ -121,6 +121,28 @@
     </div>
   </section>
 
+  <section class="secao" id="apps" aria-labelledby="h-apps">
+    <p class="eyebrow">Os aplicativos</p>
+    <h2 id="h-apps">Dois aplicativos que usam os motores.</h2>
+    <p class="lead">Além dos motores, o registry entrega aplicativos prontos. Cada um vem assinado e conferido antes de abrir, e se baixa com <code>npx engine-kit fetch &lt;aplicativo&gt;</code>.</p>
+    <div class="grade">
+      <article class="card c-ambar" id="a-agent-launcher" data-app="agent-launcher">
+        <div class="chips"><span class="chip">launcher de agentes</span><span class="chip">Windows</span></div>
+        <h3>Agent Launcher</h3>
+        <p class="res">Abre o Claude Code, o Codex, o Copilot CLI, o VS Code e o Copilot app nos seus projetos, por qualquer host de modelos.</p>
+        <p class="para"><b>Para quem:</b> quem alterna entre ferramentas de agente e vários projetos. <b>Como usa:</b> escolhe o projeto e a ferramenta, e o launcher abre; cada ferramenta se instala pelo cartão dela.</p>
+        <div class="acoes"><a class="btn pri peq" href="https://allansantos-dv.github.io/agent-launcher/" target="_blank" rel="noopener noreferrer">Página do produto<span class="sr"> (abre em nova aba)</span> ↗</a></div>
+      </article>
+      <article class="card c-menta" id="a-smart-design" data-app="smart-design">
+        <div class="chips"><span class="chip">design de telas</span><span class="chip">Windows</span></div>
+        <h3>Smart Design</h3>
+        <p class="res">Serviço local que o agente chama por MCP para desenhar telas com sistema de design, renderizá-las e conferi-las em pixels antes de entregar.</p>
+        <p class="para"><b>Para quem:</b> quem pede telas ao agente e quer que cada uma seja conferida de verdade. <b>Como usa:</b> o agente chama o serviço por MCP e recebe a tela renderizada e validada.</p>
+        <div class="acoes"><a class="btn pri peq" href="https://allansantos-dv.github.io/smart-design/" target="_blank" rel="noopener noreferrer">Página do produto<span class="sr"> (abre em nova aba)</span> ↗</a></div>
+      </article>
+    </div>
+  </section>
+
   <section class="secao" id="conexoes" aria-labelledby="h-conexoes">
     <p class="eyebrow">Como se conectam</p>
     <h2 id="h-conexoes">Cada motor funciona sozinho. Juntos, se encaixam.</h2>
@@ -165,7 +187,7 @@
     <h2 id="h-uso">Instalar uma vez. Usar em qualquer lugar.</h2>
     <div class="passos">
       <div class="passo"><h3>Escolha o motor</h3><p>Cada motor tem a sua página ou a versão atual para baixar. Os que precisam de instalador trazem o próprio e se atualizam sozinhos.</p></div>
-      <div class="passo"><h3>Instale pelo kit</h3><p>Num clone do repositório, um comando confere a máquina e instala ou atualiza o que faltar.</p><pre>node kit/doctor.mjs --fix --engine vxk</pre></div>
+      <div class="passo"><h3>Instale pelo kit</h3><p>Um comando do npm, sem clonar nada, confere a assinatura do motor, instala e depois o mantém atualizado.</p><pre>npx engine-kit ensure vxk</pre></div>
       <div class="passo"><h3>Use nos seus apps</h3><p>Os aplicativos e agentes encontram o motor que já está instalado e passam a compartilhá-lo. Atualizou? Todos recebem a nova versão ao mesmo tempo.</p></div>
     </div>
   </section>
