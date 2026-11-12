@@ -22,6 +22,15 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
 - **`engine-kit stop <motor>` (decisão do dono, ainda pendente).** Desliga pelo `shutdownPath` declarado; o mcp-gateway
   precisaria do drain do adaptador. Ganho, esforço e peças em `docs/research/2026-11-11-lente-feature-irma-engine-kit-0.2.6.md`.
 
+- **Chave do primeiro contato também no `ensureEngine` da lib.** Hoje só os adaptadores do mcp-gateway e do neural-link fixam
+  a chave embarcada; quem chama `ensureEngine` sem `trustedKeys` (exemplo do README) e os motores sem adaptador seguem em TOFU.
+  Mexe na raiz de confiança de todo consumidor de lib: uma rotação passa a abortar até o consumidor atualizar o kit.
+  Peças: `firstContactKeys` (mover de `kit/ensure.mjs` para `kit/trust.mjs`) e `ensureEngine` em `kit/index.mjs`; cabe no teto do runtime.
+
+- **`doctor --fix` limpar as sobras do `provision`** (`stage-<versão>`, `.tgz` e `.old-<pid>` que ficam quando extração, swap ou
+  remoção falham). O `--fix` passaria a apagar arquivos; precisa respeitar o `provision.lock`. Peças: `rmTree`, `dropFile`,
+  `claimLock` em `kit/provision.mjs`.
+
 ## Aguardando decisão do dono
 
 - **`engine-kit ensure neural-link` rodar o `install()` do motor (pendência 929130).** Hoje só o adaptador registra os

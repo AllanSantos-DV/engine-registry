@@ -220,5 +220,18 @@
     falar();
   }
 
+  // ---- comandos: botão de copiar ao lado de cada comando do kit ---------------------------------------------------------
+  document.querySelectorAll("p.cmd code, .passo pre").forEach((cmd) => {
+    if (!navigator.clipboard) { return; }
+    const bt = el("button", "btn peq", "Copiar");
+    bt.type = "button";
+    bt.setAttribute("aria-label", `Copiar o comando: ${cmd.textContent.split("\n")[0]}`);
+    bt.addEventListener("click", () => {
+      navigator.clipboard.writeText(cmd.textContent).then(() => { bt.textContent = "Copiado"; }, () => { bt.textContent = "Não copiou"; });
+      setTimeout(() => { bt.textContent = "Copiar"; }, 2000);
+    });
+    cmd.after(bt);
+  });
+
   abrir.forEach((b) => b.addEventListener("click", () => abrirApresentacao(b)));
 })();

@@ -57,7 +57,20 @@ check("doctor --engine sem valor recusa em vez de diagnosticar tudo", semValor.c
 const uso = await cli(["--help"]);
 check("o uso do bin lista o doctor", /engine-kit doctor/.test(uso.out), uso.out.trim());
 
+writeFileSync(join(trustHome, "trust.json"), "{}");
+const asJson = await cli(["doctor", "--json", "--registry-url", registryUrl, "--engine", "vxk"]);
+const parsed = (() => { try { return JSON.parse(asJson.out); } catch { return null; } })();
+check("doctor --json imprime só o JSON, com estado, vida e ponteiro do motor", asJson.code === 0 && parsed?.length === 1 && parsed[0].name === "vxk" && parsed[0].state === "OK" && parsed[0].life?.state && parsed[0].pointer?.state, asJson.out.slice(0, 200));
+
+writeFileSync(join(trustHome, "trust.json"), JSON.stringify({ vxk: { publicKey: "00".repeat(32), source: "tofu" } }));
+const diverge = await cli(["doctor", "--registry-url", registryUrl, "--engine", "vxk"]);
+check("doctor avisa que a chave gravada diverge da do registry, sem regravar o trust.json", /aviso: chave do registry ≠ chave gravada/.test(diverge.out) && JSON.parse(readFileSync(join(trustHome, "trust.json"), "utf8")).vxk.publicKey === "00".repeat(32), diverge.out.trim());
+writeFileSync(join(trustHome, "trust.json"), "{}");
+
 server.close();
+const fora = await cli(["doctor", "--registry-url", registryUrl, "--engine", "vxk"]);
+check("doctor avisa quando o registry não respondeu e o descritor veio do cache", /aviso: registry (fora do ar|não consultado)/.test(fora.out), fora.out.trim());
+
 rmSync(DHOME, { recursive: true, force: true });
 console.log(`\n== ${failures === 0 ? "TUDO VERDE" : `${failures} FALHA(S)`} ==`);
 process.exit(failures === 0 ? 0 : 1);

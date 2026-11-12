@@ -104,7 +104,11 @@ que dependa do `engine-kit`, ou o selo "Provenance" na página do pacote.
 ```sh
 npx engine-kit doctor [--engine <motor>]          # diagnostica: o que reusar, atualizar ou baixar
 npx engine-kit doctor --fix [--engine <motor>]    # aplica
+npx engine-kit doctor --json [--engine <motor>]   # mesmo diagnóstico em JSON, para agentes e hooks
 ```
+
+O diagnóstico avisa, sem alterar nada, quando o registry não respondeu (o descritor veio do cache) e quando a chave
+publicada pelo registry difere da gravada em `trust.json` (o próximo `ensure` abortaria).
 
 No clone do repositório, `node kit/doctor.mjs` faz o mesmo.
 

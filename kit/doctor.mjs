@@ -23,6 +23,8 @@ import { pinOf, readTrust } from "./trust.mjs";
 const args = process.argv.slice(2);
 const useLocal = args.includes("--local");
 const doFix = args.includes("--fix");
+const asJson = args.includes("--json") && !doFix;
+const say = (m) => { if (!asJson) console.log(m); };
 const onlyIdx = args.indexOf("--engine");
 const only = onlyIdx === -1 ? null : args[onlyIdx + 1];
 const regIdx = args.indexOf("--registry-url");
@@ -40,7 +42,7 @@ if (only && names.length === 0) {
   process.exit(1);
 }
 
-console.log(`== engine-kit doctor ==  (registry: ${useLocal ? "manifest LOCAL" : "publicado"}${doFix ? ", modo --fix" : ", só diagnóstico"})\n`);
+say(`== engine-kit doctor ==  (registry: ${useLocal ? "manifest LOCAL" : "publicado"}${doFix ? ", modo --fix" : ", só diagnóstico"})\n`);
 
 // Sem process.exit() depois de rede: o fetch (undici) ainda tem sockets fechando e o Node do
 // Windows aborta com "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)" (exit 127).
@@ -80,27 +82,39 @@ for (const name of names) {
   } else {
     state = "DESATUALIZADO"; detail = `v${inst} → v${engine.version}`;
   }
-  rows.push({ name, state, detail, engine, pin, needsWork: !["OK", "SELF-MANAGED", "FIXADO"].includes(state) });
+  const warns = [];
+  if (!useLocal && engine.offline) warns.push(engine.staleCache ? "registry fora do ar: descritor do cache vencido" : "registry não consultado nesta execução");
+  const known = readTrust()[name]?.publicKey;
+  if (known && engine.install.publicKey && known !== engine.install.publicKey) warns.push(`chave do registry ≠ chave gravada em trust.json: o próximo ensure/--fix aborta (rotação é ato explícito)`);
+  rows.push({ name, state, detail, warns, engine, pin, needsWork: !["OK", "SELF-MANAGED", "FIXADO"].includes(state) });
 }
 
+if (asJson) {
+  const out = rows.map(({ name, state, detail, warns, pin, engine }) => ({
+    name, state, detail, warns: warns ?? [], pin: pin || null,
+    ...(engine && engine.status !== "self-managed" ? { life: lifeOf(engine), pointer: pointerOf(engine) } : {}),
+  }));
+  console.log(JSON.stringify(out, null, 2));
+}
 const pad = (s, n) => String(s).padEnd(n);
-const w = Math.max(12, ...rows.map((r) => r.name.length));
+const w0 = Math.max(12, ...rows.map((r) => r.name.length));
 for (const r of rows) {
   const mark = ["OK", "SELF-MANAGED", "FIXADO"].includes(r.state) ? "  OK  " : r.state === "ERRO" ? " ERRO " : "  !!  ";
-  console.log(`${mark} ${pad(r.name, w)}  ${pad(r.state, 14)} ${r.detail}`);
+  say(`${mark} ${pad(r.name, w0)}  ${pad(r.state, 14)} ${r.detail}`);
+  for (const w of r.warns ?? []) say(`       ${pad("", w0)}  aviso: ${w}`);
   if (r.engine && r.engine.status !== "self-managed") {
     const life = lifeOf(r.engine), ptr = pointerOf(r.engine);
-    console.log(`       ${pad("", w)}  vida: ${life.state} (${life.detail})`);
-    console.log(`       ${pad("", w)}  ponteiro cli.json: ${ptr.state} (${ptr.detail})`);
+    say(`       ${pad("", w0)}  vida: ${life.state} (${life.detail})`);
+    say(`       ${pad("", w0)}  ponteiro cli.json: ${ptr.state} (${ptr.detail})`);
   }
 }
 
 const pending = rows.filter((r) => r.needsWork);
 if (pending.length === 0) {
-  console.log(`\n== todos os motores conciliados (${rows.length}) ==`);
+  say(`\n== todos os motores conciliados (${rows.length}) ==`);
   process.exitCode = rows.some((r) => r.state === "ERRO") ? 1 : 0;
 } else if (!doFix) {
-  console.log(`\n${pending.length} motor(es) precisam de ação. Rode com --fix para instalar/atualizar.`);
+  say(`\n${pending.length} motor(es) precisam de ação. Rode com --fix para instalar/atualizar.`);
   process.exitCode = 1;
 } else {
 console.log("\n-- aplicando (--fix) --");

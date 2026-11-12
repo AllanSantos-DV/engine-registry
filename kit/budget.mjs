@@ -71,9 +71,12 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-11-12 tooling 42000 → 42200: `firstContactKeys` (a chave do primeiro contato do manifest embarcado) saiu do adaptador do gateway
 //   para o ensure.mjs e passou a servir também ao adaptador do neural-link, que estava em TOFU, +0.2 KB. O caminho do
 //   `import "engine-kit"` não mudou.
+//   2026-11-12 tooling 42200 → 43000: o doctor ganhou `--json` (estado, vida e ponteiro de cada motor para agentes e hooks) e dois
+//   avisos de só leitura (registry sem resposta, chave do registry diferente da gravada no trust.json), +0.7 KB. Rodado na mão de
+//   quem diagnostica; o caminho do `import "engine-kit"` não mudou.
 const BUDGETS = {
   runtime: { codeBytes: 27000, baseline: 24519, loc: 900 },
-  tooling: { codeBytes: 42200, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 43000, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 6100, baseline: 1859, loc: 150 },
 };
 

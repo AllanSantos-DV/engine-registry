@@ -48,6 +48,7 @@ check("CSP restringe tudo a 'self' (sem fonte, script ou imagem externos)", /Con
 check("sem <script>, <style> nem atributo style= ou on*= inline (a CSP bloquearia)", !/<script(?![^>]*\ssrc=)/.test(html) && !/<style/.test(html) && !/\sstyle="/.test(html) && !/\son[a-z]+="/.test(html));
 const externos = [...html.matchAll(/(?:src|poster)="(https?:[^"]+)"/g)].map((m) => m[1]);
 check("nenhum recurso externo carregado (só links de navegação saem do site)", externos.length === 0, externos.join(", "));
+check("cada comando do kit (card e passo) ganha botão de copiar que grava o texto do comando na área de transferência", /querySelectorAll\("p\.cmd code, \.passo pre"\)/.test(js) && /clipboard\.writeText\(cmd\.textContent\)/.test(js));
 check("assets/site.js tem sintaxe válida", (() => { try { execFileSync(process.execPath, ["--check", join(SITE, "assets", "site.js")], { stdio: "pipe", windowsHide: true }); return true; } catch { return false; } })());
 
 // ---- 3) um card por motor do manifest, com o link certo -----------------------------------------------------------------
