@@ -8,7 +8,7 @@ Vazio.
 
 ## Negócio, espera o dono
 
-Cada item muda o uso do produto. Os candidatos (f) a (n) trazem ganho, esforço (pequeno, médio ou grande, sem prazo), reuso e recomendação.
+Cada item muda o uso do produto. Os candidatos (g2), (h), (k), (o) e (p) trazem ganho, esforço (pequeno, médio ou grande, sem prazo), reuso e recomendação.
 
 - **`uninstall()` no neural-link (projeto neural-link, `src/install.js`).** O `engine-kit ensure neural-link --unregister` já existe e
   chama o `uninstall()` do motor instalado, mas o neural-link só exporta `install()`: hoje o comando falha alto dizendo isso. Falta o
@@ -19,17 +19,13 @@ Cada item muda o uso do produto. Os candidatos (f) a (n) trazem ganho, esforço 
   (`checkTrust` em `kit/trust.mjs`), e a rotação legítima exige apagar a entrada do `trust.json` à mão. **Decidido** (Jarvis, 09/11):
   fica tratada no esquema de confiança da pendência aberta 3a178e; até o dono escolher, nenhum passo manual por máquina é introduzido.
   Contexto: `docs/research/2026-11-09-pin-por-motor-acoplamento-e-custodia-de-chaves.md`.
-- **Esquema de confiança do registry: assinatura sem chave e publicação do kit com aprovação.** Pendência aberta 3a178e: muda como o dono
+- **Decidido (Jarvis, 12/11): segue do dono.** **Esquema de confiança do registry: assinatura sem chave e publicação do kit com aprovação.** Pendência aberta 3a178e: muda como o dono
   publica o kit (um clique de aprovação 2FA por release) e o que ele guarda. Recomendação: esquema D, com os motores assinados sem chave
   (keyless) no CI hospedado, nos três repositórios pesados (native-java, cerne, vox-engine), e o engine-kit publicado no npm só com a
   aprovação 2FA do dono. Custos: minutos pagos dos builds hospedados nos repositórios privados e o nome desses repositórios gravado para
   sempre no log público de transparência. Fontes: `docs/research/2026-11-09-confianca-do-registry-sem-custodia-de-chave.md` e
   `docs/research/2026-11-09-chaves-contra-runners-sem-acl.md`.
 
-- **(f) `stop` do client-harness religado pelo runner.** O `shutdownPath` dele traz `relaunch=1`, e o runner pode subir o processo de novo
-  logo depois do `engine-kit stop`. Ganho: o `stop` passa a significar "desligado". Esforço: pequeno no kit, mas muda o contrato do motor
-  (o registry teria de declarar um desligamento sem relançamento). Reuso: `stopEngine` e `shutdownPath` do manifest. Recomendação: o
-  projeto client-harness declarar um `shutdownPath` sem `relaunch`; o kit não precisa mudar.
 - **(g2) `--json` nos demais verbos (`ensure`, `fetch`, `pin`, `stop`).** Hoje só o `doctor` fala JSON; agente e script leem texto.
   Ganho: automação sem raspar texto. Esforço: médio (um formato estável de retorno por verbo vira API pública). Reuso: os retornos
   `{ok, ...}` que `ensureCommand`, `fetchCommand`, `pinCommand` e `stopCommand` já devolvem; só falta imprimir. Recomendação: construir só
@@ -38,25 +34,10 @@ Cada item muda o uso do produto. Os candidatos (f) a (n) trazem ganho, esforço 
   motor exige subir a constante e publicar o kit. Ganho: o motor evolui sem release do kit. Esforço: pequeno. Reuso:
   `tests/test-neural-link-alignment.mjs` já trava a constante contra o manifest. Recomendação: manter; a trava é proposital, porque o adaptador
   só aceita o contrato que conhece, e a major nova é decisão do dono do neural-link.
-- **(i) O `doctor` não prevê o ABORT de chave rotacionada em máquina sem `trust.json`.** Ele avisa quando a chave do registry difere da
-  gravada, mas na máquina sem gravação a rotação só aparece no `ensure`. Ganho: aviso antes do ABORT. Esforço: pequeno. Reuso:
-  `firstContactKeys` e o aviso que o doctor já tem. Recomendação: resolver junto da rotação de chave e do esquema de confiança (pendência
-  3a178e), porque o aviso depende do que o dono escolher ali.
-- **(j) A lib não exporta `unregisterNeuralLink` nem `unpin`.** Quem usa a lib e não o bin não consegue desfazer o registro nem soltar o
-  pin. Ganho: simetria da API. Esforço: pequeno, mas cada export entra no teto do runtime e vira contrato público. Reuso: as duas funções
-  já existem em `kit/register.mjs` e `kit/ensure.mjs`. Recomendação: exportar só quando um consumidor da lib pedir.
-- **(k) `trust.json` guarda chave e `maxVersion` por motor, não por registry.** Um registry próprio com chave própria faz o público abortar, e
+- **Decidido (Jarvis, 12/11): segue do dono.** **(k) `trust.json` guarda chave e `maxVersion` por motor, não por registry.** Um registry próprio com chave própria faz o público abortar, e
   o contrário. Ganho: quem opera um registry próprio convive com o público. Esforço: médio (migração do arquivo de confiança). Reuso:
   `updateEntry` e a chave de cache por `registryUrl` que já existe em `kit/resolve.mjs`. Recomendação: construir por registry e nome, com
   migração; é decisão do esquema de confiança, então fica atrás da pendência 3a178e.
-- **(m) `ensureEngine` com `allowNetwork:false` ou registry próprio sem cache devolve `available:false` com o motor vivo.** O atalho "já
-  vivo" vem depois do `resolve`. Ganho: o consumidor offline usa o motor que já roda. Esforço: médio (inverter a ordem muda quem decide a
-  versão). Reuso: `findAlive` e o handshake do `lifecycle`. Recomendação: construir; tentar o handshake antes quando o descritor não vem,
-  sem confiar em versão que ninguém conferiu.
-- **(n) `readToken` do adaptador do mcp-gateway é síncrono e roda PowerShell por até 20 s na ativação da extensão.** Ganho: ativação sem
-  travar o host. Esforço: médio, e a API exportada muda (`readToken` passaria a devolver Promise). Reuso: `ensureGateway` já é assíncrona e
-  poderia chamar a versão nova, mantendo a antiga para quem a importa. Recomendação: construir a versão assíncrona ao lado da síncrona,
-  sem remover esta; só o dono do adaptador decide quando aposentá-la.
 - **(o) `ensureEngine` não passa `shutdown` por padrão.** Quem usa a lib e quer o motor parado ao atualizar tem de lembrar de passar
   `shutdown`; sem ele o motor velho segue vivo até a próxima subida. Ganho: atualização sem motor antigo vivo. Esforço: pequeno, mas
   muda o comportamento de quem já usa. Reuso: `stopEngine` e o `shutdownPath` do descritor. Recomendação: construir como padrão com
@@ -64,14 +45,31 @@ Cada item muda o uso do produto. Os candidatos (f) a (n) trazem ganho, esforço 
 - **(p) `ensureEngine` não aceita `allowDowngrade`.** O rebaixamento só existe no `pin` do CLI; a lib não tem como voltar a uma versão
   anterior. Ganho: rollback pela lib. Esforço: pequeno. Reuso: a regra de pin de `satisfiesPin`. Recomendação: construir só se um
   consumidor pedir, porque cada opção entra no teto do runtime e vira contrato público.
-- **(q) `publish.yml` publica sem rodar a suíte.** A política de release hoje é o gate do orquestrador antes da tag, não o workflow
-  (que fica hospedado por causa da proveniência). Ganho: segunda trava antes do npm. Esforço: pequeno. Reuso: `node kit/budget.mjs` já
-  roda hospedado. Recomendação: política de release do dono; a suíte inteira não cabe no runner hospedado sem Windows.
-- **(r) A lib em registry próprio não tem dica do que fazer para fixar a chave.** O retorno da lib em TOFU não diz que é TOFU nem aponta
-  `trustedKeys`. Ganho: quem opera registry próprio sabe o risco no retorno. Esforço: pequeno. Reuso: `firstContactKeys` e o campo
-  `trustedKeys`. Recomendação: junto do esquema de confiança (pendência 3a178e).
-
+- **`ensure <motor> --version <menor>` reusa a instalada maior, enquanto `pin --version` instala a exata.** O README promete o rebaixamento no
+  `ensure` (`kit/provision.mjs`, `kit/ensure.mjs`). Ganho: o `--version` fazer o que diz. Esforço: pequeno. Reuso: `allowDowngrade` do provision. Recomendação:
+  `--version` explícito rebaixa; sem ele, reusa. Junto com (p).
+- **`mcp-gateway` sem `shutdownPath` no manifest (projeto mcp-gateway).** `stop mcp-gateway` é recusado e `ensure`/`doctor --fix` trocam o binário sem
+  drenar o daemon (EPERM no Windows). Ganho: atualizar e parar o gateway pelo kit. Esforço: pequeno, no motor e no manifest. Reuso: o `/shutdown` que os outros
+  motores já declaram. Recomendação: o mcp-gateway expor o endpoint e o registry declará-lo; trabalho do outro projeto.
+- **A lib exporta `unpin` mas não `pin`.** Quem usa a lib congela só pelo CLI. Ganho: o fluxo pin/unpin completo na lib. Esforço: pequeno. Reuso: `setPin`
+  em `kit/trust.mjs`. Recomendação: exportar junto com (p), porque os dois fecham o ciclo de rollback.
+- **`verify-release` de motor não confere a versão dentro do `.tgz` (`kit/verify-release.mjs`).** Quem publica pode anunciar a versão X com o `package.json`
+  do artefato em Y; o `fetch` já recusa isso no consumidor. Ganho: o erro aparece na publicação, não no cliente. Esforço: pequeno. Reuso: a extração do
+  `fetch`. Recomendação: construir; só afeta quem publica.
 ## Decidido
+
+- **Decidido (Jarvis, 12/11): seis itens construídos na develop, cada um com teste que falha sem o código** (`tests/test-backlog-decidido.mjs`).
+  (f) `stopEngine` pede o desligamento sem `relaunch=1` (`shutdown` aceita `semRelaunch`), então o client-harness fica parado depois do `stop`;
+  a atualização segue com o `shutdownPath` declarado. (i) o `doctor` avisa chave do registry ≠ chave embarcada quando não há `trust.json`
+  (registry público). (j) a lib exporta `unpin` (`setPin` passou para `kit/trust.mjs`) e `unregisterNeuralLink`. (m) `ensureEngine`, com o
+  registry fora e sem cache, devolve o motor que já responde ao handshake, descrito pelo manifest embarcado, com a versão lida do disco
+  e `engine.registryReason`. (n) `readTokenAsync` lê o token do gateway sem bloquear e com limite de 5 s; `ensureGateway` e
+  `onBeforeReplace` o usam e `readToken` síncrono segue exportado. (r) em registry próprio sem `trustedKeys`, `engine.trust` vale `"tofu"` e
+  `engine.trustHint` ensina a fixar a chave. O `fetch` confere a versão do artefato numa pasta estável
+  (`LOCALAPPDATA/engine-kit/verify/<motor>-<versão>`, hash só como chave de reuso) em vez de pasta aleatória no tmpdir.
+  Tetos: runtime 32000 → 33600 (vitrine "< 34 KB"), ferramental 51600 → 51900, adaptador 6200 → 7500, com entrada datada em `kit/budget.mjs`.
+- **Decidido (Jarvis, 12/11): (q) `publish.yml` fica sem a suíte, não construído.** O check de release do orquestrador roda os testes antes
+  da tag, e a suíte inteira não cabe no runner hospedado.
 
 - **Resolvido (Jarvis, 2026-11-12): defeitos com resposta óbvia, cada um com teste que falha sem a correção** (`tests/test-defeitos.mjs`).
   (a) `doctor --fix` conta o motor em ERRO como falha (exit 1) e não imprime "conciliado"; (b) `fetch` confere a versão dentro do artefato
