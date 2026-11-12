@@ -13,6 +13,7 @@
 //
 // Exit code: 0 = tudo conciliado. 1 = há divergência (e `--fix` não foi passado) ou algo falhou.
 import { readFileSync, existsSync, readdirSync, statSync, rmSync } from "node:fs";
+import { homedir } from "node:os";
 import { join, basename, dirname } from "node:path";
 import { resolve } from "./resolve.mjs";
 import { provision, satisfiesPin, installedVersion } from "./provision.mjs";
@@ -53,6 +54,15 @@ function leftovers(engine) {
     ...ls(engine.homeDir, (n) => n.startsWith("stage-") || n === asset || n === `${asset}.part`),
     ...ls(dirname(bin), (n) => n.startsWith(`${basename(bin)}.old-`)),
   ];
+}
+
+/** Hooks do neural-link no config global: um `_dispatcher-<Evento>.json` por evento (convenção do próprio motor, gravada pelo `install()`). */
+function hooksOf() {
+  const dir = join(homedir(), ".copilot", "hooks");
+  try {
+    const events = readdirSync(dir).filter((n) => n.startsWith("_dispatcher-") && n.endsWith(".json")).map((n) => n.slice(12, -5));
+    return { registered: events.length > 0, events };
+  } catch { return { registered: false, events: [] }; }
 }
 
 const names = (manifest.engines ?? []).map((e) => e.name).filter((n) => !only || n === only);
@@ -107,13 +117,15 @@ for (const name of names) {
   if (known && engine.install.publicKey && known !== engine.install.publicKey) warns.push(`chave do registry ≠ chave gravada em trust.json: o próximo ensure/--fix aborta (rotação é ato explícito)`);
   const left = engine.status === "self-managed" ? [] : leftovers(engine);
   if (left.length) warns.push(`${left.length} sobra(s) de instalação interrompida em ${engine.homeDir}: doctor --fix as remove`);
-  rows.push({ name, state, detail, warns, engine, pin, left, needsWork: !["OK", "SELF-MANAGED", "FIXADO"].includes(state) });
+  const hooks = name === "neural-link" ? hooksOf() : undefined;
+  rows.push({ name, state, detail, warns, engine, pin, left, hooks, needsWork: !["OK", "SELF-MANAGED", "FIXADO"].includes(state) });
 }
 
 if (asJson) {
-  const out = rows.map(({ name, state, detail, warns, pin, engine }) => ({
+  const out = rows.map(({ name, state, detail, warns, pin, engine, hooks }) => ({
     name, state, detail, warns: warns ?? [], pin: pin || null,
-    ...(engine && engine.status !== "self-managed" ? { life: lifeOf(engine), pointer: pointerOf(engine) } : {}),
+    ...(engine && engine.status !== "self-managed" ? { life: lifeOf(engine), pointer: pointerOf(engine), stoppable: Boolean(engine.runtime?.shutdownPath) } : {}),
+    ...(hooks ? { hooks } : {}),
   }));
   console.log(JSON.stringify(out, null, 2));
 }
@@ -127,6 +139,8 @@ for (const r of rows) {
     const life = lifeOf(r.engine), ptr = pointerOf(r.engine);
     say(`       ${pad("", w0)}  vida: ${life.state} (${life.detail})`);
     say(`       ${pad("", w0)}  ponteiro cli.json: ${ptr.state} (${ptr.detail})`);
+    say(`       ${pad("", w0)}  stop: ${r.engine.runtime?.shutdownPath ? "suportado (engine-kit stop " + r.name + ")" : "não declarado no registry"}`);
+    if (r.hooks) { say(`       ${pad("", w0)}  hooks: ${r.hooks.registered ? `registrados (${r.hooks.events.join(", ")})` : "não registrados → engine-kit ensure neural-link --register"}`); }
   }
 }
 

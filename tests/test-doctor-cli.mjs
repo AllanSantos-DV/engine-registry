@@ -62,6 +62,28 @@ const asJson = await cli(["doctor", "--json", "--registry-url", registryUrl, "--
 const parsed = (() => { try { return JSON.parse(asJson.out); } catch { return null; } })();
 check("doctor --json imprime só o JSON, com estado, vida e ponteiro do motor", asJson.code === 0 && parsed?.length === 1 && parsed[0].name === "vxk" && parsed[0].state === "OK" && parsed[0].life?.state && parsed[0].pointer?.state, asJson.out.slice(0, 200));
 
+check("doctor --json marca stoppable quando o registry declara shutdownPath", parsed?.[0]?.stoppable === true && !("hooks" in parsed[0]), JSON.stringify(parsed?.[0]));
+const texto = await cli(["doctor", "--registry-url", registryUrl, "--engine", "vxk"]);
+check("doctor em texto diz se o stop é suportado", /stop: suportado \(engine-kit stop vxk\)/.test(texto.out), texto.out.trim());
+
+const nl = local.engines.find((e) => e.name === "neural-link");
+const nlHome = nl.home.replace(/^~[/\\]?/, `${DHOME}/`);
+mkdirSync(join(nlHome, nl.install.extractTo ?? "bin"), { recursive: true });
+writeFileSync(join(nlHome, nl.install.extractTo ?? "bin", "package.json"), JSON.stringify({ name: "neural-link", version: nl.version }));
+mkdirSync(join(nlHome, nl.install.entry, ".."), { recursive: true });
+writeFileSync(join(nlHome, nl.install.entry), "");
+const semHooks = JSON.parse((await cli(["doctor", "--json", "--registry-url", registryUrl, "--engine", "neural-link"])).out);
+check("neural-link sem hooks no config global: hooks.registered false", semHooks[0].hooks?.registered === false && semHooks[0].hooks.events.length === 0, JSON.stringify(semHooks[0].hooks));
+const semTexto = await cli(["doctor", "--registry-url", registryUrl, "--engine", "neural-link"]);
+check("doctor em texto aponta o --register quando os hooks não estão registrados", /não registrados → engine-kit ensure neural-link --register/.test(semTexto.out) && /stop: não declarado no registry/.test(semTexto.out), semTexto.out.trim());
+mkdirSync(join(DHOME, ".copilot", "hooks"), { recursive: true });
+for (const ev of ["SessionStart", "Stop"]) { writeFileSync(join(DHOME, ".copilot", "hooks", `_dispatcher-${ev}.json`), "{}"); }
+writeFileSync(join(DHOME, ".copilot", "hooks", "outro-hook.json"), "{}");
+const comHooks = JSON.parse((await cli(["doctor", "--json", "--registry-url", registryUrl, "--engine", "neural-link"])).out);
+check("com _dispatcher-*.json no config global: hooks lista só os eventos do neural-link", comHooks[0].hooks?.registered === true && comHooks[0].hooks.events.sort().join() === "SessionStart,Stop", JSON.stringify(comHooks[0].hooks));
+const comTexto = await cli(["doctor", "--registry-url", registryUrl, "--engine", "neural-link"]);
+check("doctor em texto lista os eventos registrados", /hooks: registrados \(.*SessionStart.*\)/.test(comTexto.out), comTexto.out.trim());
+
 writeFileSync(join(trustHome, "trust.json"), JSON.stringify({ vxk: { publicKey: "00".repeat(32), source: "tofu" } }));
 const diverge = await cli(["doctor", "--registry-url", registryUrl, "--engine", "vxk"]);
 check("doctor avisa que a chave gravada diverge da do registry, sem regravar o trust.json", /aviso: chave do registry ≠ chave gravada/.test(diverge.out) && JSON.parse(readFileSync(join(trustHome, "trust.json"), "utf8")).vxk.publicKey === "00".repeat(32), diverge.out.trim());
