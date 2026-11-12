@@ -169,7 +169,7 @@ export async function stopCommand(name, { registryUrl, bundled, manifest, log = 
   if (!(local.engines ?? []).some((e) => e.name === name)) {
     return { ok: false, reason: `motor "${name}" não está no manifest deste engine-kit → atualize o kit (npx engine-kit@latest stop ${name})` };
   }
-  const r = await resolve(name, { registryUrl, ...(manifest ? { manifest } : {}) });
+  const r = await resolve(name, { registryUrl, refresh: true, ...(manifest ? { manifest } : {}) });
   if (!r.ok) { return { ok: false, reason: r.reason }; }
   if (!r.engine.runtime?.shutdownPath) {
     return { ok: false, reason: `${name} não declara shutdownPath no registry: o kit não sabe desligá-lo (quem o sobe é o consumidor ou o próprio motor)` };

@@ -30,6 +30,13 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
 
 ## Aguardando decisão do dono
 
+- **Candidatos da lente do 0.2.13 que mudam o uso (aguardam o dono):** `ensure neural-link --unregister` (depende de o motor expor
+  desinstalação); o `doctor` mostrar se os hooks do neural-link estão registrados; campo `stoppable` no `doctor --json`; o `--register`
+  listar os arquivos gravados (`reg.written` já tem os caminhos); o `stop` avisar enquanto espera um motor ocupado (hoje silencioso até 120 s).
+
+- **Ajuste técnico fora do escopo do 0.2.13:** `registerNeuralLink` mora em `consumers/` e o `kit/cli.mjs` o importa, então todo
+  comando da CLI carrega o `kit/index.mjs`; mover para `kit/`. `stopEngine(name)` na lib não cabe no teto do runtime (27000 B) sem cortar outra coisa.
+
 ## Decidido
 
 - **Decidido (dono, pendência 929130, 2026-11-12): três verbos do ciclo de vida.** N3 construído: `engine-kit ensure neural-link --register`

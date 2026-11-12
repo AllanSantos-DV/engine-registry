@@ -62,10 +62,10 @@ async function findAlive(engine, healthCheck) {
 
 /** Espera o processo sair (até `ms`). true = saiu. */
 export async function waitExit(pid, ms) {
-  for (const fim = Date.now() + ms; Date.now() < fim; await sleep(500)) {
+  for (const fim = Date.now() + ms; ; await sleep(500)) {
     try { process.kill(pid, 0); } catch { return true; }
+    if (Date.now() >= fim) { return false; }
   }
-  return false;
 }
 
 /**
@@ -79,20 +79,20 @@ export async function waitExit(pid, ms) {
  *
  * @returns {Promise<{ok:true, stopped:boolean} | {ok:false, reason:string}>} nunca lança.
  */
+const NADA = { ok: true, stopped: false };
 export async function shutdown(engine, { log = () => {}, timeoutMs = 5000, waitBusyMs = 120000 } = {}) {
   const path = engine.runtime?.shutdownPath;
-  if (!path) { return { ok: true, stopped: false }; }
+  if (!path) { return NADA; }
 
   // Runtime SEM gate de frescor: um motor que só escreve o arquivo no boot (caso do mcp-gateway)
   // seria considerado "morto" aqui e o shutdown viraria no-op — e aí o swap de arquivos falharia
   // no Windows com EPERM, exatamente o problema que esta função existe para evitar.
   const rt = readRuntime(engine);
-  if (!rt?.port) { return { ok: true, stopped: false }; } // nada vivo para derrubar
+  // Sem porta, ou com pid morto, não há o que derrubar: o token não deve ir a uma porta que pode ser de outro processo.
+  if (!rt?.port || (rt.pid && await waitExit(rt.pid, 0))) { return NADA; }
 
-  const headers = {};
-  const field = engine.runtime?.shutdownTokenField;
-  const header = engine.runtime?.shutdownTokenHeader;
-  if (field && header && rt[field]) { headers[header] = rt[field]; }
+  const { shutdownTokenField: field, shutdownTokenHeader: header } = engine.runtime;
+  const headers = field && header && rt[field] ? { [header]: rt[field] } : {};
 
   try {
     const res = await fetch(`http://127.0.0.1:${rt.port}${path}`, {
@@ -104,9 +104,8 @@ export async function shutdown(engine, { log = () => {}, timeoutMs = 5000, waitB
     if (!res.ok && !adiado) { return { ok: false, reason: `${engine.name}: shutdown respondeu HTTP ${res.status}` }; }
     log(`[engine-kit] ${engine.name}: shutdown pedido (pid ${rt.pid ?? "?"}, HTTP ${res.status})`);
     // O motor responde ANTES de sair. Sem esta espera, o swap ainda encontra o arquivo em uso.
-    await sleep(1500);
-    if (adiado && rt.pid && !(await waitExit(rt.pid, waitBusyMs))) {
-      return { ok: false, reason: `${engine.name}: ainda ocupado após ${waitBusyMs / 1000} s (fecha ao fim do trabalho em curso); rode de novo depois` };
+    if (rt.pid ? !(await waitExit(rt.pid, adiado ? waitBusyMs : 15000)) : await sleep(1500)) {
+      return { ok: false, reason: `${engine.name}: ainda ocupado após o pedido; rode de novo depois` };
     }
     return { ok: true, stopped: true };
   } catch (e) {

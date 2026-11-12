@@ -196,7 +196,8 @@
     <div class="passos">
       <div class="passo"><h3>Escolha o motor</h3><p>Cada motor tem a sua página ou a versão atual para baixar. Os que precisam de instalador trazem o próprio e se atualizam sozinhos.</p></div>
       <div class="passo"><h3>Instale pelo kit</h3><p>Um comando do npm, sem clonar nada, confere a assinatura do motor, instala e depois o mantém atualizado.</p><pre>npx engine-kit ensure vxk</pre></div>
-      <div class="passo"><h3>Controle a versão</h3><p>Para travar um motor na versão instalada use <code>pin</code>; para escolher uma versão, <code>--version x.y.z</code>. <code>ENGINE_KIT_NO_AUTO_UPDATE=1</code> desliga a atualização automática e deixa só o aviso.</p><pre>npx engine-kit pin vxk
+      <div class="passo"><h3>Controle a versão</h3><p>Para travar um motor na versão instalada use <code>pin</code>; para escolher uma versão, <code>--version x.y.z</code>. <code>ENGINE_KIT_NO_AUTO_UPDATE=1</code> desliga a atualização automática e deixa só o aviso. Para pedir que um motor se encerre, <code>stop</code>.</p><pre>npx engine-kit pin vxk
+npx engine-kit stop vxk
 npx engine-kit doctor</pre></div>
       <div class="passo"><h3>Use nos seus apps</h3><p>Os aplicativos e agentes encontram o motor que já está instalado e passam a compartilhá-lo. Atualizou? Todos recebem a nova versão ao mesmo tempo.</p></div>
     </div>

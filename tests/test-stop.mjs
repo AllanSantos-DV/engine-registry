@@ -70,6 +70,21 @@ const opts = (m) => ({ bundled: m, manifest: m });
 }
 
 {
+  const home = join(RUN, "home-orfao");
+  mkdirSync(join(home, "run"), { recursive: true });
+  const morto = spawn(process.execPath, ["-e", ""], { windowsHide: true, stdio: "ignore" });
+  await new Promise((r) => morto.on("close", r));
+  let pedidos = 0;
+  const { createServer } = await import("node:http");
+  const alheio = createServer((_q, res) => { pedidos++; res.end("x"); });
+  await new Promise((r) => alheio.listen(0, "127.0.0.1", r));
+  writeFileSync(join(home, "run", "daemon.json"), JSON.stringify({ port: alheio.address().port, pid: morto.pid, shutdownToken: "segredo" }));
+  const r = await stopCommand("fake-engine", opts(manifestWith(home, RUNTIME)));
+  alheio.close();
+  check("runtime órfão (pid morto) não envia o token à porta e diz que nada estava vivo", r.ok === true && r.stopped === false && pedidos === 0, `${JSON.stringify(r)} pedidos=${pedidos}`);
+}
+
+{
   const r = await stopCommand("fake-engine", opts(manifestWith(join(RUN, "home-sem-runtime"), undefined)));
   check("motor sem shutdownPath declarado é recusado com o motivo", r.ok === false && /não declara shutdownPath/.test(r.reason), r.reason);
 }

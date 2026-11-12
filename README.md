@@ -68,6 +68,8 @@ npx engine-kit ensure vxk --version 0.23.0    # versão exata (downgrade permiti
 npx engine-kit pin vxk                        # congela o vxk na versão instalada
 npx engine-kit pin vxk --version 0.22.0       # instala essa versão (assinatura conferida) e congela
 npx engine-kit unpin vxk                      # o vxk volta a receber atualizações
+npx engine-kit stop vxk                       # pede ao vxk que se encerre pelo shutdownPath do registry
+npx engine-kit ensure neural-link --register  # instala e também registra os hooks (config global do usuário)
 npx engine-kit fetch vxk                      # só baixa e confere (sha256 + Ed25519); nada é instalado
 npx engine-kit fetch agent-launcher           # idem para um app de `manifest.apps`
 ```
@@ -91,11 +93,11 @@ deixa só o aviso de versão nova disponível. `--version` explícito sempre val
 
 Desligar: `npx engine-kit stop <motor>` pede ao motor que se encerre pelo `shutdownPath` que o registry declara (o mesmo pedido
 que o kit faz antes de trocar a instalação); motor sem `shutdownPath` declarado é recusado com o motivo, e motor parado
-responde que não há nada vivo. O comando só desliga: não remove arquivos nem estado do usuário.
+(ou com o `runtime.json` apontando para um processo que já morreu) responde que não há nada vivo. O comando só desliga: não remove arquivos nem estado do usuário.
 
 Hooks do neural-link: `npx engine-kit ensure neural-link` só instala o dispatcher e avisa que nada foi registrado;
 `npx engine-kit ensure neural-link --register` também roda o `install()` do motor, que escreve a declaração de cada
-evento em `~/.copilot/hooks/` (config global do usuário). O registro é sempre um ato explícito.
+evento em `~/.copilot/hooks/` (config global do usuário). Na CLI o registro só acontece com `--register`; o adaptador de lib (`ensureNeuralLink`) registra a cada chamada.
 
 Pin por motor: `engine-kit pin <motor>` grava a versão fixada só desse motor no `trust.json` da máquina. A
 atualização automática (o `ensure`, o `doctor --fix` e o `ensureEngine` dos consumidores) pula os motores fixados e
@@ -264,8 +266,8 @@ kit/
   provision.mjs    # baixa/atualiza: SHA256 + assinatura fail-closed, lock e swap atômico
   lifecycle.mjs    # garante o processo vivo (daemon) ou entrega o binário (cli)
   trust.mjs        # trust.json por motor: chave do 1º contato, maior versão vista (anti-rollback) e o pin
-  cli.mjs          # comando `engine-kit` (bin do pacote): ensure, fetch, pin, unpin e doctor
-  ensure.mjs       # ensure, pin e unpin: resolve → provision com a chave do manifest embarcado no pacote
+  cli.mjs          # comando `engine-kit` (bin do pacote): ensure, fetch, pin, unpin, stop e doctor
+  ensure.mjs       # ensure, pin, unpin e stop: resolve → provision com a chave do manifest embarcado no pacote
   fetch.mjs        # fetch: baixa e confere motor ou app sem instalar
   doctor.mjs       # concilia a máquina inteira (OK, DESATUALIZADO, AUSENTE, FIXADO...); --fix aplica
   update.mjs       # o kit se atualiza (relança na última versão do npm); ENGINE_KIT_NO_AUTO_UPDATE=1 desliga
