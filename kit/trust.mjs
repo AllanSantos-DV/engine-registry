@@ -17,7 +17,7 @@
 //     TUF) fecha isso, e essa é decisão de produto — está registrada, não esquecida.
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, openSync, closeSync, unlinkSync, statSync } from "node:fs";
 
 // Lido a CADA chamada, não no import: assim um teste (ou um consumidor com HOME próprio) pode
 // isolar a raiz de confiança sem depender da ordem de carregamento dos módulos. Foi a própria
@@ -37,11 +37,31 @@ export function readTrust() {
   throw Error(`${f} ilegível: nada foi gravado; corrija-o ou apague-o de propósito (perde chaves e pins)`);
 }
 
-/** Grava a raiz de confiança inteira; lança se não conseguir. */
-export const saveTrust = (store) => {
+/**
+ * Lê, altera e grava a entrada de UM motor sob lock de arquivo, com escrita atômica (tmp + rename):
+ * processos concorrentes não perdem gravação e uma queda no meio não deixa `trust.json` pela metade.
+ * @param {string} name motor.
+ * @param {(entry:object|undefined)=>object} change recebe a entrada atual e devolve a nova.
+ * @returns {object} a entrada gravada; lança se não conseguir.
+ */
+export function updateEntry(name, change) {
   mkdirSync(trustDir(), { recursive: true });
-  writeFileSync(trustFile(), JSON.stringify(store, null, 2));
-};
+  const lock = `${trustFile()}.lock`;
+  for (let i = 0; ; i++) {
+    try { closeSync(openSync(lock, "wx")); break; }
+    catch (e) {
+      if ((e.code !== "EEXIST" && e.code !== "EPERM") || i > 250) { throw e; } // EPERM: Windows, lock em remoção
+      try { if (Date.now() - statSync(lock).mtimeMs > 10000) { unlinkSync(lock); } } catch { /* outro processo liberou */ }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+    }
+  }
+  try {
+    const store = readTrust(), next = change(store[name]), tmp = `${trustFile()}.${process.pid}.tmp`;
+    writeFileSync(tmp, JSON.stringify({ ...store, [name]: next }, null, 2));
+    renameSync(tmp, trustFile());
+    return next;
+  } finally { try { unlinkSync(lock); } catch { /* já liberado */ } }
+}
 
 /**
  * Confronta a chave que veio do registry com a raiz de confiança local.
@@ -67,7 +87,7 @@ export function checkTrust(engineName, publicKey, { trustedKeys } = {}) {
   if (known) return { ok: true, tofu: false };
 
   try {
-    saveTrust({ ...store, [engineName]: { publicKey, firstSeen: new Date().toISOString(), source: pinned ? "pinned" : "tofu" } });
+    updateEntry(engineName, (e) => (e?.publicKey ? e : { publicKey, firstSeen: new Date().toISOString(), source: pinned ? "pinned" : "tofu" }));
   } catch {
     // Não poder gravar a raiz não pode impedir a instalação — mas também não vira silêncio:
     // sem gravar, a próxima execução repete o TOFU (e o consumidor vê `tofu:true` de novo).
@@ -100,6 +120,6 @@ export function noteVersion(name, version) {
   const store = readTrust(), max = store[name]?.maxVersion;
   if (max && cmpVer(version, max) <= 0) return;
   try {
-    saveTrust({ ...store, [name]: { ...store[name], maxVersion: version } });
+    updateEntry(name, (e) => (e?.maxVersion && cmpVer(version, e.maxVersion) <= 0 ? e : { ...e, maxVersion: version }));
   } catch { /* sem gravar, a proteção vale a partir da próxima instalação */ }
 }

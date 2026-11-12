@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { resolve, fill } from "./resolve.mjs";
 import { provision, installedVersion, satisfiesPin } from "./provision.mjs";
 import { shutdown, stopEngine } from "./lifecycle.mjs";
-import { pinOf, readTrust, saveTrust } from "./trust.mjs";
+import { pinOf, readTrust, updateEntry } from "./trust.mjs";
 export { firstContactKeys } from "./trust.mjs";
 import { pointerOf } from "./diagnose.mjs";
 
@@ -104,10 +104,14 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
 /** Fixa (`version`) ou solta (null) um motor em trust.json; os outros motores não mudam. `was` = pin anterior. */
 function setPin(name, version) {
   try {
-    const store = readTrust(), entry = { ...store[name] }, was = entry.pin ?? null;
-    if (!version && !was) { return { ok: true, was }; }
-    if (version) { entry.pin = version; } else { delete entry.pin; }
-    saveTrust({ ...store, [name]: entry });
+    if (!version && !pinOf(name)) { return { ok: true, was: null }; }
+    let was = null;
+    updateEntry(name, (e) => {
+      const entry = { ...e };
+      was = entry.pin ?? null;
+      if (version) { entry.pin = version; } else { delete entry.pin; }
+      return entry;
+    });
     return { ok: true, was };
   } catch (e) {
     return { ok: false, reason: e.message };
