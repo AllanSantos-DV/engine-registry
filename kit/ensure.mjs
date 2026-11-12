@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { resolve, fill } from "./resolve.mjs";
 import { provision, installedVersion, satisfiesPin } from "./provision.mjs";
 import { shutdown, stopEngine } from "./lifecycle.mjs";
-import { pinOf, readTrust, updateEntry } from "./trust.mjs";
+import { pinOf, setPin } from "./trust.mjs";
 export { firstContactKeys } from "./trust.mjs";
 import { pointerOf } from "./diagnose.mjs";
 
@@ -107,23 +107,6 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
 const semMotor = (local, name, verbo) => (local.apps ?? []).some((a) => a.name === name)
   ? `"${name}" é app, não motor: o ${verbo} não se aplica → engine-kit fetch ${name} baixa e confere`
   : `motor "${name}" não está no manifest deste engine-kit → atualize o kit (npx engine-kit@latest ${verbo} ${name})`;
-
-/** Fixa (`version`) ou solta (null) um motor em trust.json; os outros motores não mudam. `was` = pin anterior. */
-function setPin(name, version) {
-  try {
-    if (!version && !pinOf(name)) { return { ok: true, was: null }; }
-    let was = null;
-    updateEntry(name, (e) => {
-      const entry = { ...e };
-      was = entry.pin ?? null;
-      if (version) { entry.pin = version; } else { delete entry.pin; }
-      return entry;
-    });
-    return { ok: true, was };
-  } catch (e) {
-    return { ok: false, reason: e.message };
-  }
-}
 
 /**
  * `engine-kit pin <motor> [--version x.y.z]`: congela UM motor. Sem `version`, fixa a versão instalada; com ela,

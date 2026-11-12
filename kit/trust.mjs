@@ -118,6 +118,26 @@ export function rollbackReason(name, version) {
 /** Versão em que o dono fixou o motor nesta máquina (`engine-kit pin`), ou undefined. */
 export const pinOf = (name) => readTrust()[name]?.pin;
 
+/**
+ * Fixa (`version`) ou solta (null) um motor em trust.json; os outros motores não mudam.
+ * @returns {{ok:true, was:string|null} | {ok:false, reason:string}} `was` = pin anterior; nunca lança.
+ */
+export function setPin(name, version) {
+  try {
+    if (!version && !pinOf(name)) { return { ok: true, was: null }; }
+    let was = null;
+    updateEntry(name, (e) => {
+      const entry = { ...e };
+      was = entry.pin ?? null;
+      if (version) { entry.pin = version; } else { delete entry.pin; }
+      return entry;
+    });
+    return { ok: true, was };
+  } catch (e) {
+    return { ok: false, reason: e.message };
+  }
+}
+
 /** Grava `version` como a maior vista do motor, se superar a registrada. */
 export function noteVersion(name, version) {
   const store = readTrust(), max = store[name]?.maxVersion;

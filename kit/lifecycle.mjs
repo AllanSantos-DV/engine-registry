@@ -54,7 +54,7 @@ export function readFreshRuntime(engine, { staleMs } = {}) {
  * motor certo — o healthCheck confere o nome). Runtime velho apontando para porta alheia
  * continua seguro: o handshake não reconhece e o fluxo segue para o spawn.
  */
-async function findAlive(engine, healthCheck) {
+export async function findAlive(engine, healthCheck) {
   const rt = readRuntime(engine);
   if (!rt) { return null; }
   let health = null;
@@ -91,9 +91,10 @@ async function portClosed(port, ms) {
  * @returns {Promise<{ok:true, stopped:boolean} | {ok:false, reason:string}>} nunca lança.
  */
 const NADA = { ok: true, stopped: false };
-export async function shutdown(engine, { log = () => {}, timeoutMs = 5000, waitBusyMs = 120000 } = {}) {
-  const path = engine.runtime?.shutdownPath;
-  if (!path) { return NADA; }
+export async function shutdown(engine, { log = () => {}, timeoutMs = 5000, waitBusyMs = 120000, semRelaunch = false } = {}) {
+  const declared = engine.runtime?.shutdownPath;
+  if (!declared) { return NADA; }
+  const path = semRelaunch ? declared.replace(/([?&])relaunch=1&?/, "$1").replace(/[?&]$/, "") : declared;
 
   // Runtime SEM gate de frescor: um motor que só escreve o arquivo no boot (caso do mcp-gateway)
   // seria considerado "morto" aqui e o shutdown viraria no-op — e aí o swap de arquivos falharia
@@ -138,7 +139,7 @@ export async function stopEngine(name, { registryUrl, manifest, log } = {}) {
     const por = r.engine.kind === "cli" ? "é kind=cli, roda por evento e não tem processo para desligar" : "o kit não sabe desligá-lo (quem o sobe é o consumidor ou o próprio motor)";
     return { ok: false, reason: `${name} não declara shutdownPath no registry: ${por}` };
   }
-  const s = await shutdown(r.engine, { log });
+  const s = await shutdown(r.engine, { log, semRelaunch: true });
   return s.ok && r.engine.staleCache ? { ...s, staleCache: true } : s;
 }
 

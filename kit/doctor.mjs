@@ -16,7 +16,7 @@ import { readFileSync, existsSync, readdirSync, statSync, rmSync } from "node:fs
 import { homedir } from "node:os";
 import { join, basename, dirname } from "node:path";
 import { resolve } from "./resolve.mjs";
-import { provision, satisfiesPin, installedVersion, LOCK_STALE_MS } from "./provision.mjs";
+import { provision, satisfiesPin, installedVersion, autoUpdateEnabled, LOCK_STALE_MS } from "./provision.mjs";
 import { shutdown } from "./lifecycle.mjs";
 import { lifeOf, pointerOf } from "./diagnose.mjs";
 import { pinOf, readTrust, firstContactKeys } from "./trust.mjs";
@@ -115,6 +115,8 @@ for (const name of names) {
   if (!useLocal && engine.offline) warns.push(engine.staleCache ? "registry fora do ar: descritor do cache vencido" : "registry não consultado nesta execução");
   const known = readTrust()[name]?.publicKey;
   if (known && engine.install.publicKey && known !== engine.install.publicKey) warns.push(`chave do registry ≠ chave gravada em trust.json: o próximo ensure/--fix aborta (rotação é ato explícito)`);
+  const first = !known && !registryUrl && firstContactKeys(name)?.[name];
+  if (first && engine.install.publicKey && first !== engine.install.publicKey) warns.push(`chave do registry ≠ chave embarcada no kit: o próximo ensure/--fix aborta já na primeira instalação (rotação chega com npx engine-kit@latest)`);
   const left = engine.status === "self-managed" ? [] : leftovers(engine);
   if (left.length) warns.push(`${left.length} sobra(s) de instalação interrompida em ${engine.homeDir}: doctor --fix as remove`);
   const hooks = name === "neural-link" ? hooksOf() : undefined;
@@ -166,6 +168,10 @@ console.log("\n-- aplicando (--fix) --");
 let failures = rows.filter((r) => r.state === "ERRO").length;
 for (const r of pending) {
   console.log(`\n${r.name}: ${r.detail}`);
+  if (r.state === "DESATUALIZADO" && !autoUpdateEnabled()) {
+    console.log(`  PULADO ${r.name} — ENGINE_KIT_NO_AUTO_UPDATE desliga a troca de versão; engine-kit ensure ${r.name} --version ${r.engine.version} atualiza de propósito`);
+    continue;
+  }
   const p = await provision(r.engine, {
     exact: Boolean(r.pin),
     trustedKeys: firstContactKeys(r.name),

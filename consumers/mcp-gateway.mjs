@@ -14,7 +14,7 @@
 //
 // Contrato: nunca lança.
 import { readFileSync, existsSync } from "node:fs";
-import { execFileSync } from "node:child_process";
+import { execFileSync, execFile } from "node:child_process";
 import { join, dirname, resolve as resolvePath, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
@@ -65,29 +65,66 @@ function configuredPort() {
  * @param {{home?:string, defaultHome?:string, env?:object, platform?:string, log?:(m:string)=>void}} [o]
  */
 export function readToken({ home = resolveHome(), defaultHome = DEFAULT_HOME, env = process.env, platform = process.platform, log = () => {} } = {}) {
-  const legacy = () => {
-    try { return readFileSync(join(home, "auth-token"), "utf8").trim() || null; } catch { return null; }
-  };
-  const isProd = platform === "win32" && resolvePath(home).toLowerCase() === resolvePath(defaultHome).toLowerCase();
-  if (!isProd) { return legacy(); }
-
-  const vaultDir = env.VAULT_DIR?.trim() || join(env.LOCALAPPDATA ?? join(homedir(), "AppData", "Local"), "Vault");
-  const blob = join(vaultDir, "MCP_GATEWAY_TOKEN.dpapi");
-  if (existsSync(blob)) {
-    const script = "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Security; " +
-      "$b=[IO.File]::ReadAllBytes($env:MCPGW_BLOB); [Console]::Out.Write([Text.Encoding]::UTF8.GetString([Security.Cryptography.ProtectedData]::Unprotect($b,[Text.Encoding]::UTF8.GetBytes('vault.ps1/v1'),'CurrentUser')))";
+  const p = tokenPlan({ home, defaultHome, env, platform });
+  if (p.blob) {
     try {
-      const out = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
-        windowsHide: true, encoding: "utf8", timeout: 20000, stdio: ["ignore", "pipe", "pipe"], env: { ...env, MCPGW_BLOB: blob },
-      }).trim();
+      const [cmd, args, opts] = p.cmd;
+      const out = execFileSync(cmd, args, { ...opts, windowsHide: true, encoding: "utf8", timeout: 20000, stdio: ["ignore", "pipe", "pipe"] }).trim();
       if (out) { return out; }
     } catch (e) {
       log(`mcp-gateway: cofre do token ilegível: ${String(e.message).split("\n")[0]}`);
       return null;
     }
   }
-  return env.MCP_GATEWAY_TOKEN?.trim() || legacy();
+  return p.fallback();
 }
+
+/** Onde o token mora (cofre DPAPI só no HOME de produção do Windows) e o comando que o abre, sem executar nada. */
+function tokenPlan({ home, defaultHome, env, platform }) {
+  const legacy = () => {
+    try { return readFileSync(join(home, "auth-token"), "utf8").trim() || null; } catch { return null; }
+  };
+  const isProd = platform === "win32" && resolvePath(home).toLowerCase() === resolvePath(defaultHome).toLowerCase();
+  const vaultDir = env.VAULT_DIR?.trim() || join(env.LOCALAPPDATA ?? join(homedir(), "AppData", "Local"), "Vault");
+  const blob = join(vaultDir, "MCP_GATEWAY_TOKEN.dpapi");
+  if (!isProd) { return { fallback: legacy }; }
+  const script = "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Security; " +
+    "$b=[IO.File]::ReadAllBytes($env:MCPGW_BLOB); [Console]::Out.Write([Text.Encoding]::UTF8.GetString([Security.Cryptography.ProtectedData]::Unprotect($b,[Text.Encoding]::UTF8.GetBytes('vault.ps1/v1'),'CurrentUser')))";
+  return {
+    blob: existsSync(blob),
+    cmd: ["powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { env: { ...env, MCPGW_BLOB: blob } }],
+    fallback: () => env.MCP_GATEWAY_TOKEN?.trim() || legacy(),
+  };
+}
+
+/**
+ * Mesma regra de {@link readToken}, sem bloquear o event loop: o PowerShell do cofre roda assíncrono e, passado
+ * `timeoutMs`, o token vira null com o motivo em `log` (a ativação do host não espera um cofre que não responde).
+ * @param {{home?:string, defaultHome?:string, env?:object, platform?:string, log?:(m:string)=>void, timeoutMs?:number,
+ *   run?:(cmd:string, args:string[], opts:object)=>Promise<string>}} [o] `run` é injetável (testes).
+ */
+export async function readTokenAsync({ home = resolveHome(), defaultHome = DEFAULT_HOME, env = process.env, platform = process.platform, log = () => {}, timeoutMs = 5000, run = runPowershell } = {}) {
+  const p = tokenPlan({ home, defaultHome, env, platform });
+  if (p.blob) {
+    const [cmd, args, opts] = p.cmd;
+    let timer;
+    try {
+      const out = (await Promise.race([
+        run(cmd, args, { ...opts, timeout: timeoutMs }),
+        new Promise((_, no) => { timer = setTimeout(() => no(Error(`sem resposta em ${timeoutMs}ms`)), timeoutMs); }),
+      ])).trim();
+      if (out) { return out; }
+    } catch (e) {
+      log(`mcp-gateway: cofre do token ilegível: ${String(e.message).split("\n")[0]}`);
+      return null;
+    } finally { clearTimeout(timer); }
+  }
+  return p.fallback();
+}
+
+const runPowershell = (cmd, args, opts) => new Promise((ok, no) => {
+  execFile(cmd, args, { windowsHide: true, encoding: "utf8", ...opts }, (e, out) => (e ? no(e) : ok(out)));
+});
 
 /**
  * Handshake do gateway: confirma que quem atende na porta é MESMO este motor e já está
@@ -117,7 +154,7 @@ export async function onBeforeReplace({ home = resolveHome(), drainMs = 60000, r
   let rt;
   try { rt = JSON.parse(readFileSync(join(home, "runtime.json"), "utf8")); } catch { return; }
   if (!rt?.pid) { return; }
-  const token = readToken({ home, log });
+  const token = await readTokenAsync({ home, log });
   try {
     const res = await fetch(`http://127.0.0.1:${rt.port}/admin/drain`, {
       method: "POST",
@@ -200,7 +237,7 @@ export async function ensureGateway({ log = () => {}, version, allowNetwork = tr
   if (!r.available) { return r; }
 
   const port = r.health.port ?? configuredPort();
-  const token = readToken({ log });
+  const token = await readTokenAsync({ log });
   return {
     available: true,
     url: `http://127.0.0.1:${port}/mcp`,
@@ -208,6 +245,7 @@ export async function ensureGateway({ log = () => {}, version, allowNetwork = tr
     ...(token ? {} : { tokenReason: "token do gateway não encontrado (cofre, MCP_GATEWAY_TOKEN, auth-token no HOME do motor); o /mcp pode responder 401" }),
     version: r.engine.installedVersion,
     ...(r.engine.staleCache ? { staleCache: true } : {}),
+    ...(r.engine.registryReason ? { registryReason: r.engine.registryReason } : {}),
     ...(r.engine.updateAvailable ? { updateAvailable: r.engine.updateAvailable } : {}),
     port,
     backends: r.health.backends ?? [],

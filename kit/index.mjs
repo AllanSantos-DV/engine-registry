@@ -20,11 +20,30 @@ export {
 export { SIGNING_DIR, keyPathFor } from "./keystore.mjs";
 
 import { resolve } from "./resolve.mjs";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { provision, satisfiesPin, installedVersion, autoUpdateEnabled } from "./provision.mjs";
-import { lifecycle } from "./lifecycle.mjs";
-import { pinOf } from "./trust.mjs";
+import { lifecycle, findAlive } from "./lifecycle.mjs";
+import { pinOf, setPin } from "./trust.mjs";
+
+/**
+ * Solta o pin do motor (`engine-kit pin`): volta a receber atualizações. Nunca lança.
+ * @returns {{ok:true, was:string|null} | {ok:false, reason:string}} `was` = pin anterior.
+ */
+export const unpin = (name) => setPin(name, null);
+
+/** Registry fora e sem cache: um motor já vivo continua atendendo, descrito pelo manifest embarcado. */
+async function vivoSemRegistry(name, healthCheck, reason) {
+  if (typeof healthCheck !== "function") { return null; }
+  try {
+    const { engine } = await resolve(name, { manifest: JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8")) });
+    if (!engine) { return null; }
+    const alive = await findAlive(engine, healthCheck);
+    if (!alive) { return null; }
+    const dir = join(engine.homeDir, engine.install.extractTo ?? "bin");
+    return { available: true, ...alive, engine: { ...engine, installedVersion: installedVersion(dir), registryReason: reason } };
+  } catch { return null; }
+}
 
 /**
  * RESOLVE → PROVISION → LIFECYCLE numa chamada: o caminho que 99% dos consumidores querem.
@@ -55,7 +74,7 @@ export async function ensureEngine(name, opts = {}) {
     return { available: false, reason: `${name} fixado em v${pin}; o consumidor pede v${version} → engine-kit unpin ${name}` };
   }
   const r = await resolve(name, { version: pin ?? version, allowNetwork, registryUrl, refresh });
-  if (!r.ok) { return { available: false, reason: r.reason }; }
+  if (!r.ok) { return await vivoSemRegistry(name, healthCheck, r.reason) ?? { available: false, reason: r.reason }; }
 
   const entryPath = join(r.engine.homeDir, r.engine.install.entry);
   const previous = existsSync(entryPath) ? installedVersion(join(r.engine.homeDir, r.engine.install.extractTo ?? "bin")) : null;
@@ -71,5 +90,7 @@ export async function ensureEngine(name, opts = {}) {
   const l = await lifecycle(r.engine, entryPath, { healthCheck, log, bootTimeoutMs, env });
   if (!l.available) { return l; }
 
-  return { ...l, engine: { ...r.engine, installedVersion: installed, ...(updateAvailable ? { updateAvailable } : {}) } };
+  const tofu = registryUrl && !trustedKeys?.[name];
+  return { ...l, engine: { ...r.engine, installedVersion: installed, ...(updateAvailable ? { updateAvailable } : {}),
+    ...(tofu ? { trust: "tofu", trustHint: `registry próprio sem chave fixada: a chave da 1ª instalação é gravada; passe trustedKeys: { "${name}": "<chave>" } para não depender dela` } : {}) } };
 }

@@ -95,10 +95,15 @@ const ROOT = resolvePath(KIT, "..");
 //   Ferramental, +1.6 KB: o CLI recusa flag que o verbo não aceita, o `fetch` confere a versão dentro do artefato `.tgz` e avisa registry
 //   fora do ar, e o `doctor` não diz "conciliado" com motor em ERRO e fixa a chave do pacote no `--fix`; o `ensure` com atualização desligada e o `pin` avisam
 //   cache vencido, e recusa de app diz que é app. Adaptador do gateway: devolve `updateAvailable`. Nenhum código funcional foi cortado.
+//   2026-11-12 runtime 32000 → 33600, tooling 51600 → 51900 e adapter 6200 → 7500: decisões do dono sobre o ciclo de vida e a leitura do token. Runtime, +1.4 KB:
+//   o `ensureEngine` segue servindo o motor vivo quando o registry está fora e não há cache (descritor embarcado), avisa TOFU em registry próprio e a lib exporta `unpin`;
+//   `shutdown` aceita `semRelaunch` para o `stop` não relançar o harness. Ferramental, +0.2 KB: o doctor avisa chave do registry ≠ chave embarcada. Adaptador do gateway, +1.2 KB:
+//   o token passa a ser lido de forma assíncrona e com limite de tempo (`readTokenAsync`), sem bloquear a ativação do host; `readToken` síncrono segue exportado. Nenhum código funcional foi cortado.
+//   2026-11-12 tooling 51900 → 52200: o `doctor --fix` passou a respeitar `ENGINE_KIT_NO_AUTO_UPDATE` (pula o motor desatualizado, como o `ensure` e a lib). Nenhum código funcional foi cortado.
 const BUDGETS = {
-  runtime: { codeBytes: 32000, baseline: 24519, loc: 900 },
-  tooling: { codeBytes: 51600, baseline: 16420, loc: 1050 },
-  adapter: { codeBytes: 6200, baseline: 1859, loc: 150 },
+  runtime: { codeBytes: 33600, baseline: 24519, loc: 900 },
+  tooling: { codeBytes: 52200, baseline: 16420, loc: 1050 },
+  adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 
 // `split("\n")` num arquivo terminado em newline devolve um elemento vazio no fim — linha

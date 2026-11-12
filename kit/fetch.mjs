@@ -6,8 +6,9 @@
 // executado, e o HOME do motor não é tocado. NUNCA lança: devolve { ok, reason }.
 import { resolve } from "./resolve.mjs";
 import { fetchArtifact, extractTgz, installedVersion } from "./provision.mjs";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { verifyAppRelease, findApp } from "./app-release.mjs";
 import { bundledManifest } from "./ensure.mjs";
@@ -20,13 +21,20 @@ import { pinOf } from "./trust.mjs";
  */
 function versaoDivergente(arquivo, engine) {
   if (!/\.(tgz|tar\.gz)$/i.test(arquivo)) { return null; }
-  const tmp = mkdtempSync(join(tmpdir(), "engine-kit-fetch-"));
-  try {
-    const ex = extractTgz(arquivo, tmp);
-    if (!ex.ok) { return `${engine.name}: ${ex.reason}`; }
-    const got = installedVersion(tmp);
-    return got === engine.version ? null : `${engine.name}: o artefato diz v${got ?? "? (package.json ausente/ilegível)"} e o registry pede v${engine.version} → ABORT (arquivo removido)`;
-  } finally { rmSync(tmp, { recursive: true, force: true }); }
+  const dir = join(process.env.LOCALAPPDATA || join(homedir(), ".cache"), "engine-kit", "verify", `${engine.name}-${engine.version}`);
+  const marker = join(dir, ".sha256");
+  const hash = createHash("sha256").update(readFileSync(arquivo)).digest("hex");
+  let feito = false;
+  try { feito = readFileSync(marker, "utf8") === hash; } catch { /* sem marcador: extrai */ }
+  if (!feito) {
+    rmSync(dir, { recursive: true, force: true });
+    mkdirSync(dir, { recursive: true });
+    const ex = extractTgz(arquivo, dir);
+    if (!ex.ok) { rmSync(dir, { recursive: true, force: true }); return `${engine.name}: ${ex.reason}`; }
+    writeFileSync(marker, hash);
+  }
+  const got = installedVersion(dir);
+  return got === engine.version ? null : `${engine.name}: o artefato diz v${got ?? "? (package.json ausente/ilegível)"} e o registry pede v${engine.version} → ABORT (arquivo removido)`;
 }
 
 /**

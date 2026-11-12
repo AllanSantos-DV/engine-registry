@@ -15,9 +15,9 @@
 //
 // Contrato: nunca lança.
 import { ensureEngine } from "../kit/index.mjs";
-import { registerNeuralLink } from "../kit/register.mjs";
+import { registerNeuralLink, unregisterNeuralLink } from "../kit/register.mjs";
 
-export { registerNeuralLink };
+export { registerNeuralLink, unregisterNeuralLink };
 
 /** Pin default: última versão do neural-link confirmada publicada no manifest deste kit. */
 const DEFAULT_PIN = "0.7.16";
