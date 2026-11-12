@@ -90,7 +90,7 @@ conhece é recusado (`npx engine-kit@latest ensure <motor>` traz o kit novo). Mo
 Atualização automática, ligada por padrão: o kit consulta a última versão no npm e, se houver uma nova, roda o
 mesmo comando nela (o `npx` sem versão reusaria a da cache); o motor instalado é atualizado para a versão do
 registry, com o aviso `motor atualizado: <motor> vA → vB`. `ENGINE_KIT_NO_AUTO_UPDATE=1` desliga as duas trocas e
-deixa só o aviso de versão nova disponível. `--version` explícito sempre vale.
+deixa só o aviso de versão nova disponível; `ensureEngine` respeita a mesma variável e devolve a versão nova em `engine.updateAvailable`. `--version` explícito sempre vale.
 
 Desligar: `npx engine-kit stop <motor>` pede ao motor que se encerre pelo `shutdownPath` que o registry declara (o mesmo pedido
 que o kit faz antes de trocar a instalação); motor sem `shutdownPath` declarado é recusado com o motivo, e motor parado
@@ -251,7 +251,7 @@ assim:
 |---|---|---|
 | **TOFU** (padrão, automático) | a chave do 1º contato é gravada em `~/.engine-kit/trust.json`; qualquer troca depois = **ABORT** | repo comprometido **depois** da adoção — o caso realista |
 | **Pin do consumidor** | `ensureEngine(nome, { trustedKeys: { "<motor>": "<hex>" } })`; divergência = **ABORT** já no 1º contato | não depende do registry em momento nenhum (padrão do `vox-engine`) |
-| **Chave no pacote** (`npx engine-kit ensure`, `ensureEngine`, `provision` e `fetchArtifact` no registry público) | o comando e a lib fixam a chave do `manifest.json` embarcado no pacote do npm; motor que o pacote não conhece, ou manifest embarcado ilegível, é recusado sem `trustedKeys` (registry próprio segue em TOFU) | registry comprometido **antes** do 1º contato: trocar a chave exige publicar um engine-kit novo, e a publicação deixa proveniência pública |
+| **Chave no pacote** (`npx engine-kit ensure`/`fetch`/`pin`, mesmo com `--registry-url`; `ensureEngine`, `provision` e `fetchArtifact` no registry público) | o comando e a lib fixam a chave do `manifest.json` embarcado no pacote do npm; motor que o pacote não conhece, ou manifest embarcado ilegível, é recusado sem `trustedKeys`. Só a lib em registry próprio (`registryUrl`) segue em TOFU | registry comprometido **antes** do 1º contato: trocar a chave exige publicar um engine-kit novo, e a publicação deixa proveniência pública |
 
 Rotação legítima é **ato explícito**: apagar a entrada em `~/.engine-kit/trust.json`. Um `trust.json` que existe e
 não se lê falha fechado: `ensure`, `pin`, `unpin`, `ensureEngine` e o doctor recusam explicando e não regravam o arquivo,
