@@ -33,7 +33,20 @@ const publico = await ensureEngine("neural-link", { fetcher });
 check("registry público: chave do registry ≠ chave do pacote é ABORT sem o consumidor fixar nada", publico.available === false && /FIXADA/.test(publico.reason), publico.reason);
 
 const fora = await ensureEngine("motor-fora-do-pacote", { fetcher });
-check("motor fora do manifest do pacote segue em TOFU (sem chave fixada)", fora.available === false && !/FIXADA/.test(fora.reason), fora.reason);
+check("motor fora do manifest do pacote não instala no registry público sem trustedKeys", fora.available === false && /não está no manifest embarcado/.test(fora.reason), fora.reason);
+
+const { resolve } = await import("../kit/resolve.mjs");
+const { provision, fetchArtifact } = await import("../kit/provision.mjs");
+const publica = (await resolve("neural-link")).engine;
+const viaProvision = await provision(publica, { fetcher });
+check("provision direto aplica a chave do pacote no registry público", viaProvision.ok === false && /FIXADA/.test(viaProvision.reason), viaProvision.reason);
+const viaFetch = await fetchArtifact(publica, { fetcher, destDir: join(ROOT, "fetch-dest") });
+check("fetchArtifact direto aplica a chave do pacote no registry público", viaFetch.ok === false && /FIXADA/.test(viaFetch.reason), viaFetch.reason);
+const viaFetchFora = await fetchArtifact((await resolve("motor-fora-do-pacote")).engine, { fetcher, destDir: join(ROOT, "fetch-dest") });
+check("fetchArtifact de motor fora do pacote recusa sem trustedKeys", viaFetchFora.ok === false && /não está no manifest embarcado/.test(viaFetchFora.reason), viaFetchFora.reason);
+const semRegistroPublico = (await resolve("motor-fora-do-pacote", { manifest })).engine;
+const viaProprio = await provision(semRegistroPublico, { fetcher });
+check("manifest entregue na mão não recebe a chave do pacote (segue TOFU)", !/manifest embarcado/.test(viaProprio.reason ?? ""), viaProprio.reason);
 
 const registry = createServer((_q, res) => res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(manifest)));
 await new Promise((r) => registry.listen(0, "127.0.0.1", r));

@@ -77,12 +77,10 @@ export function checkTrust(engineName, publicKey, { trustedKeys } = {}) {
 
 export const trustPath = trustFile;
 
-/** Chave do primeiro contato: a do manifest embarcado no pacote, só no registry público. Nunca lança. */
+/** Chave do primeiro contato: a do manifest embarcado no pacote, só no registry público. Lança se esse manifest for ilegível. */
 export function firstContactKeys(name, registryUrl) {
-  try {
-    const key = !registryUrl && JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8")).engines.find((e) => e.name === name)?.install?.publicKey;
-    if (key) return { [name]: key };
-  } catch {}
+  const key = !registryUrl && JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8")).engines.find((e) => e.name === name)?.install?.publicKey;
+  if (key) return { [name]: key };
 }
 
 /** Compara versões `x.y.z` numericamente: negativo, zero ou positivo. */

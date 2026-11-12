@@ -111,6 +111,8 @@ export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowN
       checksumUrl: `${base}/${fill(found.install.checksum, { ...vars, asset })}`,
       signatureName: sigName,
       signatureUrl: `${base}/${sigName}`,
+      /** true = o descritor veio do registry público (nem manifest entregue, nem `registryUrl` próprio). */
+      publicRegistry: !given && registryUrl === DEFAULT_REGISTRY_URL,
       /** true = o descritor veio de um cache VENCIDO porque o registry não respondeu. */
       staleCache: degraded,
       /** true = esta resolução não falou com o registry (cache fresco, sem rede, ou falha). */

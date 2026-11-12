@@ -12,7 +12,7 @@ import { join, dirname } from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { verifyBlob, DEFAULT_ALGORITHM } from "./signature.mjs";
-import { checkTrust, trustPath, cmpVer, rollbackReason, noteVersion } from "./trust.mjs";
+import { checkTrust, trustPath, cmpVer, rollbackReason, noteVersion, firstContactKeys } from "./trust.mjs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -131,6 +131,11 @@ async function verifyAuthenticity(engine, blob, { log, fetcher, trustedKeys }) {
   const publicKey = engine.install?.publicKey;
   const required = engine.install?.signatureRequired === true;
   const algorithm = engine.install?.signatureAlgorithm ?? DEFAULT_ALGORITHM;
+
+  if (publicKey && engine.publicRegistry && !trustedKeys?.[engine.name]) {
+    try { trustedKeys = firstContactKeys(engine.name); } catch (e) { return { ok: false, reason: `${engine.name}: manifest embarcado ilegível (${e.message})` }; }
+    if (!trustedKeys) { return { ok: false, reason: `${engine.name} não está no manifest embarcado deste engine-kit, então não há chave do primeiro contato → atualize o kit ou fixe a chave (trustedKeys)` }; }
+  }
 
   if (!publicKey) {
     // Chave fixada pelo consumidor e registry sem chave: tirar a publicKey do manifest não pode
