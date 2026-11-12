@@ -151,6 +151,25 @@ console.log("== engine-kit fetch ==\n");
 }
 
 {
+  console.log("\n-- --dest dentro do home do motor --");
+  const home = join(RUN, "home-dest-proibido"), m = manifestWith(owner.publicKeyHex, home);
+  const dentro = await fetchCommand("fake-engine", { bundled: m, manifest: m, fetcher: serve(), destDir: join(home, "sub") });
+  check("recusa --dest dentro do home do motor: o doctor --fix apagaria o artefato como sobra", !dentro.ok && /dentro do home de fake-engine/.test(dentro.reason) && !existsSync(join(home, "sub")), dentro.ok ? "aceitou" : dentro.reason);
+  const igual = await fetchCommand("fake-engine", { bundled: m, manifest: m, fetcher: serve(), destDir: home });
+  check("recusa --dest igual ao home do motor", !igual.ok && /dentro do home/.test(igual.reason), igual.ok ? "aceitou" : igual.reason);
+  const irmao = await fetchCommand("fake-engine", { bundled: m, manifest: m, fetcher: serve(), destDir: join(RUN, "home-dest-proibido-irmao") });
+  check("aceita --dest numa pasta de nome parecido, fora do home", irmao.ok === true, irmao.ok ? "" : irmao.reason);
+}
+
+{
+  console.log("\n-- motor sem release --");
+  const m = manifestWith(owner.publicKeyHex);
+  m.engines[0].status = "pending-release";
+  const r = await fetchCommand("fake-engine", { bundled: m, manifest: m, fetcher: serve(), destDir: dest() });
+  check("motor pending-release é recusado com a mensagem clara, sem tentar baixar", !r.ok && /ainda não publicou release/.test(r.reason), r.ok ? "aceitou" : r.reason);
+}
+
+{
   console.log("\n-- app com --registry-url --");
   const r = await fetchCommand("fake-app", { bundled: manifestWith(owner.publicKeyHex), registryUrl: "http://127.0.0.1:1/manifest.json", appGet: serve(), destDir: dest() });
   check("recusa: o app vem só do manifest embarcado, o registry informado seria ignorado em silêncio", !r.ok && /--registry-url/.test(r.reason), r.ok ? "aceitou e ignorou" : r.reason);

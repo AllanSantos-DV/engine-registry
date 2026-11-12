@@ -4,6 +4,7 @@
 // pacote. Motor: resolve no registry e `fetchArtifact` (sha256 + Ed25519 fail-closed). App: os assets do descritor
 // embarcado, conferidos por `verifyAppRelease`. O que passou na conferência vai para `destDir`; nada é extraído nem
 // executado, e o HOME do motor não é tocado. NUNCA lança: devolve { ok, reason }.
+import { resolve as resolvePath, relative, isAbsolute } from "node:path";
 import { resolve } from "./resolve.mjs";
 import { fetchArtifact } from "./provision.mjs";
 import { verifyAppRelease, findApp } from "./app-release.mjs";
@@ -37,7 +38,12 @@ export async function fetchCommand(name, { version, registryUrl, destDir = proce
       return { ok: false, reason: `${name} está fixado em v${pin} → engine-kit pin ${name} --version ${version} troca a versão fixada; engine-kit unpin ${name} solta` };
     }
     const r = await resolve(name, { version: version ?? pin, registryUrl, refresh: true, ...(manifest ? { manifest } : {}) });
+    if (r.ok && r.engine.status === "pending-release") { return { ok: false, reason: `${name} ainda não publicou release (status: pending-release)` }; }
     if (!r.ok) { return { ok: false, reason: r.reason }; }
+    const dentro = relative(resolvePath(r.engine.homeDir), resolvePath(destDir));
+    if (!dentro.startsWith("..") && !isAbsolute(dentro)) {
+      return { ok: false, reason: `--dest ${destDir} está dentro do home de ${name} (${r.engine.homeDir}): o doctor --fix trata o artefato ali como sobra de instalação e o apagaria → escolha outra pasta` };
+    }
     const f = await fetchArtifact(r.engine, { log, destDir, trustedKeys: { [name]: publicKey }, ...(fetcher ? { fetcher } : {}) });
     return f.ok ? { ok: true, kind: "engine", version: f.version, files: [{ path: f.path, signed: f.signed }] } : f;
   }
