@@ -42,7 +42,7 @@ const DEFAULT_PIN = "0.7.16";
  *        neural-link já instalado que satisfaça o pin, reusa sem tocar rede (comportamento do
  *        próprio `provision()` — não há necessidade de um caminho manual separado: o kit já
  *        reusa QUALQUER instalação existente que satisfaça o pin antes de olhar para a rede).
- * @returns {Promise<{available:true, entryPath:string, version:string, registered:object|null, staleCache?:true}
+ * @returns {Promise<{available:true, entryPath:string, version:string, registered:object|null, registerError?:string, staleCache?:true}
  *                  | {available:false, reason:string}>}
  */
 export async function ensureNeuralLink({ version = DEFAULT_PIN, log = () => {}, allowNetwork = true, registryUrl, refresh, fetcher, trustedKeys } = {}) {
@@ -50,11 +50,12 @@ export async function ensureNeuralLink({ version = DEFAULT_PIN, log = () => {}, 
   if (!r.available) { return r; }
 
   const entryPath = r.bin;
-  let registered = null;
+  let registered = null, registerError;
   try {
     registered = await registerNeuralLink(entryPath);
     log(`[engine-kit] neural-link: install() rodou — ${registered.written?.length ?? 0} declarado(s), ${registered.companions?.selados?.length ?? 0} companion(s) selado(s)`);
   } catch (e) {
+    registerError = e?.message || String(e);
     // O dispatcher está presente e é invocável por evento mesmo se o `install()` falhar aqui
     // (ex.: permissão de escrita no config, layout inesperado do binário) — não travamos a
     // extensão por isso; só sinalizamos que o registro pode não ter acontecido.
@@ -66,6 +67,7 @@ export async function ensureNeuralLink({ version = DEFAULT_PIN, log = () => {}, 
     entryPath,
     version: r.engine?.installedVersion ?? version,
     registered,
+    ...(registerError ? { registerError } : {}),
     ...(r.engine?.staleCache ? { staleCache: true } : {}),
   };
 }

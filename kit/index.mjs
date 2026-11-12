@@ -20,7 +20,9 @@ export {
 export { SIGNING_DIR, keyPathFor } from "./keystore.mjs";
 
 import { resolve } from "./resolve.mjs";
-import { provision, satisfiesPin } from "./provision.mjs";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { provision, satisfiesPin, installedVersion, autoUpdateEnabled } from "./provision.mjs";
 import { lifecycle } from "./lifecycle.mjs";
 import { pinOf } from "./trust.mjs";
 
@@ -30,9 +32,11 @@ import { pinOf } from "./trust.mjs";
  * @param {object} opts
  * @param {(runtime:object)=>Promise<object|null>} opts.healthCheck validação de saúde/protocolo (obrigatória).
  * @param {string=} opts.version versão-alvo do descritor (default: a do registry); uma instalada da mesma major e
- *        igual ou maior é reusada. Motor fixado pelo dono (`engine-kit pin`) fica na versão exata fixada; se ela
- *        difere da pedida, `available:false`.
+ *        igual ou maior é reusada. Motor fixado pelo dono (`engine-kit pin`) fica na versão exata fixada; o pin só atende
+ *        a versão pedida da mesma major e igual ou menor que ele (outra major, ou maior que o pin, é `available:false`).
  * @param {boolean=} opts.allowNetwork permite baixar/atualizar (default true).
+ * Com `ENGINE_KIT_NO_AUTO_UPDATE` ligado (no process.env ou em `opts.env`) e sem `version`, um motor já instalado de versão menor
+ *        que a do registry segue em uso e `engine.updateAvailable` traz a versão nova.
  * @param {Record<string,string>=} opts.trustedKeys chaves públicas FIXADAS pelo consumidor
  *        (`{ "<motor>": "<hex>" }`). Divergência com o registry = ABORT. Default no registry público: a chave do
  *        manifest embarcado no pacote; motor fora dele não instala sem `trustedKeys`. Com `registryUrl` próprio vale TOFU:
@@ -53,11 +57,19 @@ export async function ensureEngine(name, opts = {}) {
   const r = await resolve(name, { version: pin ?? version, allowNetwork, registryUrl, refresh });
   if (!r.ok) { return { available: false, reason: r.reason }; }
 
-  const p = await provision(r.engine, { log, allowNetwork, onBeforeReplace, trustedKeys, exact: Boolean(pin), ...(fetcher ? { fetcher } : {}) });
-  if (!p.ok) { return { available: false, reason: p.reason }; }
+  const entryPath = join(r.engine.homeDir, r.engine.install.entry);
+  const previous = existsSync(entryPath) ? installedVersion(join(r.engine.homeDir, r.engine.install.extractTo ?? "bin")) : null;
+  const keep = !autoUpdateEnabled({ ...process.env, ...env }) && !version && !pin && previous && !satisfiesPin(previous, r.engine.version);
+  let installed = previous, updateAvailable;
+  if (keep) { updateAvailable = r.engine.version; }
+  else {
+    const p = await provision(r.engine, { log, allowNetwork, onBeforeReplace, trustedKeys, exact: Boolean(pin), ...(fetcher ? { fetcher } : {}) });
+    if (!p.ok) { return { available: false, reason: p.reason }; }
+    installed = p.version;
+  }
 
-  const l = await lifecycle(r.engine, p.entryPath, { healthCheck, log, bootTimeoutMs, env });
+  const l = await lifecycle(r.engine, entryPath, { healthCheck, log, bootTimeoutMs, env });
   if (!l.available) { return l; }
 
-  return { ...l, engine: { ...r.engine, installedVersion: p.version } };
+  return { ...l, engine: { ...r.engine, installedVersion: installed, ...(updateAvailable ? { updateAvailable } : {}) } };
 }

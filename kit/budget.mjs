@@ -90,10 +90,15 @@ const ROOT = resolvePath(KIT, "..");
 //   rename atômico para trust.json, que três caminhos gravavam sem exclusão), cache do descritor por registry, sondagem da porta
 //   quando o runtime não traz pid, `mkdir` do home com falha explícita e a recusa de destino dentro do home passando para
 //   `fetchArtifact` (saiu do fetch.mjs; o ferramental encolheu), o lock de provision que confere a major, o TOFU que vira ABORT se outro processo gravou outra chave e o runtime sem pid só valendo fresco. Nenhum código funcional foi cortado.
+//   2026-11-12 runtime 31000 → 32000, tooling 49200 → 51600 e adapter 6100 → 6200: defeitos com resposta óbvia. Runtime, +0.8 KB: `ensureEngine` respeita
+//   `ENGINE_KIT_NO_AUTO_UPDATE` (o README já dizia que valia) e devolve `engine.updateAvailable`, e `stopEngine` sinaliza `staleCache`.
+//   Ferramental, +1.6 KB: o CLI recusa flag que o verbo não aceita, o `fetch` confere a versão dentro do artefato `.tgz` e avisa registry
+//   fora do ar, e o `doctor` não diz "conciliado" com motor em ERRO e fixa a chave do pacote no `--fix`; o `ensure` com atualização desligada e o `pin` avisam
+//   cache vencido, e recusa de app diz que é app. Adaptador do gateway: devolve `updateAvailable`. Nenhum código funcional foi cortado.
 const BUDGETS = {
-  runtime: { codeBytes: 31000, baseline: 24519, loc: 900 },
-  tooling: { codeBytes: 49200, baseline: 16420, loc: 1050 },
-  adapter: { codeBytes: 6100, baseline: 1859, loc: 150 },
+  runtime: { codeBytes: 32000, baseline: 24519, loc: 900 },
+  tooling: { codeBytes: 51600, baseline: 16420, loc: 1050 },
+  adapter: { codeBytes: 6200, baseline: 1859, loc: 150 },
 };
 
 // `split("\n")` num arquivo terminado em newline devolve um elemento vazio no fim — linha

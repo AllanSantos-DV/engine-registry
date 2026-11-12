@@ -9,13 +9,14 @@
 //
 //   node tests/test-fetch.mjs
 import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync } from "node:fs";
-import { spawnSync } from "node:child_process";
+import { spawnSync, execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { generateKeyPairHex, signBlob } from "../kit/index.mjs";
 import { fetchCommand } from "../kit/fetch.mjs";
+import { tarBinary } from "../kit/provision.mjs";
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -30,7 +31,14 @@ process.env.ENGINE_KIT_HOME = join(RUN, "trust-home");
 
 const sha256 = (b) => createHash("sha256").update(b).digest("hex");
 const owner = generateKeyPairHex();
-const ENGINE_BODY = Buffer.from("conteudo-do-motor");
+const tgzOf = (version) => {
+  const src = join(RUN, `src-${version}`);
+  mkdirSync(src, { recursive: true });
+  writeFileSync(join(src, "package.json"), JSON.stringify({ name: "fake-engine", version }));
+  execFileSync(tarBinary(), ["-czf", `${src}.tgz`, "-C", src, "."], { stdio: "ignore", windowsHide: true });
+  return readFileSync(`${src}.tgz`);
+};
+const ENGINE_BODY = tgzOf("1.2.3");
 const engineSig = signBlob(ENGINE_BODY, owner.privateKeyHex);
 const APP_BODY = Buffer.from("conteudo-do-app");
 const appSig = signBlob(APP_BODY, owner.privateKeyHex);

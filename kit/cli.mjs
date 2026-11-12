@@ -18,19 +18,40 @@ import { fetchCommand } from "./fetch.mjs";
 import { selfUpdate, autoUpdateEnabled } from "./update.mjs";
 
 const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-url <url>]\n" +
-  "     engine-kit pin <motor> [--version <x.y.z>]   fixa a versão instalada (ou instala e fixa x.y.z)\n" +
+  "     engine-kit pin <motor> [--version <x.y.z>] [--registry-url <url>]   fixa a versão instalada (ou instala e fixa x.y.z)\n" +
   "     engine-kit unpin <motor>                     solta o motor para voltar a atualizar\n" +
-  "     engine-kit fetch <motor|app> [--version <x.y.z>] [--dest <pasta>]   baixa e confere (sha256 + Ed25519) sem instalar\n" +
-  "     engine-kit stop <motor>                      desliga o motor pelo shutdownPath que o registry declara\n" +
+  "     engine-kit fetch <motor|app> [--version <x.y.z>] [--dest <pasta>] [--registry-url <url>]   baixa e confere (sha256 + Ed25519) sem instalar\n" +
+  "     engine-kit stop <motor> [--registry-url <url>]   desliga o motor pelo shutdownPath que o registry declara\n" +
   "     engine-kit ensure neural-link --register     além de instalar, registra os hooks no config global do usuário\n" +
   "     engine-kit ensure neural-link --unregister   além de instalar, desfaz esse registro (precisa de um neural-link que exponha uninstall)\n" +
-  "     engine-kit doctor [--fix|--json] [--engine <motor>]   diagnostica os motores instalados (--fix instala o que falta e atualiza o que está velho)\n" +
+  "     engine-kit doctor [--fix|--json] [--engine <motor>] [--local] [--registry-url <url>]   diagnostica os motores instalados (--fix instala o que falta e atualiza o que está velho)\n" +
   "ENGINE_KIT_NO_AUTO_UPDATE=1 desliga a atualização automática do kit e dos motores (fica só o aviso).";
 
 const args = process.argv.slice(2);
 const flag = (n) => { const i = args.indexOf(n); return i === -1 ? undefined : args[i + 1]; };
 const VERBS = ["ensure", "pin", "unpin", "fetch", "stop", "doctor"];
 const [cmd, name] = args;
+const COM_VALOR = ["--version", "--registry-url", "--dest", "--engine"];
+const FLAGS = {
+  ensure: ["--version", "--registry-url", "--register", "--unregister"],
+  pin: ["--version", "--registry-url"],
+  unpin: [],
+  fetch: ["--version", "--registry-url", "--dest"],
+  stop: ["--registry-url"],
+  doctor: ["--fix", "--json", "--engine", "--local", "--registry-url"],
+};
+/** Primeira flag que o verbo não aceita, ou argumento solto além do nome do motor. */
+const sobra = () => {
+  const aceitas = FLAGS[cmd] ?? [];
+  for (let i = cmd === "doctor" ? 1 : 2; i < args.length; i++) {
+    if (!args[i].startsWith("-")) { return `argumento inesperado: ${args[i]}`; }
+    if (!aceitas.includes(args[i]) && /^--(un)?register$/.test(args[i])) { return "--register e --unregister só valem para `engine-kit ensure neural-link`"; }
+    if (!aceitas.includes(args[i])) { return `${args[i]} não vale para \`${cmd}\``; }
+    if (COM_VALOR.includes(args[i])) { i++; }
+  }
+  return args.includes("--json") && args.includes("--fix") ? "--json e --fix não combinam: o --fix imprime o progresso, não JSON" : null;
+};
+const avisoCache = (r) => { if (r.staleCache) { console.log(`aviso: registry inacessível; ${name} usou o descritor em cache vencido`); } };
 const semValor = ["--dest", "--registry-url", "--engine"].find((f) => args.includes(f) && (flag(f) ?? "-").startsWith("-"));
 
 if (cmd === "--help" || cmd === "-h") {
@@ -40,6 +61,9 @@ if (cmd === "--help" || cmd === "-h") {
   process.exitCode = 1;
 } else if (semValor) {
   console.error(`${semValor} precisa de um valor`);
+  process.exitCode = 1;
+} else if (sobra()) {
+  console.error(sobra());
   process.exitCode = 1;
 } else if (["--register", "--unregister"].some((f) => args.includes(f)) && !(cmd === "ensure" && name === "neural-link")) {
   console.error("--register e --unregister só valem para `engine-kit ensure neural-link`");
@@ -64,15 +88,15 @@ if (cmd === "--help" || cmd === "-h") {
   } else if (cmd === "stop") {
     const r = await stopCommand(name, { registryUrl: flag("--registry-url"), log: (m) => console.log(m) });
     if (!r.ok) { console.error(`FALHOU ${name}: ${r.reason}`); process.exitCode = 1; }
-    else { console.log(r.stopped ? `OK ${name} desligado` : `OK ${name}: nada vivo para desligar`); }
+    else { console.log(r.stopped ? `OK ${name} desligado` : `OK ${name}: nada vivo para desligar`); avisoCache(r); }
   } else if (cmd === "fetch") {
     const r = await fetchCommand(name, { version: flag("--version"), registryUrl: flag("--registry-url"), destDir: flag("--dest"), log: (m) => console.log(m) });
     if (!r.ok) { console.error(`FALHOU ${name}: ${r.reason}`); process.exitCode = 1; }
-    else { for (const f of r.files) { console.log(`OK ${name} v${r.version} (${f.signed ? "assinatura Ed25519 conferida" : "SEM assinatura no registry"}), não instalado: ${f.path}`); } }
+    else { for (const f of r.files) { console.log(`OK ${name} v${r.version} (${f.signed ? "assinatura Ed25519 conferida" : "SEM assinatura no registry"}), não instalado: ${f.path}`); } avisoCache(r); }
   } else if (cmd === "pin") {
     const r = await pinCommand(name, { version: flag("--version"), registryUrl: flag("--registry-url"), log: (m) => console.log(m) });
     if (!r.ok) { console.error(`FALHOU ${name}: ${r.reason}`); process.exitCode = 1; }
-    else { console.log(`OK ${name} fixado em v${r.pinned}; a atualização automática pula este motor (engine-kit unpin ${name} solta)`); }
+    else { console.log(`OK ${name} fixado em v${r.pinned}; a atualização automática pula este motor (engine-kit unpin ${name} solta)`); avisoCache(r); }
   } else {
     const autoUpdate = autoUpdateEnabled();
     const r = await ensureCommand(name, { version: flag("--version"), registryUrl: flag("--registry-url"), autoUpdate, log: (m) => console.log(m) });
@@ -80,7 +104,7 @@ if (cmd === "--help" || cmd === "-h") {
       const how = r.reused ? "já instalado, reusado" : r.signed ? "assinatura Ed25519 conferida" : "SEM assinatura no registry";
       if (r.previous) { console.log(`motor atualizado: ${name} v${r.previous} → v${r.version}`); }
       console.log(`OK ${name} v${r.version} (${how}) em ${r.entryPath}`);
-      if (r.staleCache) { console.log(`aviso: registry inacessível; ${name} veio do descritor em cache vencido`); }
+      avisoCache(r);
       if (r.pointer && !["OK", "AUSENTE"].includes(r.pointer.state)) { console.log(`aviso: ponteiro cli.json ${r.pointer.state}: ${r.pointer.detail}`); }
       if (r.pinned) { console.log(`fixado: ${name} fica em v${r.pinned} (engine-kit unpin ${name} volta a atualizar)`); }
       if (r.available) { console.log(`aviso: ${name} v${r.available} disponível; ENGINE_KIT_NO_AUTO_UPDATE ligado — rode sem ele para atualizar`); }

@@ -92,6 +92,17 @@ console.log("\n== ensureGateway: chave do primeiro contato ==\n");
   otro.close();
 }
 
+{
+  const novo = createServer((_q, res) => res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ engines: [{ ...manifest.engines[0], version: "9.9.10" }] })));
+  await new Promise((r) => novo.listen(0, "127.0.0.1", r));
+  process.env.ENGINE_KIT_NO_AUTO_UPDATE = "1";
+  let baixou = false;
+  const gw = await ensureGateway({ registryUrl: `http://127.0.0.1:${novo.address().port}/manifest.json`, fetcher: async () => { baixou = true; throw new Error("não devia baixar"); }, bootTimeoutMs: 1500 });
+  delete process.env.ENGINE_KIT_NO_AUTO_UPDATE;
+  check("atualização desligada: o gateway instalado segue e o retorno traz updateAvailable", gw.available === true && gw.version === "9.9.9" && gw.updateAvailable === "9.9.10" && !baixou, JSON.stringify({ a: gw.available, v: gw.version, u: gw.updateAvailable, baixou, r: gw.reason }));
+  novo.close();
+}
+
 gateway.close();
 rmSync(ROOT, { recursive: true, force: true });
 console.log(`\n== ${failures === 0 ? "TUDO VERDE" : `${failures} FALHA(S)`} ==`);

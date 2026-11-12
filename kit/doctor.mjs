@@ -19,7 +19,7 @@ import { resolve } from "./resolve.mjs";
 import { provision, satisfiesPin, installedVersion, LOCK_STALE_MS } from "./provision.mjs";
 import { shutdown } from "./lifecycle.mjs";
 import { lifeOf, pointerOf } from "./diagnose.mjs";
-import { pinOf, readTrust } from "./trust.mjs";
+import { pinOf, readTrust, firstContactKeys } from "./trust.mjs";
 
 const args = process.argv.slice(2);
 const useLocal = args.includes("--local");
@@ -155,18 +155,20 @@ if (doFix && rows.some((r) => r.left?.length)) {
 
 const pending = rows.filter((r) => r.needsWork);
 if (pending.length === 0) {
-  say(`\n== todos os motores conciliados (${rows.length}) ==`);
-  process.exitCode = rows.some((r) => r.state === "ERRO") || sweepFail ? 1 : 0;
+  const erros = rows.filter((r) => r.state === "ERRO").length;
+  say(erros ? `\n== ${erros} motor(es) em ERRO ==` : `\n== todos os motores conciliados (${rows.length}) ==`);
+  process.exitCode = erros || sweepFail ? 1 : 0;
 } else if (!doFix) {
   say(`\n${pending.length} motor(es) precisam de ação. Rode com --fix para instalar/atualizar.`);
   process.exitCode = 1;
 } else {
 console.log("\n-- aplicando (--fix) --");
-let failures = 0;
+let failures = rows.filter((r) => r.state === "ERRO").length;
 for (const r of pending) {
   console.log(`\n${r.name}: ${r.detail}`);
   const p = await provision(r.engine, {
     exact: Boolean(r.pin),
+    trustedKeys: firstContactKeys(r.name),
     log: (m) => console.log(`    ${m}`),
     // No Windows um arquivo EM USO não pode ser sobrescrito: sem derrubar o daemon antes, o
     // update de um motor vivo falha com EPERM no meio do swap. O kit não adivinha como parar

@@ -5,10 +5,29 @@
 // embarcado, conferidos por `verifyAppRelease`. O que passou na conferência vai para `destDir`; nada é extraído nem
 // executado, e o HOME do motor não é tocado. NUNCA lança: devolve { ok, reason }.
 import { resolve } from "./resolve.mjs";
-import { fetchArtifact } from "./provision.mjs";
+import { fetchArtifact, extractTgz, installedVersion } from "./provision.mjs";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { verifyAppRelease, findApp } from "./app-release.mjs";
 import { bundledManifest } from "./ensure.mjs";
 import { pinOf } from "./trust.mjs";
+
+/**
+ * A assinatura prova quem publicou o artefato, não qual versão ele é: uma release antiga legitimamente assinada passaria. Só confere
+ * artefato `.tgz` (o `provision` faz a mesma conferência ao instalar); instalador de outro formato fica como veio.
+ * @returns {string|null} o motivo da recusa, ou null se confere.
+ */
+function versaoDivergente(arquivo, engine) {
+  if (!/\.(tgz|tar\.gz)$/i.test(arquivo)) { return null; }
+  const tmp = mkdtempSync(join(tmpdir(), "engine-kit-fetch-"));
+  try {
+    const ex = extractTgz(arquivo, tmp);
+    if (!ex.ok) { return `${engine.name}: ${ex.reason}`; }
+    const got = installedVersion(tmp);
+    return got === engine.version ? null : `${engine.name}: o artefato diz v${got ?? "? (package.json ausente/ilegível)"} e o registry pede v${engine.version} → ABORT (arquivo removido)`;
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
+}
 
 /**
  * @param {string} name motor (do registry) ou app (de `manifest.apps`) do manifest embarcado.
@@ -40,7 +59,10 @@ export async function fetchCommand(name, { version, registryUrl, destDir = proce
     if (r.ok && r.engine.status === "pending-release") { return { ok: false, reason: `${name} ainda não publicou release (status: pending-release)` }; }
     if (!r.ok) { return { ok: false, reason: r.reason }; }
     const f = await fetchArtifact(r.engine, { log, destDir, trustedKeys: { [name]: publicKey }, ...(fetcher ? { fetcher } : {}) });
-    return f.ok ? { ok: true, kind: "engine", version: f.version, files: [{ path: f.path, signed: f.signed }] } : f;
+    if (!f.ok) { return f; }
+    const dif = versaoDivergente(f.path, r.engine);
+    if (dif) { rmSync(f.path, { force: true }); return { ok: false, reason: dif }; }
+    return { ok: true, kind: "engine", version: f.version, files: [{ path: f.path, signed: f.signed }], ...(r.engine.staleCache ? { staleCache: true } : {}) };
   }
 
   if (registryUrl) { return { ok: false, reason: `${name} é app: vem só do manifest embarcado no pacote, então --registry-url não se aplica` }; }

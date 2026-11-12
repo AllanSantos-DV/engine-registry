@@ -10,10 +10,11 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { autoUpdateEnabled } from "./provision.mjs";
 
 export const LATEST_URL = "https://registry.npmjs.org/engine-kit/latest";
 
-export const autoUpdateEnabled = (env = process.env) => !["1", "true", "yes"].includes(String(env.ENGINE_KIT_NO_AUTO_UPDATE ?? "").toLowerCase());
+export { autoUpdateEnabled };
 
 export const ownVersion = () => JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
 

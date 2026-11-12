@@ -45,7 +45,7 @@ export function tarBinary({ platform = process.platform, systemRoot = process.en
   return "tar";
 }
 
-function extractTgz(tgz, dest) {
+export function extractTgz(tgz, dest) {
   const tar = tarBinary();
   try {
     execFileSync(tar, ["--version"], { stdio: "ignore", windowsHide: true });
@@ -78,6 +78,9 @@ function claimLock(lock) {
 }
 
 /** true se a versão instalada serve o pin: MESMO major e >= (protocolo é atado ao major). */
+/** `ENGINE_KIT_NO_AUTO_UPDATE` ligado ("1", "true" ou "yes") desliga a troca automática de versão. */
+export const autoUpdateEnabled = (env = process.env) => !["1", "true", "yes"].includes(String(env.ENGINE_KIT_NO_AUTO_UPDATE ?? "").toLowerCase());
+
 export const satisfiesPin = (installed, pinned) => String(installed).split(".")[0] === String(pinned).split(".")[0] && cmpVer(installed, pinned) >= 0;
 
 /**

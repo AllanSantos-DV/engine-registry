@@ -179,7 +179,7 @@ export function readInstructions() {
 
 /**
  * Garante o agregador MCP instalado e vivo. `token: null` com `available:true` vem com `tokenReason`.
- * `staleCache` marca descritor de cache vencido (registry inacessível); `version` é a instalada.
+ * `staleCache` marca descritor de cache vencido (registry inacessível); `updateAvailable` traz a versão do registry quando `ENGINE_KIT_NO_AUTO_UPDATE` manteve a instalada; `version` é a instalada.
  * @returns {Promise<{available:true, url:string, token:string|null, tokenReason?:string, port:number, backends:string[], health:object, version?:string, staleCache?:true, instructions:ReturnType<typeof readInstructions>}
  *                  | {available:false, reason:string}>}
  */
@@ -208,6 +208,7 @@ export async function ensureGateway({ log = () => {}, version, allowNetwork = tr
     ...(token ? {} : { tokenReason: "token do gateway não encontrado (cofre, MCP_GATEWAY_TOKEN, auth-token no HOME do motor); o /mcp pode responder 401" }),
     version: r.engine.installedVersion,
     ...(r.engine.staleCache ? { staleCache: true } : {}),
+    ...(r.engine.updateAvailable ? { updateAvailable: r.engine.updateAvailable } : {}),
     port,
     backends: r.health.backends ?? [],
     health: r.health,

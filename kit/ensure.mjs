@@ -47,9 +47,7 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
   catch (e) { return { ok: false, reason: `manifest embarcado ilegível: ${e.message}` }; }
 
   const pinned = (local.engines ?? []).find((e) => e.name === name);
-  if (!pinned) {
-    return { ok: false, reason: `motor "${name}" não está no manifest deste engine-kit → atualize o kit (npx engine-kit@latest ensure ${name})` };
-  }
+  if (!pinned) { return { ok: false, reason: semMotor(local, name, "ensure") }; }
   const publicKey = pinned.install?.publicKey;
   if (!publicKey) {
     return { ok: false, reason: `${name}: o manifest embarcado não traz publicKey → sem chave do primeiro contato não instalo (ABORT)` };
@@ -67,7 +65,11 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
   const engine = r.engine;
   const previous = installedOf(engine);
   if (!autoUpdate && !version && !pin && previous && !satisfiesPin(previous, engine.version)) {
-    return { ok: true, entryPath: join(engine.homeDir, engine.install.entry), version: previous, kind: engine.kind, reused: true, available: engine.version };
+    return {
+      ok: true, entryPath: join(engine.homeDir, engine.install.entry), version: previous, kind: engine.kind, reused: true, available: engine.version,
+      ...(engine.staleCache ? { staleCache: true } : {}),
+      ...(engine.kind === "cli" ? { pointer: pointerOf(engine) } : {}),
+    };
   }
 
   const p = await provision(r.engine, {
@@ -100,6 +102,11 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
     ...(engine.kind === "cli" ? { pointer: pointerOf(engine) } : {}),
   };
 }
+
+/** Motivo da recusa de um nome que não é motor: app aponta o `fetch`; o resto, o kit novo. */
+const semMotor = (local, name, verbo) => (local.apps ?? []).some((a) => a.name === name)
+  ? `"${name}" é app, não motor: o ${verbo} não se aplica → engine-kit fetch ${name} baixa e confere`
+  : `motor "${name}" não está no manifest deste engine-kit → atualize o kit (npx engine-kit@latest ${verbo} ${name})`;
 
 /** Fixa (`version`) ou solta (null) um motor em trust.json; os outros motores não mudam. `was` = pin anterior. */
 function setPin(name, version) {
@@ -145,7 +152,7 @@ export async function pinCommand(name, { version, ...opts } = {}) {
     return { ok: false, reason: `${name} não está instalado (ou a versão é ilegível) → engine-kit pin ${name} --version <x.y.z> instala e fixa` };
   }
   const s = setPin(name, inst);
-  return s.ok ? { ok: true, version: inst, pinned: inst } : s;
+  return s.ok ? { ok: true, version: inst, pinned: inst, ...(r.engine.staleCache ? { staleCache: true } : {}) } : s;
 }
 
 /** `engine-kit unpin <motor>`: o motor volta a receber atualizações. Nunca lança. */
@@ -163,8 +170,6 @@ export async function stopCommand(name, { registryUrl, bundled, manifest, log = 
   let local;
   try { local = bundled ?? bundledManifest(); }
   catch (e) { return { ok: false, reason: `manifest embarcado ilegível: ${e.message}` }; }
-  if (!(local.engines ?? []).some((e) => e.name === name)) {
-    return { ok: false, reason: `motor "${name}" não está no manifest deste engine-kit → atualize o kit (npx engine-kit@latest stop ${name})` };
-  }
+  if (!(local.engines ?? []).some((e) => e.name === name)) { return { ok: false, reason: semMotor(local, name, "stop") }; }
   return stopEngine(name, { registryUrl, manifest, log });
 }

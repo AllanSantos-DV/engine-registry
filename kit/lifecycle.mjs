@@ -129,7 +129,7 @@ export async function shutdown(engine, { log = () => {}, timeoutMs = 5000, waitB
  * Desliga o motor vivo pelo `shutdownPath` declarado no registry. Recusa motor que não declara um.
  * @param {string} name
  * @param {{registryUrl?:string, manifest?:object, log?:(m:string)=>void}} [opts]
- * @returns {Promise<{ok:true, stopped:boolean} | {ok:false, reason:string}>} nunca lança.
+ * @returns {Promise<{ok:true, stopped:boolean, staleCache?:true} | {ok:false, reason:string}>} nunca lança; `staleCache` = registry inacessível, descritor do cache.
  */
 export async function stopEngine(name, { registryUrl, manifest, log } = {}) {
   const r = await resolve(name, { registryUrl, refresh: true, ...(manifest ? { manifest } : {}) });
@@ -138,7 +138,8 @@ export async function stopEngine(name, { registryUrl, manifest, log } = {}) {
     const por = r.engine.kind === "cli" ? "é kind=cli, roda por evento e não tem processo para desligar" : "o kit não sabe desligá-lo (quem o sobe é o consumidor ou o próprio motor)";
     return { ok: false, reason: `${name} não declara shutdownPath no registry: ${por}` };
   }
-  return shutdown(r.engine, { log });
+  const s = await shutdown(r.engine, { log });
+  return s.ok && r.engine.staleCache ? { ...s, staleCache: true } : s;
 }
 
 /** Sobe o motor destacado, com ambiente limpo (fora do fork do host). */
