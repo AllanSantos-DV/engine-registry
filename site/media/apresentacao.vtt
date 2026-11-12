@@ -1,189 +1,109 @@
 WEBVTT
 
 1
-00:00:00.450 --> 00:00:02.712
+00:00:00.550 --> 00:00:03.319
 Esta é a casa dos motores locais: você
 
 2
-00:00:02.712 --> 00:00:04.980
+00:00:03.319 --> 00:00:06.107
 instala cada um uma vez e todos os seus
 
 3
-00:00:04.980 --> 00:00:07.328
+00:00:06.107 --> 00:00:08.936
 aplicativos e agentes passam a usar.
 
 4
-00:00:08.450 --> 00:00:11.692
-Hoje, cada ferramenta de inteligência artificial costuma
+00:00:10.150 --> 00:00:13.446
+Hoje, cada ferramenta de inteligência artificial
 
 5
-00:00:11.692 --> 00:00:14.491
-carregar o próprio modelo, o próprio servidor e o
+00:00:13.446 --> 00:00:16.427
+costuma carregar o próprio modelo, o próprio
 
 6
-00:00:14.491 --> 00:00:17.179
-próprio processo. Com várias sessões abertas, o
+00:00:16.427 --> 00:00:19.606
+servidor e o próprio processo, e várias sessões
 
 7
-00:00:17.179 --> 00:00:20.090
-computador repete o mesmo trabalho muitas vezes. Um
+00:00:19.606 --> 00:00:22.720
+repetem o mesmo trabalho. Aqui, um motor faz o
 
 8
-00:00:20.090 --> 00:00:23.588
-motor faz o trabalho pesado uma única vez, nesta máquina.
+00:00:22.720 --> 00:00:26.017
+trabalho pesado uma única vez, nesta máquina.
 
 9
-00:00:24.450 --> 00:00:27.096
-O Claude Code, o Codex, o Copilot, o Cursor e
+00:00:26.950 --> 00:00:30.614
+Aqui vivem oito motores locais que atendem o Claude
 
 10
-00:00:27.096 --> 00:00:29.830
-os seus scripts pedem a ele o que precisam.
+00:00:30.614 --> 00:00:34.617
+Code, o Codex, o Copilot, o Cursor e os seus scripts.
 
 11
-00:00:30.950 --> 00:00:34.096
-Aqui vivem oito motores locais que fazem esse trabalho
+00:00:35.950 --> 00:00:39.474
+O Vox Engine dita, transcreve, traduz e fala. O Cerne
 
 12
-00:00:34.096 --> 00:00:36.966
-uma única vez por máquina e atendem o Claude Code,
+00:00:39.474 --> 00:00:42.819
+lê um vídeo e guarda o que importa numa memória que
 
 13
-00:00:36.966 --> 00:00:39.918
-o Codex, o Copilot, o Cursor e os seus scripts.
+00:00:42.819 --> 00:00:45.972
+dá para pesquisar. O VXK transforma o roteiro do
 
 14
-00:00:40.950 --> 00:00:43.686
-O Vox Engine dita, transcreve, traduz e fala. O
+00:00:45.972 --> 00:00:49.703
+agente numa explicação animada e narrada. E o mcp-gateway
 
 15
-00:00:43.686 --> 00:00:46.260
-Cerne lê um vídeo e guarda o que importa numa
+00:00:49.703 --> 00:00:52.977
+reúne todos os servidores MCP num endereço só.
 
 16
-00:00:46.260 --> 00:00:49.058
-memória que dá para pesquisar. O VXK transforma o
+00:00:53.950 --> 00:00:56.764
+O embed-house serve os vetores de busca sem
 
 17
-00:00:49.058 --> 00:00:52.274
-roteiro do agente numa explicação animada e narrada.
+00:00:56.764 --> 00:00:59.717
+repetir o modelo em cada sessão. O neural-link
 
 18
-00:00:52.950 --> 00:00:56.131
-O mcp-gateway reúne todos os servidores MCP num endereço
+00:00:59.717 --> 00:01:02.606
+devolve uma decisão única para cada evento de
 
 19
-00:00:56.131 --> 00:00:59.208
-só. O embed-house serve os vetores de busca sem repetir
+00:01:02.606 --> 00:01:05.308
+hook. O skill-engine só ativa as skills de
 
 20
-00:00:59.208 --> 00:01:02.009
-o modelo em cada sessão. O neural-link devolve uma
+00:01:05.308 --> 00:01:08.197
+terceiros que saem limpas. E o client-harness
 
 21
-00:01:02.009 --> 00:01:05.006
-decisão única para cada evento de hook do agente.
+00:01:08.197 --> 00:01:11.337
+faz o agente respeitar os padrões do cliente.
 
 22
-00:01:05.950 --> 00:01:08.378
-O skill-engine confere as skills de terceiros
+00:01:12.550 --> 00:01:17.342
+São oito motores. Antes de instalar, cada um passa
 
 23
-00:01:08.378 --> 00:01:10.808
-e só ativa o que sai limpo. E o client-harness
+00:01:17.342 --> 00:01:21.805
+por duas conferências, o SHA-256 e a assinatura
 
 24
-00:01:10.808 --> 00:01:12.980
-faz o agente respeitar os padrões de cada
+00:01:21.805 --> 00:01:26.361
+Ed25519, e se alguma falhar, nada é instalado. O
 
 25
-00:01:12.980 --> 00:01:15.091
-cliente, recusando antes de gravar.
+00:01:26.361 --> 00:01:32.097
+instalador tem menos de vinte e sete quilobytes de código.
 
 26
-00:01:15.950 --> 00:01:19.194
-Tudo começa nos seus agentes e aplicativos. Eles se
+00:01:32.950 --> 00:01:36.555
+Para começar, escolha o motor e instale pelo kit.
 
 27
-00:01:19.194 --> 00:01:22.387
-conectam ao mcp-gateway: uma conexão por servidor e
-
-28
-00:01:22.387 --> 00:01:25.458
-um endereço para todos. Por trás dele ficam o Vox
-
-29
-00:01:25.458 --> 00:01:29.086
-Engine, o Cerne e o VXK, cada um com a sua ferramenta.
-
-30
-00:01:29.950 --> 00:01:32.871
-O VXK usa o Vox para narrar as explicações. Sem o
-
-31
-00:01:32.871 --> 00:01:35.799
-Vox, ele avisa, em vez de gerar uma página muda. O
-
-32
-00:01:35.799 --> 00:01:39.092
-embed-house e o neural-link atendem o agente direto.
-
-33
-00:01:39.950 --> 00:01:43.615
-E embaixo de tudo, o engine-kit instala, verifica e
-
-34
-00:01:43.615 --> 00:01:47.370
-mantém vivo cada motor. Antes de instalar, cada motor
-
-35
-00:01:47.370 --> 00:01:51.124
-passa por duas conferências: o SHA-256 e a assinatura
-
-36
-00:01:51.124 --> 00:01:54.503
-Ed25519. Se alguma falhar, nada é instalado.
-
-37
-00:01:55.450 --> 00:01:57.785
-Para começar, escolha o motor, instale
-
-38
-00:01:57.785 --> 00:02:00.203
-pelo kit e use nos seus aplicativos.
-
-39
-00:02:00.950 --> 00:02:04.135
-São oito motores, cento e quarenta e sete megabytes
-
-40
-00:02:04.135 --> 00:02:06.909
-de modelo carregados uma vez, e três sistemas
-
-41
-00:02:06.909 --> 00:02:10.354
-atendidos: Windows, Linux e macOS, conforme o motor.
-
-42
-00:02:11.450 --> 00:02:14.183
-O cliente de instalação, o engine-kit, tem menos
-
-43
-00:02:14.183 --> 00:02:17.086
-de vinte e sete quilobytes de código, e cada release
-
-44
-00:02:17.086 --> 00:02:19.910
-passa por duas conferências antes de instalar.
-
-45
-00:02:20.950 --> 00:02:23.751
-Quando um motor é atualizado, todos os aplicativos
-
-46
-00:02:23.751 --> 00:02:26.717
-recebem a nova versão ao mesmo tempo. Engine-registry:
-
-47
-00:02:26.717 --> 00:02:29.125
-instale uma vez, use em qualquer lugar.
+00:01:36.555 --> 00:01:40.857
+Engine-registry: instale uma vez, use em qualquer lugar.

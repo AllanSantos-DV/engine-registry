@@ -17,7 +17,7 @@ const { VoxClient } = await import(pathToFileURL(sdkPath).href);
 const js = readFileSync(join(REPO, "site", "assets", "site.js"), "utf8");
 const CENAS = new Function(`${js.slice(js.indexOf("const CENAS"), js.indexOf("const $ ="))}; return CENAS;`)();
 // Grafia falada: a voz lê nomes em inglês pelo som do português ("client-harness" saía "cliente Arnés"); a legenda e o roteiro mantêm o nome.
-const FALADO = [[/client-harness/g, "cláient rárness"], [/skill-engine/g, "skil engine"], [/\bhook\b/g, "rúque"]];
+const FALADO = [[/client-harness/g, "cláient rárness"], [/skill-engine/g, "skil engine"], [/\bhook\b/g, "rúque"], [/SHA-256/g, "ésse agá a dois cinco seis"], [/Ed25519/g, "É dê dois cinco cinco um nove"]];
 const falado = (t) => FALADO.reduce((acc, [de, para]) => acc.replace(de, para), t);
 const dur = (f) => Number(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f], { encoding: "utf8", windowsHide: true }));
 

@@ -1,11 +1,11 @@
 {
   "origem": "vox-engine",
-  "voz": "vits-piper-pt_BR-faber-medium",
-  "motor": "0.29.9",
-  "padraoDoMotor": "vits-piper-pt_BR-faber-medium",
+  "voz": "pt-BR-Chirp3-HD-Iapetus",
+  "motor": "0.33.2",
+  "padraoDoMotor": "pt-BR-Chirp3-HD-Iapetus",
   "pedidaPeloDono": false,
   "formato": "mp3 32 kbps mono",
   "falas": 23,
-  "audioSeg": 112.04,
-  "geradoEm": "2026-10-29T23:01:38.766Z"
+  "audioSeg": 140.52,
+  "geradoEm": "2026-11-11T23:03:32.725Z"
 }

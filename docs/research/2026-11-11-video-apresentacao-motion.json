@@ -1,0 +1,88 @@
+{
+  "modo": "motion",
+  "tipo": "motion-apresentacao",
+  "titulo": "engine-registry: instale uma vez, use em qualquer lugar",
+  "marca": { "nome": "engine-registry", "cor": "#6ef2b5" },
+  "referencia": { "imagem": "../../site/media/apresentacao-poster.jpg" },
+  "paleta": { "fundo": "#07110e", "texto": "#eaf4ef", "cor": "#6ef2b5", "cor2": "#7cc4ff", "cor3": "#ffd166" },
+  "identidade": {
+    "produto": "Casa de motores locais que aplicativos e agentes de IA compartilham: cada motor é instalado uma vez por máquina, com download verificado.",
+    "publico": "Quem desenvolve aplicativos e agentes de IA locais",
+    "categoria": "infraestrutura local para desenvolvedores",
+    "estilo": "neon",
+    "som": "minimal",
+    "ritmo": "medio",
+    "ambiente": "particulas",
+    "dominanciaTela": "media",
+    "explicacao": "problema-solucao"
+  },
+  "levantamento": {
+    "fontes": ["https://allansantos-dv.github.io/engine-registry/", "README.md", "docs/ROTEIRO-APRESENTACAO.md", "manifest.json"],
+    "itens": [
+      { "tipo": "captura", "url": "https://allansantos-dv.github.io/engine-registry/", "descricao": "a página publicada do engine-registry, com os oito motores" },
+      { "tipo": "mapa", "caminho": "../../site/media/apresentacao-poster.jpg", "descricao": "quadro de abertura do vídeo atual, com o mapa de um motor para todos os aplicativos" }
+    ]
+  },
+  "cenas": [
+    {
+      "cena": "abertura",
+      "kicker": "Motores locais compartilhados",
+      "titulo": "Instale uma vez. Use em qualquer lugar.",
+      "subtitulo": "A casa dos motores que os seus aplicativos e agentes compartilham.",
+      "fala": "Esta é a casa dos motores locais: você instala cada um uma vez e todos os seus aplicativos e agentes passam a usar."
+    },
+    {
+      "cena": "impacto",
+      "frases": ["Cada ferramenta, o seu modelo.", "Cada sessão repete o trabalho.", "Aqui, um motor faz uma vez."],
+      "fala": "Hoje, cada ferramenta de inteligência artificial costuma carregar o próprio modelo, o próprio servidor e o próprio processo, e várias sessões repetem o mesmo trabalho. Aqui, um motor faz o trabalho pesado uma única vez, nesta máquina."
+    },
+    {
+      "cena": "tela",
+      "titulo": "Oito motores, cada um com a sua tarefa",
+      "url": "https://allansantos-dv.github.io/engine-registry/",
+      "rotulo": "A página do engine-registry",
+      "endereco": "engine-registry",
+      "fala": "Aqui vivem oito motores locais que atendem o Claude Code, o Codex, o Copilot, o Cursor e os seus scripts."
+    },
+    {
+      "cena": "lista",
+      "titulo": "Voz, memória, explicações e servidores",
+      "itens": [
+        { "titulo": "Vox Engine", "texto": "Dita, transcreve, traduz e fala." },
+        { "titulo": "Cerne", "texto": "Lê um vídeo e guarda o que importa numa memória." },
+        { "titulo": "VXK", "texto": "Transforma o roteiro em explicação animada e narrada." },
+        { "titulo": "mcp-gateway", "texto": "Reúne os servidores MCP num endereço só." }
+      ],
+      "fala": "O Vox Engine dita, transcreve, traduz e fala. O Cerne lê um vídeo e guarda o que importa numa memória que dá para pesquisar. O VXK transforma o roteiro do agente numa explicação animada e narrada. E o mcp-gateway reúne todos os servidores MCP num endereço só."
+    },
+    {
+      "cena": "lista",
+      "titulo": "Busca, hooks, skills e padrões",
+      "itens": [
+        { "titulo": "embed-house", "texto": "Serve os vetores de busca sem repetir o modelo." },
+        { "titulo": "neural-link", "texto": "Uma decisão única para cada evento de hook." },
+        { "titulo": "skill-engine", "texto": "Só ativa as skills de terceiros que saem limpas." },
+        { "titulo": "client-harness", "texto": "Faz o agente respeitar os padrões do cliente." }
+      ],
+      "fala": "O embed-house serve os vetores de busca sem repetir o modelo em cada sessão. O neural-link devolve uma decisão única para cada evento de hook. O skill-engine só ativa as skills de terceiros que saem limpas. E o client-harness faz o agente respeitar os padrões do cliente."
+    },
+    {
+      "cena": "numeros",
+      "titulo": "Instalação confiável",
+      "numeros": [
+        { "valor": 8, "rotulo": "motores locais" },
+        { "valor": 2, "rotulo": "conferências antes de instalar" },
+        { "valor": 27, "prefixo": "< ", "sufixo": " KB", "rotulo": "de código no instalador" }
+      ],
+      "fala": "São oito motores. Antes de instalar, cada um passa por duas conferências, o SHA-256 e a assinatura Ed25519, e se alguma falhar, nada é instalado. O instalador tem menos de vinte e sete quilobytes de código.",
+      "fala_fonetica": "São oito motores. Antes de instalar, cada um passa por duas conferências, o ésse agá a dois cinco seis e a assinatura É dê dois cinco cinco um nove, e se alguma falhar, nada é instalado. O instalador tem menos de vinte e sete quilobytes de código."
+    },
+    {
+      "cena": "fechamento",
+      "titulo": "engine-registry",
+      "subtitulo": "Instale uma vez, use em qualquer lugar.",
+      "cta": "npx engine-kit ensure <motor>",
+      "fala": "Para começar, escolha o motor e instale pelo kit. Engine-registry: instale uma vez, use em qualquer lugar."
+    }
+  ]
+}
