@@ -156,3 +156,24 @@ export function unpinCommand(name) {
   const s = setPin(name, null);
   return s.ok ? { ok: true, was: s.was } : s;
 }
+
+/**
+ * `engine-kit stop <motor>`: desliga o motor pelo `shutdownPath` que o registry declara, o mesmo pedido que o kit faz antes
+ * de trocar a instalação. Motor sem `shutdownPath` é recusado com o motivo: o kit não adivinha como desligar. Nunca lança.
+ * @returns {Promise<{ok:true, stopped:boolean} | {ok:false, reason:string}>} `stopped:false` = nada vivo para desligar.
+ */
+export async function stopCommand(name, { registryUrl, bundled, manifest, log = () => {} } = {}) {
+  let local;
+  try { local = bundled ?? bundledManifest(); }
+  catch (e) { return { ok: false, reason: `manifest embarcado ilegível: ${e.message}` }; }
+  if (!(local.engines ?? []).some((e) => e.name === name)) {
+    return { ok: false, reason: `motor "${name}" não está no manifest deste engine-kit → atualize o kit (npx engine-kit@latest stop ${name})` };
+  }
+  const r = await resolve(name, { registryUrl, ...(manifest ? { manifest } : {}) });
+  if (!r.ok) { return { ok: false, reason: r.reason }; }
+  if (!r.engine.runtime?.shutdownPath) {
+    return { ok: false, reason: `${name} não declara shutdownPath no registry: o kit não sabe desligá-lo (quem o sobe é o consumidor ou o próprio motor)` };
+  }
+  const s = await shutdown(r.engine, { log });
+  return s.ok ? { ok: true, stopped: s.stopped } : s;
+}

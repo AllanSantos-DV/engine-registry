@@ -74,9 +74,12 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-11-12 tooling 42200 → 43000: o doctor ganhou `--json` (estado, vida e ponteiro de cada motor para agentes e hooks) e dois
 //   avisos de só leitura (registry sem resposta, chave do registry diferente da gravada no trust.json), +0.7 KB. Rodado na mão de
 //   quem diagnostica; o caminho do `import "engine-kit"` não mudou.
+//   2026-11-12 tooling 43000 → 45300: `engine-kit stop <motor>` (desliga pelo shutdownPath declarado, reusando `shutdown`) e
+//   `ensure neural-link --register` (reusa o `install()` do motor, agora exportado como `registerNeuralLink`), aprovados pelo
+//   dono, +2.3 KB (verbos e textos de uso no cli.mjs, stopCommand no ensure.mjs). Rodados na mão de quem instala; o caminho do `import "engine-kit"` não mudou.
 const BUDGETS = {
   runtime: { codeBytes: 27000, baseline: 24519, loc: 900 },
-  tooling: { codeBytes: 43000, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 45300, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 6100, baseline: 1859, loc: 150 },
 };
 

@@ -19,6 +19,16 @@ import { pathToFileURL } from "node:url";
 import { ensureEngine } from "../kit/index.mjs";
 import { firstContactKeys } from "../kit/ensure.mjs";
 
+/**
+ * Roda o `install()` do próprio neural-link: grava a declaração global de cada evento em `~/.copilot/hooks/` e sela os
+ * companions. Lança se o binário não traz `install.js` ou se o `install()` falha: quem chama decide o que fazer.
+ * @param {string} entryPath entrypoint instalado do dispatcher.
+ */
+export async function registerNeuralLink(entryPath) {
+  const installMod = await import(pathToFileURL(join(dirname(entryPath), "install.js")).href);
+  return installMod.install({});
+}
+
 /** Pin default: última versão do neural-link confirmada publicada no manifest deste kit. */
 const DEFAULT_PIN = "0.7.16";
 
@@ -52,8 +62,7 @@ export async function ensureNeuralLink({ version = DEFAULT_PIN, log = () => {}, 
   const entryPath = r.bin;
   let registered = null;
   try {
-    const installMod = await import(pathToFileURL(join(dirname(entryPath), "install.js")).href);
-    registered = installMod.install({});
+    registered = await registerNeuralLink(entryPath);
     log(`[engine-kit] neural-link: install() rodou — ${registered.written?.length ?? 0} declarado(s), ${registered.companions?.selados?.length ?? 0} companion(s) selado(s)`);
   } catch (e) {
     // O dispatcher está presente e é invocável por evento mesmo se o `install()` falhar aqui

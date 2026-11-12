@@ -19,9 +19,6 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
   `docs/research/2026-11-09-confianca-do-registry-sem-custodia-de-chave.md` e
   `docs/research/2026-11-09-chaves-contra-runners-sem-acl.md`.
 
-- **`engine-kit stop <motor>` (decisão do dono, ainda pendente).** Desliga pelo `shutdownPath` declarado; o mcp-gateway
-  precisaria do drain do adaptador. Ganho, esforço e peças em `docs/research/2026-11-11-lente-feature-irma-engine-kit-0.2.6.md`.
-
 - **Chave do primeiro contato também no `ensureEngine` da lib.** Hoje só os adaptadores do mcp-gateway e do neural-link fixam
   a chave embarcada; quem chama `ensureEngine` sem `trustedKeys` (exemplo do README) e os motores sem adaptador seguem em TOFU.
   Mexe na raiz de confiança de todo consumidor de lib: uma rotação passa a abortar até o consumidor atualizar o kit.
@@ -33,22 +30,13 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
 
 ## Aguardando decisão do dono
 
-- **`engine-kit ensure neural-link` rodar o `install()` do motor (pendência 929130).** Hoje só o adaptador registra os
-  hooks (escreve no config global de hooks do usuário); quem instala pela CLI fica com o dispatcher sem companion
-  registrado. Muda o que o comando faz na máquina do usuário. Recomendação: N3, `--register` opcional. Origem:
-  `docs/research/2026-11-12-backlog-zerado-doctor-pelo-bin-e-campos-do-adaptador.md`; quadro e fontes em
-  `docs/research/2026-11-12-board-tres-decisoes-do-engine-kit.md`.
-
-- **Verbo para subir um daemon depois do `ensure` (pendência 929130).** A vitrine promete sessões no mesmo endereço
-  local, e a CLI só diz que quem sobe é o consumidor. Conflita com a regra de o kit não adivinhar a saúde do motor.
-  Recomendação: S1, não construir. Origem: `docs/research/2026-11-12-backlog-zerado-doctor-pelo-bin-e-campos-do-adaptador.md`;
-  quadro e fontes em `docs/research/2026-11-12-board-tres-decisoes-do-engine-kit.md`.
-
-- **Verbo para remover um motor, junto do `engine-kit stop` (pendência 929130).** O manifest não declara quais pastas do
-  home são estado do usuário. Recomendação: R2, só o `stop`. Origem: `docs/research/2026-11-12-backlog-zerado-doctor-pelo-bin-e-campos-do-adaptador.md`;
-  quadro e fontes em `docs/research/2026-11-12-board-tres-decisoes-do-engine-kit.md`.
-
 ## Decidido
+
+- **Decidido (dono, pendência 929130, 2026-11-12): três verbos do ciclo de vida.** N3 construído: `engine-kit ensure neural-link --register`
+  roda o `install()` do motor, e o padrão segue sem registrar (só dica). R2 construído: `engine-kit stop <motor>` desliga pelo
+  `shutdownPath` declarado; remover motor fica para depois, porque o manifest não declara quais pastas do home são estado do usuário.
+  S1 não construído: o kit não sobe daemon, quem sobe é o consumidor (o kit não adivinha a saúde do motor). Testes:
+  `tests/test-stop.mjs`, `tests/test-neural-link-register.mjs`.
 
 - **Resolvido (Jarvis, 2026-11-12): achados técnicos da lente de feature irmã.** (1) `ensureGateway` devolve `tokenReason`
   quando `token` é null; (2) `npx engine-kit doctor [--fix] [--engine <motor>]` existe e lista os fixados; (3) o adaptador

@@ -89,6 +89,14 @@ mesmo comando nela (o `npx` sem versão reusaria a da cache); o motor instalado 
 registry, com o aviso `motor atualizado: <motor> vA → vB`. `ENGINE_KIT_NO_AUTO_UPDATE=1` desliga as duas trocas e
 deixa só o aviso de versão nova disponível. `--version` explícito sempre vale.
 
+Desligar: `npx engine-kit stop <motor>` pede ao motor que se encerre pelo `shutdownPath` que o registry declara (o mesmo pedido
+que o kit faz antes de trocar a instalação); motor sem `shutdownPath` declarado é recusado com o motivo, e motor parado
+responde que não há nada vivo. O comando só desliga: não remove arquivos nem estado do usuário.
+
+Hooks do neural-link: `npx engine-kit ensure neural-link` só instala o dispatcher e avisa que nada foi registrado;
+`npx engine-kit ensure neural-link --register` também roda o `install()` do motor, que escreve a declaração de cada
+evento em `~/.copilot/hooks/` (config global do usuário). O registro é sempre um ato explícito.
+
 Pin por motor: `engine-kit pin <motor>` grava a versão fixada só desse motor no `trust.json` da máquina. A
 atualização automática (o `ensure`, o `doctor --fix` e o `ensureEngine` dos consumidores) pula os motores fixados e
 continua atualizando os outros. Um `ensure --version` diferente da versão fixada é recusado com a saída (trocar o pin

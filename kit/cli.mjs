@@ -12,7 +12,8 @@
 // Por padrão o kit se atualiza (roda de novo como a última versão do npm) e atualiza o motor instalado.
 // ENGINE_KIT_NO_AUTO_UPDATE=1 desliga os dois e deixa só o aviso de versão nova (ver update.mjs).
 // Exit code: 0 = motor instalado (ou reusado). 1 = recusou/falhou, com o motivo na saída de erro.
-import { ensureCommand, pinCommand, unpinCommand } from "./ensure.mjs";
+import { ensureCommand, pinCommand, unpinCommand, stopCommand } from "./ensure.mjs";
+import { registerNeuralLink } from "../consumers/neural-link.mjs";
 import { fetchCommand } from "./fetch.mjs";
 import { selfUpdate, autoUpdateEnabled } from "./update.mjs";
 
@@ -20,12 +21,14 @@ const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-ur
   "     engine-kit pin <motor> [--version <x.y.z>]   fixa a versão instalada (ou instala e fixa x.y.z)\n" +
   "     engine-kit unpin <motor>                     solta o motor para voltar a atualizar\n" +
   "     engine-kit fetch <motor|app> [--version <x.y.z>] [--dest <pasta>]   baixa e confere (sha256 + Ed25519) sem instalar\n" +
+  "     engine-kit stop <motor>                      desliga o motor pelo shutdownPath que o registry declara\n" +
+  "     engine-kit ensure neural-link --register     além de instalar, registra os hooks no config global do usuário\n" +
   "     engine-kit doctor [--fix|--json] [--engine <motor>]   diagnostica os motores instalados (--fix instala o que falta e atualiza o que está velho)\n" +
   "ENGINE_KIT_NO_AUTO_UPDATE=1 desliga a atualização automática do kit e dos motores (fica só o aviso).";
 
 const args = process.argv.slice(2);
 const flag = (n) => { const i = args.indexOf(n); return i === -1 ? undefined : args[i + 1]; };
-const VERBS = ["ensure", "pin", "unpin", "fetch", "doctor"];
+const VERBS = ["ensure", "pin", "unpin", "fetch", "stop", "doctor"];
 const [cmd, name] = args;
 const semValor = ["--dest", "--registry-url", "--engine"].find((f) => args.includes(f) && (flag(f) ?? "-").startsWith("-"));
 
@@ -36,6 +39,9 @@ if (cmd === "--help" || cmd === "-h") {
   process.exitCode = 1;
 } else if (semValor) {
   console.error(`${semValor} precisa de um valor`);
+  process.exitCode = 1;
+} else if (args.includes("--register") && !(cmd === "ensure" && name === "neural-link")) {
+  console.error("--register só vale para `engine-kit ensure neural-link`");
   process.exitCode = 1;
 } else if (args.includes("--version") && !/^\d+\.\d+\.\d+$/.test(flag("--version") ?? "")) {
   console.error(`--version precisa de x.y.z (recebi: ${flag("--version") ?? "nada"})`);
@@ -51,6 +57,10 @@ if (cmd === "--help" || cmd === "-h") {
     const r = unpinCommand(name);
     if (!r.ok) { console.error(`FALHOU ${name}: ${r.reason}`); process.exitCode = 1; }
     else { console.log(r.was ? `OK ${name} solto (estava fixado em v${r.was}); o próximo ensure traz a versão do registry` : `OK ${name} não estava fixado`); }
+  } else if (cmd === "stop") {
+    const r = await stopCommand(name, { registryUrl: flag("--registry-url"), log: (m) => console.log(m) });
+    if (!r.ok) { console.error(`FALHOU ${name}: ${r.reason}`); process.exitCode = 1; }
+    else { console.log(r.stopped ? `OK ${name} desligado` : `OK ${name}: nada vivo para desligar`); }
   } else if (cmd === "fetch") {
     const r = await fetchCommand(name, { version: flag("--version"), registryUrl: flag("--registry-url"), destDir: flag("--dest"), log: (m) => console.log(m) });
     if (!r.ok) { console.error(`FALHOU ${name}: ${r.reason}`); process.exitCode = 1; }
@@ -70,6 +80,12 @@ if (cmd === "--help" || cmd === "-h") {
       if (r.pointer && !["OK", "AUSENTE"].includes(r.pointer.state)) { console.log(`aviso: ponteiro cli.json ${r.pointer.state}: ${r.pointer.detail}`); }
       if (r.pinned) { console.log(`fixado: ${name} fica em v${r.pinned} (engine-kit unpin ${name} volta a atualizar)`); }
       if (r.available) { console.log(`aviso: ${name} v${r.available} disponível; ENGINE_KIT_NO_AUTO_UPDATE ligado — rode sem ele para atualizar`); }
+      if (args.includes("--register")) {
+        try {
+          const reg = await registerNeuralLink(r.entryPath);
+          console.log(`OK neural-link: hooks registrados em ~/.copilot/hooks (${reg.written?.length ?? 0} declarado(s), ${reg.companions?.selados?.length ?? 0} companion(s) selado(s))`);
+        } catch (e) { console.error(`FALHOU neural-link --register: ${e?.message || e}`); process.exitCode = 1; }
+      } else if (name === "neural-link") { console.log("hooks não registrados: para registrá-los no config global rode `npx engine-kit ensure neural-link --register`"); }
       if (r.kind === "daemon") { console.log("daemon: quem sobe o motor é o consumidor (ensureEngine com healthCheck)."); }
     } else {
       console.error(`FALHOU ${name}: ${r.reason}`);
