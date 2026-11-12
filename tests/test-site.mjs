@@ -107,7 +107,7 @@ const embed = manifest.engines.find((e) => e.name === "embed-house");
 check("métrica de 147 MB vem do resumo do embed-house no manifest", /147 MB/.test(embed?.summary ?? "") && txtMetricas.includes("147 MB"));
 const budget = read(join(REPO, "kit", "budget.mjs"));
 const limite = Number(budget.match(/runtime: \{ codeBytes: (\d+)/)?.[1]);
-check("métrica '< 32 KB' acompanha o limite do kill-switch do kit", limite === 32000 && txtMetricas.includes("< 32 KB"), `limite no budget.mjs: ${limite}`);
+check("métrica '< 34 KB' acompanha o limite do kill-switch do kit", limite === 33600 && txtMetricas.includes("< 34 KB"), `limite no budget.mjs: ${limite}`);
 const sistemas = new Set(manifest.engines.flatMap((e) => e.platforms).map((p) => p.split("-")[0]).filter((p) => p !== "any"));
 check("métrica de sistemas (Windows, Linux, macOS) bate com as plataformas do manifest", sistemas.size === 3 && txtMetricas.includes("3"), [...sistemas].join(", "));
 

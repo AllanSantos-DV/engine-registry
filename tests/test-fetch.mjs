@@ -28,6 +28,7 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const RUN = join(tmpdir(), `engine-fetch-${Date.now()}`);
 mkdirSync(RUN, { recursive: true });
 process.env.ENGINE_KIT_HOME = join(RUN, "trust-home");
+Object.assign(process.env, { HOME: RUN, USERPROFILE: RUN, LOCALAPPDATA: join(RUN, "local-app-data") });
 
 const sha256 = (b) => createHash("sha256").update(b).digest("hex");
 const owner = generateKeyPairHex();

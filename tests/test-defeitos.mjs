@@ -14,7 +14,7 @@ import { tmpdir } from "node:os";
 const RUN = mkdtempSync(join(tmpdir(), "engine-defeitos-"));
 const trustHome = join(RUN, "trust-home");
 mkdirSync(trustHome, { recursive: true });
-Object.assign(process.env, { HOME: RUN, USERPROFILE: RUN, ENGINE_KIT_HOME: trustHome });
+Object.assign(process.env, { HOME: RUN, USERPROFILE: RUN, ENGINE_KIT_HOME: trustHome, LOCALAPPDATA: join(RUN, "local-app-data") });
 
 const { generateKeyPairHex, signBlob, ensureEngine, stopEngine } = await import("../kit/index.mjs");
 const { tarBinary } = await import("../kit/provision.mjs");

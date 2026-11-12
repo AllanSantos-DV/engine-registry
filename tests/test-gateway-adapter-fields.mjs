@@ -103,6 +103,16 @@ console.log("\n== ensureGateway: chave do primeiro contato ==\n");
   novo.close();
 }
 
+{
+  const embarcado = join(HOME, ".mcp-gateway");
+  mkdirSync(join(embarcado, "bin"), { recursive: true });
+  writeFileSync(join(embarcado, "bin", "mcp-gateway.mjs"), "process.exit(0);\n");
+  writeFileSync(join(embarcado, "bin", "package.json"), JSON.stringify({ name: "mcp-gateway", version: "9.9.9" }));
+  writeFileSync(join(embarcado, "runtime.json"), JSON.stringify({ pid: process.pid, port }));
+  const gw = await ensureGateway({ registryUrl: "http://127.0.0.1:1/manifest.json", bootTimeoutMs: 1500 });
+  check("registry sem cache e gateway vivo: segue disponível e o retorno traz registryReason", gw.available === true && typeof gw.registryReason === "string" && gw.registryReason.length > 0, JSON.stringify({ a: gw.available, r: gw.registryReason, why: gw.reason }));
+}
+
 gateway.close();
 rmSync(ROOT, { recursive: true, force: true });
 console.log(`\n== ${failures === 0 ? "TUDO VERDE" : `${failures} FALHA(S)`} ==`);
