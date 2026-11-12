@@ -14,6 +14,7 @@ import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -109,6 +110,26 @@ export function samePage(live, site) {
   return live.replace(/\r\n/g, '\n') === expected.replace(/\r\n/g, '\n');
 }
 
+/**
+ * O vídeo publicado responde 200 como video/mp4, com o tamanho e o sha256 do arquivo de site/media/ (que o fetch do asset da
+ * release já conferiu contra o .sha256 versionado). Sem mp4 no site, não há o que conferir.
+ */
+export async function verifyVideo(url, site, stamp) {
+  const file = path.join(site, 'media', 'apresentacao.mp4');
+  if (!fs.existsSync(file)) { return null; }
+  const want = fs.readFileSync(file);
+  const res = await fetch(new URL(`media/apresentacao.mp4?v=${stamp}`, url), { signal: AbortSignal.timeout(120000), cache: 'no-store' });
+  if (!res.ok) { throw new PagesError(`o vídeo publicado respondeu HTTP ${res.status}`); }
+  const type = res.headers.get('content-type') ?? '';
+  if (!type.startsWith('video/mp4')) { throw new PagesError(`o vídeo publicado veio como '${type}', não video/mp4`); }
+  const got = Buffer.from(await res.arrayBuffer());
+  const sha = (b) => createHash('sha256').update(b).digest('hex');
+  if (got.length !== want.length || sha(got) !== sha(want)) {
+    throw new PagesError(`o vídeo publicado (${got.length} B, ${sha(got).slice(0, 12)}…) não é o de site/media (${want.length} B, ${sha(want).slice(0, 12)}…)`);
+  }
+  return { bytes: got.length, sha256: sha(got), type };
+}
+
 export async function verify(url, site, attempts, interval, stamp) {
   checkSite(site);
   let last = 'sem resposta';
@@ -121,6 +142,8 @@ export async function verify(url, site, attempts, interval, stamp) {
       } else if (!samePage(body, site)) {
         last = 'a página responde, mas não é o index.html deste site';
       } else {
+        const video = await verifyVideo(url, site, stamp);
+        if (video) { console.log(`vídeo no ar: ${video.type}, ${video.bytes} B, sha256 ${video.sha256}`); }
         return;
       }
     } catch (error) {

@@ -10,6 +10,9 @@ docs/maps/session-*-snapshot.md
 # Estado efemero de ferramenta local
 .token-guard/
 
+# Video da apresentacao: vive no asset da release site-media, baixado pelo workflow do Pages (tools/baixar-video.mjs)
+site/media/*.mp4
+
 # Perfis temporarios de navegador usados ao conferir o site
 .probe.tmp/
 

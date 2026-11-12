@@ -10,7 +10,9 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import * as pages from '../tools/pages-branch.mjs';
+import * as video from '../tools/baixar-video.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WORKFLOWS = path.join(ROOT, '.github', 'workflows');
@@ -66,6 +68,7 @@ await ok('runner Linux hospedado por padrão, local só com CI_RUNNER=local, sem
 await ok('sem suíte no runner hospedado; ordem: site com mídia → publicar → verificar', () => {
   const at = (s) => WORKFLOW.indexOf(s);
   assert.ok(!/npm (run )?test\b/.test(WORKFLOW.replace(/#.*/g, '')), 'a suíte roda na checagem local, não no runner hospedado');
+  assert.ok(at('baixar-video.mjs') > at('actions/checkout') && at('baixar-video.mjs') < at('test-site.mjs --require-media'), 'o vídeo é baixado antes de conferir o site e publicar');
   assert.ok(at('test-site.mjs --require-media') > 0 && at('test-site.mjs --require-media') < at('pages-branch.mjs publish')
     && at('pages-branch.mjs publish') < at('pages-branch.mjs verify'));
   assert.equal(WORKFLOW.split('secrets.PAGES_DEPLOY_KEY').length - 1, 1, 'a chave de deploy só entra no passo de publicar');
@@ -104,6 +107,52 @@ await ok('verify lê a URL pública', async () => {
     await assert.rejects(() => pages.verify(bad.url, site, 1, 0, 'a'), /não é o index\.html/);
     await assert.rejects(() => pages.verify(down.url, site, 1, 0, 'a'), /HTTP 500/);
   } finally { await Promise.all([good.close(), bad.close(), down.close()]); }
+});
+const sha = (b) => createHash('sha256').update(b).digest('hex');
+const MP4 = Buffer.from('mp4-de-teste-com-alguns-bytes');
+function siteComSidecar(hash = sha(MP4)) {
+  const site = makeSite();
+  fs.writeFileSync(path.join(site, 'media', 'apresentacao.mp4.sha256'), `${hash}  apresentacao.mp4\n`);
+  return site;
+}
+async function asset(body, { status = 200, type = 'video/mp4' } = {}) {
+  const server = http.createServer((_req, res) => { res.writeHead(status, { 'content-type': type }); res.end(body); });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  return { url: `http://127.0.0.1:${server.address().port}/asset.mp4`, base: `http://127.0.0.1:${server.address().port}/`, close: () => new Promise((resolve) => server.close(resolve)) };
+}
+await ok('baixar-video: sem o mp4 baixa do asset e deixa com o hash do .sha256 versionado', async () => {
+  const site = siteComSidecar(); const a = await asset(MP4);
+  try {
+    const r = await video.fetchVideo(site, a.url);
+    assert.equal(r.downloaded, true);
+    assert.equal(sha(fs.readFileSync(path.join(site, 'media', 'apresentacao.mp4'))), sha(MP4));
+  } finally { await a.close(); }
+});
+await ok('baixar-video: mp4 que já confere não é baixado de novo (asset fora do ar não atrapalha)', async () => {
+  const site = siteComSidecar(); fs.writeFileSync(path.join(site, 'media', 'apresentacao.mp4'), MP4);
+  const r = await video.fetchVideo(site, 'http://127.0.0.1:1/nada.mp4');
+  assert.equal(r.downloaded, false);
+});
+await ok('baixar-video: recusa hash divergente, HTTP de erro e .sha256 ausente, sem deixar mp4 no site', async () => {
+  const a = await asset(MP4); const falta = await asset('x', { status: 404 });
+  try {
+    const divergente = siteComSidecar(sha('outro'));
+    await assert.rejects(() => video.fetchVideo(divergente, a.url), /difere do esperado/);
+    assert.ok(!fs.existsSync(path.join(divergente, 'media', 'apresentacao.mp4')));
+    await assert.rejects(() => video.fetchVideo(siteComSidecar(), falta.url), /HTTP 404/);
+    await assert.rejects(() => video.fetchVideo(makeSite(), a.url), /sem o hash esperado/);
+  } finally { await Promise.all([a.close(), falta.close()]); }
+});
+await ok('verify do vídeo no ar: 200 video/mp4 com os bytes do site; outro tipo ou outros bytes é recusado', async () => {
+  const site = siteComSidecar(); fs.writeFileSync(path.join(site, 'media', 'apresentacao.mp4'), MP4);
+  const bom = await asset(MP4); const tipo = await asset(MP4, { type: 'text/html' }); const outro = await asset(Buffer.from('outros-bytes'));
+  try {
+    const r = await pages.verifyVideo(bom.base, site, 's');
+    assert.deepEqual([r.bytes, r.sha256, r.type], [MP4.length, sha(MP4), 'video/mp4']);
+    await assert.rejects(() => pages.verifyVideo(tipo.base, site, 's'), /não video\/mp4/);
+    await assert.rejects(() => pages.verifyVideo(outro.base, site, 's'), /não é o de site\/media/);
+    assert.equal(await pages.verifyVideo(bom.base, makeSite(), 's'), null, 'sem mp4 no site, nada a conferir');
+  } finally { await Promise.all([bom.close(), tipo.close(), outro.close()]); }
 });
 await ok('o script roda de verdade, também por uma junction (nunca sai mudo)', () => {
   const run = (script, args) => spawnSync(process.execPath, [script, ...args], { encoding: 'utf8', windowsHide: true });

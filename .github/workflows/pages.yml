@@ -33,6 +33,9 @@ jobs:
         with:
           node-version: 22
 
+      - name: Baixar o vídeo da apresentação do asset da release site-media
+        run: node tools/baixar-video.mjs
+
       - name: Site completo, com a mídia de apresentação
         if: vars.CI_RUNNER == 'local'
         run: node tests/test-site.mjs --require-media
