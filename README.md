@@ -113,9 +113,12 @@ que dependa do `engine-kit`, ou o selo "Provenance" na página do pacote.
 
 ```sh
 npx engine-kit doctor [--engine <motor>]          # diagnostica: o que reusar, atualizar ou baixar
-npx engine-kit doctor --fix [--engine <motor>]    # aplica
+npx engine-kit doctor --fix [--engine <motor>]    # aplica e limpa as sobras de instalação interrompida
 npx engine-kit doctor --json [--engine <motor>]   # mesmo diagnóstico em JSON, para agentes e hooks
 ```
+
+O `--fix` também remove as sobras do `provision` (`stage-<versão>`, o artefato `.tgz`/`.part` e `<bin>.old-<pid>` no home do motor),
+nunca com instalação em curso (`provision.lock` recente); o diagnóstico sem `--fix` só as avisa.
 
 O diagnóstico avisa, sem alterar nada, quando o registry não respondeu (o descritor veio do cache) e quando a chave
 publicada pelo registry difere da gravada em `trust.json` (o próximo `ensure` abortaria).

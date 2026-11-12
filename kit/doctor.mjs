@@ -12,8 +12,8 @@
 // atômicos). O doctor não reimplementa instalação: ele só decide QUEM precisa.
 //
 // Exit code: 0 = tudo conciliado. 1 = há divergência (e `--fix` não foi passado) ou algo falhou.
-import { readFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, existsSync, readdirSync, statSync, rmSync } from "node:fs";
+import { join, basename, dirname } from "node:path";
 import { resolve } from "./resolve.mjs";
 import { provision, satisfiesPin, installedVersion } from "./provision.mjs";
 import { shutdown } from "./lifecycle.mjs";
@@ -36,6 +36,21 @@ try { manifest = JSON.parse(readFileSync(manifestPath, "utf8")); }
 catch (e) { console.error(`FALHOU: manifest local ilegível: ${e.message}`); process.exit(1); }
 
 try { readTrust(); } catch (e) { console.error(`FALHOU: ${e.message}`); process.exit(1); }
+/**
+ * Sobras que o `provision` deixa quando extração, swap ou remoção falham: `stage-<versão>`, o artefato (`.tgz` e `.part`) e
+ * `<bin>.old-<pid>`. Com `provision.lock` fresco há instalação em curso: nada é sobra.
+ */
+function leftovers(engine) {
+  const bin = join(engine.homeDir, engine.install.extractTo ?? "bin");
+  try { if (Date.now() - statSync(join(engine.homeDir, "provision.lock")).mtimeMs < 120000) return []; } catch {}
+  const ls = (dir, isLeft) => { try { return readdirSync(dir).filter(isLeft).map((n) => join(dir, n)); } catch { return []; } };
+  const asset = engine.assetName;
+  return [
+    ...ls(engine.homeDir, (n) => n.startsWith("stage-") || n === asset || n === `${asset}.part`),
+    ...ls(dirname(bin), (n) => n.startsWith(`${basename(bin)}.old-`)),
+  ];
+}
+
 const names = (manifest.engines ?? []).map((e) => e.name).filter((n) => !only || n === only);
 if (only && names.length === 0) {
   console.error(`FALHOU: motor "${only}" não existe no manifest`);
@@ -86,7 +101,9 @@ for (const name of names) {
   if (!useLocal && engine.offline) warns.push(engine.staleCache ? "registry fora do ar: descritor do cache vencido" : "registry não consultado nesta execução");
   const known = readTrust()[name]?.publicKey;
   if (known && engine.install.publicKey && known !== engine.install.publicKey) warns.push(`chave do registry ≠ chave gravada em trust.json: o próximo ensure/--fix aborta (rotação é ato explícito)`);
-  rows.push({ name, state, detail, warns, engine, pin, needsWork: !["OK", "SELF-MANAGED", "FIXADO"].includes(state) });
+  const left = engine.status === "self-managed" ? [] : leftovers(engine);
+  if (left.length) warns.push(`${left.length} sobra(s) de instalação interrompida em ${engine.homeDir}: doctor --fix as remove`);
+  rows.push({ name, state, detail, warns, engine, pin, left, needsWork: !["OK", "SELF-MANAGED", "FIXADO"].includes(state) });
 }
 
 if (asJson) {
@@ -109,10 +126,19 @@ for (const r of rows) {
   }
 }
 
+let sweepFail = 0;
+if (doFix && rows.some((r) => r.left?.length)) {
+  console.log("\n-- limpando sobras de instalação interrompida (--fix) --");
+  for (const p of rows.flatMap((r) => r.left ?? [])) {
+    try { rmSync(p, { recursive: true, force: true }); console.log(`  removido ${p}`); }
+    catch (e) { sweepFail++; console.log(` FALHA ${p} — ${e.message}`); }
+  }
+}
+
 const pending = rows.filter((r) => r.needsWork);
 if (pending.length === 0) {
   say(`\n== todos os motores conciliados (${rows.length}) ==`);
-  process.exitCode = rows.some((r) => r.state === "ERRO") ? 1 : 0;
+  process.exitCode = rows.some((r) => r.state === "ERRO") || sweepFail ? 1 : 0;
 } else if (!doFix) {
   say(`\n${pending.length} motor(es) precisam de ação. Rode com --fix para instalar/atualizar.`);
   process.exitCode = 1;
@@ -141,5 +167,5 @@ for (const r of pending) {
 }
 
 console.log(`\n== ${failures === 0 ? "conciliado" : `${failures} falha(s)`} ==`);
-process.exitCode = failures === 0 ? 0 : 1;
+process.exitCode = failures === 0 && !sweepFail ? 0 : 1;
 }

@@ -2,42 +2,44 @@
 
 Melhorias encontradas durante outro trabalho e deixadas para depois.
 
-- **Rotação de chave de motor sem passo manual nas máquinas.** Hoje, trocar a chave de um motor faz toda máquina
-  que já o tinha abortar (`checkTrust` em `kit/trust.mjs` compara com a chave gravada no `trust.json`), e a rotação
-  legítima exige apagar a entrada à mão. Proposta: aceitar a troca quando a chave nova vem do manifest embarcado num
-  engine-kit publicado com proveniência, e regravar o `trust.json`. Mexe na raiz de confiança: decisão do dono antes.
-  Contexto: `docs/research/2026-11-09-pin-por-motor-acoplamento-e-custodia-de-chaves.md`.
-  **Decidido** (Jarvis, 09/11): a rotação fica tratada no esquema de confiança da pendência aberta 3a178e; até o dono
-  escolher o esquema, nenhum passo manual por máquina é introduzido.
+## Técnico
 
-- **Esquema de confiança do registry: assinatura sem chave e publicação do kit com aprovação.** Decisão de negócio do
-  dono, na pendência aberta 3a178e: muda como o dono publica o kit (um clique de aprovação 2FA por release) e o que ele
-  guarda. Recomendação: esquema D, com os motores assinados sem chave (keyless) no CI, em runner hospedado pelo GitHub,
-  nos três repositórios pesados (native-java, cerne, vox-engine), e o engine-kit publicado no npm só com a aprovação 2FA
-  do dono. Custos que entram na decisão: minutos pagos dos builds hospedados nos repositórios privados e o nome desses
-  repositórios gravado para sempre no log público de transparência. Fontes:
-  `docs/research/2026-11-09-confianca-do-registry-sem-custodia-de-chave.md` e
+Vazio.
+
+## Negócio, espera o dono
+
+Cada item muda o uso do produto. Recomendação entre parênteses de cada um.
+
+- **Ciclo de vida do neural-link.** `ensure neural-link --unregister`: desfaz o `--register`; depende de o motor expor a desinstalação
+  dos hooks. (Recomendo esperar o motor expor `uninstall()`; sem ele o kit teria de adivinhar quais entradas do config global são do motor.)
+- **Estado dos hooks no `doctor`.** Uma linha dizendo se os hooks do neural-link estão registrados. (Recomendo construir só depois do
+  `--unregister`: sem o par, a linha informa um estado que o usuário não consegue desfazer pelo kit.)
+- **Campo `stoppable` no `doctor --json`.** Diz a agentes e hooks se `engine-kit stop` se aplica ao motor (o manifest declara `shutdownPath`).
+  (Recomendo construir quando um agente de fato precisar decidir isso; hoje o `stop` já recusa com o motivo.)
+- **`--register` listando os arquivos gravados.** `reg.written` já tem os caminhos; a CLI hoje só diz que registrou. (Recomendo construir:
+  é a única forma de o usuário saber o que mudou no config global dele, e custa poucas linhas.)
+- **Aviso do `stop` enquanto espera um motor ocupado.** Hoje a CLI fica em silêncio até 120 s. (Recomendo construir: uma linha de
+  progresso evita que o usuário ache que travou.)
+- **`stopEngine(name)` na lib.** Não cabe no teto do runtime (27000 B) sem cortar outra coisa; o teto nunca foi recalibrado. (Recomendo
+  manter o teto e a lib sem `stop`: quem precisa desligar usa a CLI.)
+- **Rotação de chave de motor sem passo manual nas máquinas.** Hoje, trocar a chave de um motor faz toda máquina que já o tinha abortar
+  (`checkTrust` em `kit/trust.mjs`), e a rotação legítima exige apagar a entrada do `trust.json` à mão. **Decidido** (Jarvis, 09/11):
+  fica tratada no esquema de confiança da pendência aberta 3a178e; até o dono escolher, nenhum passo manual por máquina é introduzido.
+  Contexto: `docs/research/2026-11-09-pin-por-motor-acoplamento-e-custodia-de-chaves.md`.
+- **Esquema de confiança do registry: assinatura sem chave e publicação do kit com aprovação.** Pendência aberta 3a178e: muda como o dono
+  publica o kit (um clique de aprovação 2FA por release) e o que ele guarda. Recomendação: esquema D, com os motores assinados sem chave
+  (keyless) no CI hospedado, nos três repositórios pesados (native-java, cerne, vox-engine), e o engine-kit publicado no npm só com a
+  aprovação 2FA do dono. Custos: minutos pagos dos builds hospedados nos repositórios privados e o nome desses repositórios gravado para
+  sempre no log público de transparência. Fontes: `docs/research/2026-11-09-confianca-do-registry-sem-custodia-de-chave.md` e
   `docs/research/2026-11-09-chaves-contra-runners-sem-acl.md`.
 
-- **Chave do primeiro contato também no `ensureEngine` da lib.** Hoje só os adaptadores do mcp-gateway e do neural-link fixam
-  a chave embarcada; quem chama `ensureEngine` sem `trustedKeys` (exemplo do README) e os motores sem adaptador seguem em TOFU.
-  Mexe na raiz de confiança de todo consumidor de lib: uma rotação passa a abortar até o consumidor atualizar o kit.
-  Peças: `firstContactKeys` (mover de `kit/ensure.mjs` para `kit/trust.mjs`) e `ensureEngine` em `kit/index.mjs`; cabe no teto do runtime.
-
-- **`doctor --fix` limpar as sobras do `provision`** (`stage-<versão>`, `.tgz` e `.old-<pid>` que ficam quando extração, swap ou
-  remoção falham). O `--fix` passaria a apagar arquivos; precisa respeitar o `provision.lock`. Peças: `rmTree`, `dropFile`,
-  `claimLock` em `kit/provision.mjs`.
-
-## Aguardando decisão do dono
-
-- **Candidatos da lente do 0.2.13 que mudam o uso (aguardam o dono):** `ensure neural-link --unregister` (depende de o motor expor
-  desinstalação); o `doctor` mostrar se os hooks do neural-link estão registrados; campo `stoppable` no `doctor --json`; o `--register`
-  listar os arquivos gravados (`reg.written` já tem os caminhos); o `stop` avisar enquanto espera um motor ocupado (hoje silencioso até 120 s).
-
-- **Ajuste técnico fora do escopo do 0.2.13:** `registerNeuralLink` mora em `consumers/` e o `kit/cli.mjs` o importa, então todo
-  comando da CLI carrega o `kit/index.mjs`; mover para `kit/`. `stopEngine(name)` na lib não cabe no teto do runtime (27000 B) sem cortar outra coisa.
-
 ## Decidido
+
+- **Resolvido (Jarvis, 2026-11-12): backlog técnico zerado.** (1) `ensureEngine` da lib fixa a chave do manifest embarcado quando o
+  consumidor não passa `trustedKeys` (só no registry público; `registryUrl` próprio segue em TOFU): `firstContactKeys` agora mora em
+  `kit/trust.mjs`; teste `tests/test-ensure-engine-first-contact.mjs`. (2) `doctor --fix` remove `stage-<versão>`, o artefato
+  (`.tgz`/`.part`) e `<bin>.old-<pid>`, nunca com `provision.lock` fresco, e o diagnóstico avisa quando existem; teste
+  `tests/test-doctor-leftovers.mjs`. (3) `registerNeuralLink` mora em `kit/register.mjs`; a CLI não importa mais de `consumers/`.
 
 - **Decidido (dono, pendência 929130, 2026-11-12): três verbos do ciclo de vida.** N3 construído: `engine-kit ensure neural-link --register`
   roda o `install()` do motor, e o padrão segue sem registrar (só dica). R2 construído: `engine-kit stop <motor>` desliga pelo
