@@ -79,5 +79,5 @@ Uma fala por passo; a anotação entre parênteses diz o que aparece e não é n
 - O embed-house evita carregar cerca de 147 MB de modelo a cada sessão.
 - O neural-link é chamado a cada evento de hook e não fica rodando em segundo plano.
 - Cada release é conferida por SHA-256 e assinatura Ed25519 antes de instalar; falhando, nada é instalado.
-- O cliente de instalação (engine-kit) tem menos de 27 KB de código.
+- O cliente de instalação (engine-kit) tem menos de 28,1 KB de código.
 - Sistemas: Windows, Linux e macOS, conforme o motor (embed-house cobre os três; Vox Engine e Cerne são Windows).

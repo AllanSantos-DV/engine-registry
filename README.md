@@ -70,13 +70,14 @@ npx engine-kit pin vxk --version 0.22.0       # instala essa versão (assinatura
 npx engine-kit unpin vxk                      # o vxk volta a receber atualizações
 npx engine-kit stop vxk                       # pede ao vxk que se encerre pelo shutdownPath do registry
 npx engine-kit ensure neural-link --register  # instala e também registra os hooks (config global do usuário)
+npx engine-kit ensure neural-link --unregister  # instala e desfaz esse registro (precisa de um neural-link com uninstall())
 npx engine-kit fetch vxk                      # só baixa e confere (sha256 + Ed25519); nada é instalado
 npx engine-kit fetch agent-launcher           # idem para um app de `manifest.apps`
 ```
 
 `fetch` grava na pasta atual (ou em `--dest <pasta>`) o artefato que passou na conferência, com a mesma chave do
 primeiro contato do `ensure`. Não extrai, não executa e não toca o HOME do motor; a falha de conferência não deixa
-nenhum arquivo.
+nenhum arquivo. `--dest` dentro do home de um motor é recusado: o `doctor --fix` trata o artefato ali como sobra de instalação.
 
 O `npx` baixa o kit do npm e o kit baixa o motor da release, confere o **sha256**, a **assinatura Ed25519**
 e a **versão** do artefato; qualquer divergência aborta sem instalar nada. A chave pública do primeiro contato
@@ -93,11 +94,13 @@ deixa só o aviso de versão nova disponível. `--version` explícito sempre val
 
 Desligar: `npx engine-kit stop <motor>` pede ao motor que se encerre pelo `shutdownPath` que o registry declara (o mesmo pedido
 que o kit faz antes de trocar a instalação); motor sem `shutdownPath` declarado é recusado com o motivo, e motor parado
-(ou com o `runtime.json` apontando para um processo que já morreu) responde que não há nada vivo. O comando só desliga: não remove arquivos nem estado do usuário.
+(ou com o `runtime.json` apontando para um processo que já morreu) responde que não há nada vivo. Motor ocupado (HTTP 202) é esperado por até 120 s, com um aviso. O comando só desliga: não remove arquivos nem estado do usuário.
+Na lib, `stopEngine(nome, { registryUrl, manifest, log })` faz o mesmo e devolve `{ ok, stopped }` sem lançar.
 
 Hooks do neural-link: `npx engine-kit ensure neural-link` só instala o dispatcher e avisa que nada foi registrado;
 `npx engine-kit ensure neural-link --register` também roda o `install()` do motor, que escreve a declaração de cada
-evento em `~/.copilot/hooks/` (config global do usuário). Na CLI o registro só acontece com `--register`; o adaptador de lib (`ensureNeuralLink`) registra a cada chamada.
+evento em `~/.copilot/hooks/` (config global do usuário) e lista os eventos gravados. Na CLI o registro só acontece com `--register`; o adaptador de lib (`ensureNeuralLink`) registra a cada chamada.
+`--unregister` roda o `uninstall()` do motor instalado e desfaz esse registro; enquanto o neural-link não expõe `uninstall()`, o comando falha dizendo isso, sem apagar nada. `--register` e `--unregister` não combinam.
 
 Pin por motor: `engine-kit pin <motor>` grava a versão fixada só desse motor no `trust.json` da máquina. A
 atualização automática (o `ensure`, o `doctor --fix` e o `ensureEngine` dos consumidores) pula os motores fixados e
@@ -119,6 +122,8 @@ npx engine-kit doctor --json [--engine <motor>]   # mesmo diagnóstico em JSON, 
 
 O `--fix` também remove as sobras do `provision` (`stage-<versão>`, o artefato `.tgz`/`.part` e `<bin>.old-<pid>` no home do motor),
 nunca com instalação em curso (`provision.lock` recente ou com o processo dono ainda vivo); o diagnóstico sem `--fix` só as avisa.
+
+Para cada motor o diagnóstico diz se o `stop` se aplica (`stoppable` no `--json`, quando o registry declara `shutdownPath`) e, no neural-link, se os hooks estão registrados (`hooks: { registered, events }`, lidos dos `_dispatcher-*.json` no config global; só lê arquivos).
 
 O diagnóstico avisa, sem alterar nada, quando o registry não respondeu (o descritor veio do cache) e quando a chave
 publicada pelo registry difere da gravada em `trust.json` (o próximo `ensure` abortaria).
@@ -246,7 +251,7 @@ assim:
 |---|---|---|
 | **TOFU** (padrão, automático) | a chave do 1º contato é gravada em `~/.engine-kit/trust.json`; qualquer troca depois = **ABORT** | repo comprometido **depois** da adoção — o caso realista |
 | **Pin do consumidor** | `ensureEngine(nome, { trustedKeys: { "<motor>": "<hex>" } })`; divergência = **ABORT** já no 1º contato | não depende do registry em momento nenhum (padrão do `vox-engine`) |
-| **Chave no pacote** (`npx engine-kit ensure` e `ensureEngine` no registry público) | o comando e a lib fixam a chave do `manifest.json` embarcado no pacote do npm | registry comprometido **antes** do 1º contato: trocar a chave exige publicar um engine-kit novo, e a publicação deixa proveniência pública |
+| **Chave no pacote** (`npx engine-kit ensure`, `ensureEngine`, `provision` e `fetchArtifact` no registry público) | o comando e a lib fixam a chave do `manifest.json` embarcado no pacote do npm; motor que o pacote não conhece, ou manifest embarcado ilegível, é recusado sem `trustedKeys` (registry próprio segue em TOFU) | registry comprometido **antes** do 1º contato: trocar a chave exige publicar um engine-kit novo, e a publicação deixa proveniência pública |
 
 Rotação legítima é **ato explícito**: apagar a entrada em `~/.engine-kit/trust.json`. Um `trust.json` que existe e
 não se lê falha fechado: `ensure`, `pin`, `unpin`, `ensureEngine` e o doctor recusam explicando e não regravam o arquivo,

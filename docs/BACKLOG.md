@@ -4,34 +4,27 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
 
 ## Técnico
 
-Vazio.
+Achados da lente de feature irmã desta rodada (melhoria pura, reversível):
+
+- Cache do descritor em `kit/resolve.mjs` ignora `registryUrl`: registry próprio grava o cache global lido pelo registry público. Chavear o cache pela URL.
+- `findAlive` em `kit/lifecycle.mjs` não captura exceção de `healthCheck` do consumidor, contra o "nunca lança" de `ensureEngine`.
+- `mkdirSync(home)` em `kit/provision.mjs` fica fora do try: EACCES/ENOTDIR lança em vez de `{ok:false}` (cabe no teto do runtime só com corte em outro ponto).
+- `saveTrust` grava sem atomicidade e sem lock no read-modify-write: queda no meio deixa `trust.json` ilegível e todos os comandos recusam.
+- `shutdown` sem `pid` no runtime devolve `stopped:true` sem verificar nada.
+- A mensagem de `stopEngine` para motor `cli` sem `shutdownPath` fala em "quem o sobe", que não se aplica a motor sem processo.
+- `120000` do lock repetido em `kit/doctor.mjs` e `kit/provision.mjs`; a guarda de `--dest` no home existe só no `fetchCommand`, não no `fetchArtifact` da lib.
+- Docs de `index.mjs` e `consumers/neural-link.mjs` falam em "versão mínima" onde o código usa a versão exata.
+- Testes faltando: `doctor --fix` com motor em ERRO, `fetch` com versão do artefato diferente do descritor, dois `registryUrl` na mesma sessão, `ensureNeuralLink` com `install()` falho, `ENGINE_KIT_NO_AUTO_UPDATE` na lib.
 
 ## Negócio, espera o dono
 
 Cada item muda o uso do produto. Recomendação entre parênteses de cada um.
 
-- **Ciclo de vida do neural-link.** `ensure neural-link --unregister`: desfaz o `--register`; depende de o motor expor a desinstalação
-  dos hooks. (Recomendo esperar o motor expor `uninstall()`; sem ele o kit teria de adivinhar quais entradas do config global são do motor.)
-- **Estado dos hooks no `doctor`.** Uma linha dizendo se os hooks do neural-link estão registrados. (Recomendo construir só depois do
-  `--unregister`: sem o par, a linha informa um estado que o usuário não consegue desfazer pelo kit.)
-- **Campo `stoppable` no `doctor --json`.** Diz a agentes e hooks se `engine-kit stop` se aplica ao motor (o manifest declara `shutdownPath`).
-  (Recomendo construir quando um agente de fato precisar decidir isso; hoje o `stop` já recusa com o motivo.)
-- **`--register` listando os arquivos gravados.** `reg.written` já tem os caminhos; a CLI hoje só diz que registrou. (Recomendo construir:
-  é a única forma de o usuário saber o que mudou no config global dele, e custa poucas linhas.)
-- **Aviso do `stop` enquanto espera um motor ocupado.** Hoje a CLI fica em silêncio até 120 s. (Recomendo construir: uma linha de
-  progresso evita que o usuário ache que travou.)
-- **`stopEngine(name)` na lib.** Não cabe no teto do runtime (27000 B) sem cortar outra coisa; o teto nunca foi recalibrado. (Recomendo
-  manter o teto e a lib sem `stop`: quem precisa desligar usa a CLI.)
-- **Chave do pacote como default também em `provision` e `fetchArtifact` da lib.** Só `ensureEngine` ganhou o default; quem chama
-  essas duas direto segue em TOFU (a CLI e o `fetch` já passam a chave). Muda o comportamento de quem já as usa. (Recomendo construir: é a
-  mesma garantia, e uma rotação já aborta no `ensureEngine`; avisar na nota de versão.)
-- **Lib recusar quando não há chave do pacote.** Motor fora do manifest embarcado, ou manifest ilegível, cai em TOFU calado no
-  `ensureEngine`; a CLI e o `fetch` recusam esse caso. Recusar na lib quebra quem instala motores de registry próprio ou fora do pacote.
-  (Recomendo manter o TOFU para motor fora do pacote, que é o contrato declarado, e só falhar alto quando o manifest embarcado existir e
-  estiver ilegível.)
-- **`fetch --dest` dentro do home do motor e `doctor --fix`.** Um `vxk.tgz` baixado de propósito no home do motor é igual a uma sobra do
-  `provision` e o `--fix` o apaga. (Recomendo recusar `--dest` dentro do home de um motor do manifest: um erro claro no `fetch` custa
-  menos do que distinguir os dois arquivos.)
+- **`uninstall()` no neural-link (projeto neural-link, `src/install.js`).** O `engine-kit ensure neural-link --unregister` já existe e
+  chama o `uninstall()` do motor instalado, mas o neural-link só exporta `install()`: hoje o comando falha alto dizendo isso. Falta o
+  motor exportar `uninstall({})` removendo os `_dispatcher-<Evento>.json` e devolvendo `{ removed: [...] }`. Não é decisão do dono:
+  é trabalho do outro projeto, delegado pelo orquestrador.
+
 - **Rotação de chave de motor sem passo manual nas máquinas.** Hoje, trocar a chave de um motor faz toda máquina que já o tinha abortar
   (`checkTrust` em `kit/trust.mjs`), e a rotação legítima exige apagar a entrada do `trust.json` à mão. **Decidido** (Jarvis, 09/11):
   fica tratada no esquema de confiança da pendência aberta 3a178e; até o dono escolher, nenhum passo manual por máquina é introduzido.
@@ -43,7 +36,20 @@ Cada item muda o uso do produto. Recomendação entre parênteses de cada um.
   sempre no log público de transparência. Fontes: `docs/research/2026-11-09-confianca-do-registry-sem-custodia-de-chave.md` e
   `docs/research/2026-11-09-chaves-contra-runners-sem-acl.md`.
 
+- **Candidatos da lente desta rodada que mudam o uso (recomendações entre parênteses).** (a) `doctor --fix` sai com 0 com motor em ERRO e imprime "conciliados". (Recomendo corrigir: exit 1.) (b) `fetch` não confere a versão dentro do artefato como o `ensure`; um release antigo assinado passa por novo. (Recomendo conferir, é segurança.) (c) `ENGINE_KIT_NO_AUTO_UPDATE` não vale para `ensureEngine`, ao contrário do que o README diz. (Recomendo valer.) (d) `fetch`, `pin` e `stop` não avisam registry fora do ar. (e) `ensureNeuralLink` engole a falha do `install()`. (f) `stop` do client-harness (`shutdownPath` com `relaunch=1`) pode ser religado pelo runner. (g) `--json` só no `doctor`; flags que não se aplicam são ignoradas em silêncio. (h) neural-link novo fica preso em `DEFAULT_PIN`. (i) o `doctor` não prevê o ABORT de chave rotacionada em máquina sem `trust.json`. (j) a lib não exporta `unregisterNeuralLink` nem `unpin`.
+
 ## Decidido
+
+- **Resolvido (Jarvis, 2026-11-12): nove candidatos do 0.2.13 e da lente construídos.** (1) `engine-kit ensure neural-link --unregister`
+  (`kit/register.mjs`, falha alto enquanto o motor não expõe `uninstall()`); (2) o `doctor` mostra o estado dos hooks do neural-link
+  (`_dispatcher-*.json` no config global); (3) `doctor --json` traz `stoppable`; (4) `--register` lista os eventos gravados;
+  (5) o `stop` avisa que está esperando um motor ocupado; (6) `stopEngine(name)` na lib, com o teto do runtime recalibrado
+  (27000 → 28100, entrada datada em `kit/budget.mjs`); (7) a chave do pacote é default também em `provision` e `fetchArtifact`
+  (`verifyAuthenticity`); (8) no registry público, a lib recusa motor que não está no manifest embarcado quando o consumidor não passa
+  `trustedKeys`, e falha alto se esse manifest estiver ilegível (registry próprio e manifest entregue na mão seguem em TOFU); (9)
+  `fetch --dest` dentro do home do motor é recusado, porque o `doctor --fix` apagaria o artefato como sobra. Itens 7 e 8 mudam o
+  comportamento de quem chamava a lib direto: entram na nota da próxima versão. Testes: `tests/test-neural-link-register.mjs`,
+  `tests/test-doctor-cli.mjs`, `tests/test-stop.mjs`, `tests/test-ensure-engine-first-contact.mjs`, `tests/test-fetch.mjs`.
 
 - **Resolvido (Jarvis, 2026-11-12): backlog técnico zerado.** (1) `ensureEngine` da lib fixa a chave do manifest embarcado quando o
   consumidor não passa `trustedKeys` (só no registry público; `registryUrl` próprio segue em TOFU): `firstContactKeys` agora mora em

@@ -80,9 +80,15 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-11-12 tooling 45300 → 46800: `doctor --fix` passou a limpar as sobras do `provision` (`stage-*`, artefato e `.old-<pid>`,
 //   respeitando o `provision.lock` fresco ou de processo vivo) e o diagnóstico avisa quando elas existem, +1.7 KB. Rodado na mão de quem diagnostica; o
 //   caminho do `import "engine-kit"` não mudou.
+//   2026-11-12 runtime 27000 → 28100 (único recalibre do runtime): `stopEngine` na lib, o aviso do `shutdown` enquanto espera motor ocupado, e a chave
+//   do pacote como default em `provision` e `fetchArtifact` (verifyAuthenticity: recusa motor do registry público sem chave do
+//   pacote e falha alto se o manifest embarcado for ilegível). +1.1 KB, aprovados pelo orquestrador; o runtime já tinha sido
+//   enxugado por duplicação antes de crescer.
+//   2026-11-12 tooling 46800 → 49200: `ensure neural-link --unregister`, `--register` listando os eventos gravados, o estado dos hooks e o
+//   `stoppable` no doctor, e `fetch` recusando `--dest` dentro do home do motor, +2.4 KB (inclui a recusa do `fetch` para motor pending-release). Rodados na mão de quem instala ou diagnostica.
 const BUDGETS = {
-  runtime: { codeBytes: 27000, baseline: 24519, loc: 900 },
-  tooling: { codeBytes: 46800, baseline: 16420, loc: 1050 },
+  runtime: { codeBytes: 28100, baseline: 24519, loc: 900 },
+  tooling: { codeBytes: 49200, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 6100, baseline: 1859, loc: 150 },
 };
 
