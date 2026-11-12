@@ -118,6 +118,7 @@ que dependa do `engine-kit`, ou o selo "Provenance" na página do pacote.
 npx engine-kit doctor [--engine <motor>]          # diagnostica: o que reusar, atualizar ou baixar
 npx engine-kit doctor --fix [--engine <motor>]    # aplica e limpa as sobras de instalação interrompida
 npx engine-kit doctor --json [--engine <motor>]   # mesmo diagnóstico em JSON, para agentes e hooks
+npx engine-kit ensure|pin|fetch|stop <motor> --json   # um objeto JSON por chamada, na forma das linhas do doctor (name, ok, state, detail, warns, pin), também na falha
 ```
 
 O `--fix` também remove as sobras do `provision` (`stage-<versão>`, o artefato `.tgz`/`.part` e `<bin>.old-<pid>` no home do motor),
@@ -201,7 +202,7 @@ if (!gw.available) { log(`gateway indisponível: ${gw.reason}`); return; }  // d
 - **Reúso por semver same-major `>=`** — dois consumidores com pins diferentes convergem no maior,
   sem loop de download. Major diferente = incompatível (o protocolo é atado ao major).
 - **Troca atômica** — download em `.part` → rename; extração em staging → swap. No Windows, o
-  gancho `onBeforeReplace` derruba o daemon antes (arquivo em uso não pode ser sobrescrito).
+  `ensureEngine` derruba o daemon antes pelo `shutdownPath` do descritor (`onBeforeReplace` troca o gancho, `false` desliga; arquivo em uso não pode ser sobrescrito).
 - **Nunca lança** — toda falha vira `{ ok:false, reason }` / `{ available:false, reason }`. Quem
   decide como degradar é o consumidor.
 - **Singleton do motor** — a corrida é resolvida **dentro** do motor (port-lock/bind); o kit só

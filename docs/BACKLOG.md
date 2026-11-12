@@ -8,12 +8,11 @@ Vazio.
 
 ## Negócio, espera o dono
 
-Cada item muda o uso do produto. Os candidatos (g2), (h), (k), (o) e (p) trazem ganho, esforço (pequeno, médio ou grande, sem prazo), reuso e recomendação.
+Cada item muda o uso do produto. O candidato (k) traz ganho, esforço (pequeno, médio ou grande, sem prazo), reuso e recomendação.
 
-- **`uninstall()` no neural-link (projeto neural-link, `src/install.js`).** O `engine-kit ensure neural-link --unregister` já existe e
-  chama o `uninstall()` do motor instalado, mas o neural-link só exporta `install()`: hoje o comando falha alto dizendo isso. Falta o
-  motor exportar `uninstall({})` removendo os `_dispatcher-<Evento>.json` e devolvendo `{ removed: [...] }`. Não é decisão do dono:
-  é trabalho do outro projeto, delegado pelo orquestrador.
+- **Decidido (Jarvis, 12/11): `uninstall()` do neural-link segue a recomendação; trabalho do projeto neural-link.** **`uninstall()` no neural-link (projeto neural-link, `src/install.js`).** O `engine-kit ensure neural-link --unregister` já existe e
+  chama o `uninstall()` do motor instalado, mas o neural-link só exporta `install()`: hoje o comando falha alto dizendo isso. O motor passa a exportar
+  `uninstall({})`, que remove os `_dispatcher-<Evento>.json` e devolve `{ removed: [...] }`. Nada a mudar neste repositório.
 
 - **Rotação de chave de motor sem passo manual nas máquinas.** Hoje, trocar a chave de um motor faz toda máquina que já o tinha abortar
   (`checkTrust` em `kit/trust.mjs`), e a rotação legítima exige apagar a entrada do `trust.json` à mão. **Decidido** (Jarvis, 09/11):
@@ -26,38 +25,27 @@ Cada item muda o uso do produto. Os candidatos (g2), (h), (k), (o) e (p) trazem 
   sempre no log público de transparência. Fontes: `docs/research/2026-11-09-confianca-do-registry-sem-custodia-de-chave.md` e
   `docs/research/2026-11-09-chaves-contra-runners-sem-acl.md`.
 
-- **(g2) `--json` nos demais verbos (`ensure`, `fetch`, `pin`, `stop`).** Hoje só o `doctor` fala JSON; agente e script leem texto.
-  Ganho: automação sem raspar texto. Esforço: médio (um formato estável de retorno por verbo vira API pública). Reuso: os retornos
-  `{ok, ...}` que `ensureCommand`, `fetchCommand`, `pinCommand` e `stopCommand` já devolvem; só falta imprimir. Recomendação: construir só
-  quando houver um consumidor real; o formato, uma vez publicado, não muda de graça.
-- **(h) Neural-link novo fica preso em `DEFAULT_PIN`.** `ensureNeuralLink()` pede a versão mínima `DEFAULT_PIN` da mesma major; uma major nova do
-  motor exige subir a constante e publicar o kit. Ganho: o motor evolui sem release do kit. Esforço: pequeno. Reuso:
-  `tests/test-neural-link-alignment.mjs` já trava a constante contra o manifest. Recomendação: manter; a trava é proposital, porque o adaptador
-  só aceita o contrato que conhece, e a major nova é decisão do dono do neural-link.
+- **Decidido (Jarvis, 12/11): (h) `DEFAULT_PIN` fica como está, a trava é proposital.** **(h) Neural-link novo fica preso em `DEFAULT_PIN`.** `ensureNeuralLink()` pede a versão mínima `DEFAULT_PIN` da mesma major; uma major nova do
+  motor exige subir a constante e publicar o kit. O adaptador só aceita o contrato que conhece, e a major nova é decisão do dono do neural-link;
+  `tests/test-neural-link-alignment.mjs` trava a constante contra o manifest.
 - **Decidido (Jarvis, 12/11): segue do dono.** **(k) `trust.json` guarda chave e `maxVersion` por motor, não por registry.** Um registry próprio com chave própria faz o público abortar, e
   o contrário. Ganho: quem opera um registry próprio convive com o público. Esforço: médio (migração do arquivo de confiança). Reuso:
   `updateEntry` e a chave de cache por `registryUrl` que já existe em `kit/resolve.mjs`. Recomendação: construir por registry e nome, com
   migração; é decisão do esquema de confiança, então fica atrás da pendência 3a178e.
-- **(o) `ensureEngine` não passa `shutdown` por padrão.** Quem usa a lib e quer o motor parado ao atualizar tem de lembrar de passar
-  `shutdown`; sem ele o motor velho segue vivo até a próxima subida. Ganho: atualização sem motor antigo vivo. Esforço: pequeno, mas
-  muda o comportamento de quem já usa. Reuso: `stopEngine` e o `shutdownPath` do descritor. Recomendação: construir como padrão com
-  opt-out, depois de decidir se o consumidor aceita o motor reiniciar sozinho.
-- **(p) `ensureEngine` não aceita `allowDowngrade`.** O rebaixamento só existe no `pin` do CLI; a lib não tem como voltar a uma versão
-  anterior. Ganho: rollback pela lib. Esforço: pequeno. Reuso: a regra de pin de `satisfiesPin`. Recomendação: construir só se um
-  consumidor pedir, porque cada opção entra no teto do runtime e vira contrato público.
-- **`ensure <motor> --version <menor>` reusa a instalada maior, enquanto `pin --version` instala a exata.** O README promete o rebaixamento no
-  `ensure` (`kit/provision.mjs`, `kit/ensure.mjs`). Ganho: o `--version` fazer o que diz. Esforço: pequeno. Reuso: `allowDowngrade` do provision. Recomendação:
-  `--version` explícito rebaixa; sem ele, reusa. Junto com (p).
-- **`mcp-gateway` sem `shutdownPath` no manifest (projeto mcp-gateway).** `stop mcp-gateway` é recusado e `ensure`/`doctor --fix` trocam o binário sem
-  drenar o daemon (EPERM no Windows). Ganho: atualizar e parar o gateway pelo kit. Esforço: pequeno, no motor e no manifest. Reuso: o `/shutdown` que os outros
-  motores já declaram. Recomendação: o mcp-gateway expor o endpoint e o registry declará-lo; trabalho do outro projeto.
-- **A lib exporta `unpin` mas não `pin`.** Quem usa a lib congela só pelo CLI. Ganho: o fluxo pin/unpin completo na lib. Esforço: pequeno. Reuso: `setPin`
-  em `kit/trust.mjs`. Recomendação: exportar junto com (p), porque os dois fecham o ciclo de rollback.
-- **`verify-release` de motor não confere a versão dentro do `.tgz` (`kit/verify-release.mjs`).** Quem publica pode anunciar a versão X com o `package.json`
-  do artefato em Y; o `fetch` já recusa isso no consumidor. Ganho: o erro aparece na publicação, não no cliente. Esforço: pequeno. Reuso: a extração do
-  `fetch`. Recomendação: construir; só afeta quem publica.
+
+- **Lente de feature irmã (12/11): oito candidatos, todos mudam o uso ou custam teto do runtime; vão ao Jarvis.** Nada construído sem decisão: o runtime está a 247 B do teto (33800).
+  (1) Rollback automático quando a versão nova não sobe (`kit/index.mjs`, `kit/provision.mjs` apaga o `aside` logo após o swap): ganho, motor atualizado que não anuncia não fica quebrado; esforço médio; reuso do `aside` e do `allowDowngrade`; o `ensure` passaria a dizer "revertido para vX". Recomendação: construir, é o mais valioso.
+  (2) Diagnóstico do doctor como API da lib (hoje só script): ganho, painel ou hook leem o estado sem subprocesso; médio; reuso de `kit/diagnose.mjs` e das linhas do `doctor --json`. Recomendação: construir depois de (1), no ferramental, fora do teto do runtime.
+  (3) Retentativa com backoff em falha transitória de rede: pequeno, reuso do padrão de `renameRetry`; custa bytes do runtime. Recomendação: só se alguém reclamar de falha transitória.
+  (4) Espelho de registry e proxy: médio; a confiança não depende da origem (a assinatura é conferida em qualquer espelho). Recomendação: esperar um caso real de rede corporativa.
+  (5) Callback de progresso de download (`onProgress`): pequeno; custa bytes do runtime. Recomendação: só com um consumidor com interface.
+  (6) Verificação sob demanda da instalação em disco (hash por arquivo extraído, estado ADULTERADO no doctor): médio; parente do monitor agendado de integridade já levado ao dono. Recomendação: junto com ele.
+  (7) Adaptadores prontos para embed-house e vxk (hoje só mcp-gateway e neural-link): pequeno, sem mudar o uso; o consumidor deixa de reescrever o handshake. Recomendação: construir quando um segundo consumidor pedir.
+  (8) Canais estável e beta (`--channel`): grande, muda schema e publicação. Recomendação: não construir agora.
+
 ## Decidido
 
+- **Resolvido (Jarvis, 12/11): sete itens construídos na develop, cada um com teste que falha sem o código** (`tests/test-backlog-tecnico.mjs`). (1) (g2) `--json` em `ensure`, `fetch`, `pin` e `stop`: um objeto JSON na forma das linhas do `doctor --json` (`name`, `ok`, `state`, `detail`, `warns`, `pin`, mais os campos do verbo), também na falha, sem log de progresso em stdout; recusado com `--register`/`--unregister`; `unpin` não o aceita. (2) (o) `ensureEngine` desliga o daemon pelo `shutdownPath` do descritor antes do swap; `onBeforeReplace` troca o gancho e `false` desliga. (3) (p) `ensureEngine` aceita `allowDowngrade`: com `version`, instala a exata. (4) `ensure <motor> --version <x>` instala a versão exata, como o `pin`. (5) a lib exporta `pin` junto de `unpin`. (6) `verify-release` confere a versão dentro do `.tgz` contra a anunciada. (7) o manifest declara o `shutdownPath` do mcp-gateway (`/admin/shutdown`, token `shutdownToken` no cabeçalho `x-shutdown-token`): o gateway já o implementa desde a 0.17.7, nada muda no projeto mcp-gateway, e o prazo padrão do `shutdown` subiu de 5 s para 90 s porque o gateway drena até cerca de 60 s.
 - **Decidido (Jarvis, 12/11): seis itens construídos na develop, cada um com teste que falha sem o código** (`tests/test-backlog-decidido.mjs`).
   (f) `stopEngine` pede o desligamento sem `relaunch=1` (`shutdown` aceita `semRelaunch`), então o client-harness fica parado depois do `stop`;
   a atualização segue com o `shutdownPath` declarado. (i) o `doctor` avisa chave do registry ≠ chave embarcada quando não há `trust.json`
