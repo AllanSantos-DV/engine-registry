@@ -14,7 +14,7 @@ import { createHash } from "node:crypto";
 const ROOT = mkdtempSync(join(tmpdir(), "nl-trust-"));
 Object.assign(process.env, { HOME: ROOT, USERPROFILE: ROOT, ENGINE_KIT_HOME: join(ROOT, "trust-home") });
 const { ensureNeuralLink } = await import("../consumers/neural-link.mjs");
-const { firstContactKeys } = await import("../kit/ensure.mjs");
+const { firstContactKeys } = await import("../kit/trust.mjs");
 
 let failures = 0;
 const check = (name, cond, detail = "") => { if (!cond) failures++; console.log(`${cond ? "  OK  " : " FALHA"} ${name}${detail ? ` — ${detail}` : ""}`); };

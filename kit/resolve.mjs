@@ -69,23 +69,23 @@ export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowN
   } else if (useCache) {
     manifest = cached.manifest;
     offline = true; // cache fresco: não precisou da rede
-  } else if (allowNetwork) {
-    try {
-      manifest = await fetchManifest(registryUrl, timeoutMs);
-      try { mkdirSync(CACHE_DIR, { recursive: true }); writeFileSync(CACHE, JSON.stringify(manifest, null, 2)); } catch { /* cache é best-effort */ }
-    } catch (e) {
-      if (!cached) { return { ok: false, reason: `registry inacessível (${e.message}) e sem cache` }; }
+  } else {
+    if (allowNetwork) {
+      try {
+        manifest = await fetchManifest(registryUrl, timeoutMs);
+        try { mkdirSync(CACHE_DIR, { recursive: true }); writeFileSync(CACHE, JSON.stringify(manifest, null, 2)); } catch { /* cache é best-effort */ }
+      } catch (e) {
+        if (!cached) { return { ok: false, reason: `registry inacessível (${e.message}) e sem cache` }; }
+      }
+    } else if (!cached) {
+      return { ok: false, reason: "sem cache do registry e rede desabilitada" };
+    }
+    if (!manifest) {
+      // AQUI é a degradação real: sem rede (ou rede falhou) e o cache está vencido
       manifest = cached.manifest;
       offline = true;
-      // AQUI é a degradação real: rede falhou e o cache está vencido
       degraded = cached.stale;
     }
-  } else if (cached) {
-    manifest = cached.manifest;
-    offline = true;
-    degraded = cached.stale;
-  } else {
-    return { ok: false, reason: "sem cache do registry e rede desabilitada" };
   }
 
   const found = (manifest.engines ?? []).find((e) => e.name === name);

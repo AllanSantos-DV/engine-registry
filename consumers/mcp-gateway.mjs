@@ -20,7 +20,6 @@ import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import { ensureEngine } from "../kit/index.mjs";
 import { waitExit } from "../kit/lifecycle.mjs";
-import { firstContactKeys } from "../kit/ensure.mjs";
 
 const DEFAULT_HOME = join(homedir(), ".mcp-gateway");
 const DEFAULT_PORT = 7337;
@@ -184,7 +183,7 @@ export function readInstructions() {
  * @returns {Promise<{available:true, url:string, token:string|null, tokenReason?:string, port:number, backends:string[], health:object, version?:string, staleCache?:true, instructions:ReturnType<typeof readInstructions>}
  *                  | {available:false, reason:string}>}
  */
-export async function ensureGateway({ log = () => {}, version, allowNetwork = true, bootTimeoutMs = 45000, registryUrl, fetcher, refresh, trustedKeys = firstContactKeys(ENGINE_NAME, registryUrl) } = {}) {
+export async function ensureGateway({ log = () => {}, version, allowNetwork = true, bootTimeoutMs = 45000, registryUrl, fetcher, refresh, trustedKeys } = {}) {
   const r = await ensureEngine("mcp-gateway", {
     healthCheck,
     onBeforeReplace: () => onBeforeReplace({ log }),

@@ -36,27 +36,27 @@ export const SIGNATURE_BYTES = 64;
 const isHexKey = (s) => /^[0-9a-fA-F]{64}$/.test(String(s ?? ""));
 
 /** Converte a chave PÚBLICA hex (32 bytes) num KeyObject utilizável pelo `crypto.verify`. */
-export function publicKeyFromHex(hex) {
+const rawOf = (hex, kind) => {
   if (!isHexKey(hex)) {
-    throw new Error(`chave pública Ed25519 inválida: esperado 64 chars hex (32 bytes), veio ${String(hex ?? "").length}`);
+    throw new Error(`chave ${kind} Ed25519 inválida: esperado 64 chars hex (32 bytes), veio ${String(hex ?? "").length}`);
   }
-  const raw = Buffer.from(hex, "hex");
-  return createPublicKey({ key: Buffer.concat([SPKI_PREFIX, raw]), format: "der", type: "spki" });
+  return Buffer.from(hex, "hex");
+};
+const spkiRaw = (key) => key.export({ type: "spki", format: "der" }).subarray(SPKI_PREFIX.length);
+
+export function publicKeyFromHex(hex) {
+  return createPublicKey({ key: Buffer.concat([SPKI_PREFIX, rawOf(hex, "pública")]), format: "der", type: "spki" });
 }
 
 /** Converte a chave PRIVADA hex (32 bytes) num KeyObject utilizável pelo `crypto.sign`. */
 export function privateKeyFromHex(hex) {
-  if (!isHexKey(hex)) {
-    throw new Error(`chave privada Ed25519 inválida: esperado 64 chars hex (32 bytes), veio ${String(hex ?? "").length}`);
-  }
-  const raw = Buffer.from(hex, "hex");
-  return createPrivateKey({ key: Buffer.concat([PKCS8_PREFIX, raw]), format: "der", type: "pkcs8" });
+  return createPrivateKey({ key: Buffer.concat([PKCS8_PREFIX, rawOf(hex, "privada")]), format: "der", type: "pkcs8" });
 }
 
 /** Gera um par novo. Devolve as duas metades em hex cru (32 bytes cada). */
 export function generateKeyPairHex() {
   const { publicKey, privateKey } = generateKeyPairSync("ed25519");
-  const pub = publicKey.export({ type: "spki", format: "der" }).subarray(SPKI_PREFIX.length);
+  const pub = spkiRaw(publicKey);
   const priv = privateKey.export({ type: "pkcs8", format: "der" }).subarray(PKCS8_PREFIX.length);
   if (pub.length !== RAW_KEY_BYTES || priv.length !== RAW_KEY_BYTES) {
     throw new Error(`envelope DER inesperado (pub=${pub.length}B, priv=${priv.length}B) — Node incompatível`);
@@ -66,8 +66,7 @@ export function generateKeyPairHex() {
 
 /** Deriva a chave PÚBLICA (hex cru) a partir da privada — para provar a assinatura aqui mesmo. */
 export function publicKeyHexFromPrivateHex(privateKeyHex) {
-  const pub = createPublicKey(privateKeyFromHex(privateKeyHex));
-  return pub.export({ type: "spki", format: "der" }).subarray(SPKI_PREFIX.length).toString("hex");
+  return spkiRaw(createPublicKey(privateKeyFromHex(privateKeyHex))).toString("hex");
 }
 
 /** LADO PUBLISHER: assina o SHA-256 do artefato. Devolve os 64 bytes crus do `.sig`. LANÇA em erro. */
@@ -91,7 +90,7 @@ export function verifyBlob(blob, signature, publicKeyHex, { algorithm = DEFAULT_
   if (!isHexKey(publicKeyHex)) {
     return { ok: false, reason: "chave pública ausente/malformada no registry (esperado 64 chars hex) → ABORT" };
   }
-  const sig = Buffer.isBuffer(signature) ? signature : Buffer.from(signature ?? []);
+  const sig = Buffer.from(signature ?? []);
   if (sig.length !== SIGNATURE_BYTES) {
     return { ok: false, reason: `sidecar .sig com ${sig.length} bytes (esperado ${SIGNATURE_BYTES} crus, sem base64) → ABORT` };
   }

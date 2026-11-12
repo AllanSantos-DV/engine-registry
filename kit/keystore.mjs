@@ -22,8 +22,8 @@ export const envVarFor = (engine) => `ENGINE_SIGNING_KEY_${String(engine).replac
 
 /** Caminho canônico da chave privada de um motor (respeita o override por ambiente). */
 export function keyPathFor(engine) {
-  const override = process.env[envVarFor(engine)];
-  if (override && override.trim()) { return override.trim(); }
+  const override = process.env[envVarFor(engine)]?.trim();
+  if (override) { return override; }
   return join(SIGNING_DIR, `${engine}_ed25519_private.key`);
 }
 

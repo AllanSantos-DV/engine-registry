@@ -294,10 +294,9 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
     //      antiga, legitimamente assinada, servida no lugar da nova (replay/downgrade) passaria pelo
     //      sha256 e pela Ed25519. O package.json do artefato tem de dizer a versão que o registry pede.
     const got = installedVersion(staging);
+    const abort = (reason) => { rmTree(staging); dropFile(tgz); return { ok: false, reason }; };
     if (got !== engine.version) {
-      rmTree(staging);
-      dropFile(tgz);
-      return { ok: false, reason: `${engine.name}: o artefato diz v${got ?? "? (package.json ausente/ilegível)"} e o registry pede v${engine.version} → ABORT` };
+      return abort(`${engine.name}: o artefato diz v${got ?? "? (package.json ausente/ilegível)"} e o registry pede v${engine.version} → ABORT`);
     }
 
     // A instalação atual sai do caminho por RENAME, não por rmSync: no Windows, com o motor em uso
@@ -311,9 +310,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
       try {
         await renameRetry(binDir, aside);
       } catch (e) {
-        rmTree(staging);
-        dropFile(tgz);
-        return { ok: false, reason: `${engine.name}: não consegui trocar ${binDir} (${e.code || e.message}): arquivos em uso — feche quem usa o motor e rode de novo; a instalação atual ficou intacta` };
+        return abort(`${engine.name}: não consegui trocar ${binDir} (${e.code || e.message}): arquivos em uso — feche quem usa o motor e rode de novo; a instalação atual ficou intacta`);
       }
     }
     // `extractTo` pode ser ANINHADO (ex.: "runtimes/<motor>", quando o home guarda estado que

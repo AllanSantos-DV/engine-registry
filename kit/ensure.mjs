@@ -25,14 +25,6 @@ export function bundledManifest() {
   return JSON.parse(readFileSync(BUNDLED_MANIFEST, "utf8"));
 }
 
-/** Chave do primeiro contato (manifest embarcado); só no registry público. Nunca lança. */
-export function firstContactKeys(name, registryUrl) {
-  try {
-    const key = registryUrl ? null : bundledManifest().engines?.find((e) => e.name === name)?.install?.publicKey;
-    return key ? { [name]: key } : undefined;
-  } catch { return undefined; }
-}
-
 /**
  * @param {string} name motor no registry.
  * @param {object} opts

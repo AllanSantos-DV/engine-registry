@@ -27,7 +27,7 @@ process.env.MCP_GATEWAY_DATA_DIR = GW_HOME;
 delete process.env.MCP_GATEWAY_TOKEN;
 
 const { ensureGateway } = await import("../consumers/mcp-gateway.mjs");
-const { firstContactKeys } = await import("../kit/ensure.mjs");
+const { firstContactKeys } = await import("../kit/trust.mjs");
 
 const gateway = createServer((_q, res) => res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ name: "mcp-gateway", status: "ok", backends: [] })));
 await new Promise((r) => gateway.listen(0, "127.0.0.1", r));
