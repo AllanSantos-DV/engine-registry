@@ -45,7 +45,7 @@ console.log("== avisos do ensure ==\n");
 
 {
   const m = manifestWith(join(RUN, "home-cache"));
-  const cache = join(RUN, ".engine-kit", "manifest.json");
+  const cache = join(RUN, ".engine-kit", `manifest-${createHash("sha256").update(REGISTRY_FORA).digest("hex").slice(0, 12)}.json`);
   mkdirSync(join(RUN, ".engine-kit"), { recursive: true });
   writeFileSync(cache, JSON.stringify(m));
   const seteHorasAtras = new Date(Date.now() - 7 * 3600 * 1000);

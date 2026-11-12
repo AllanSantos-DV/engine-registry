@@ -190,8 +190,11 @@ try {
 
   // (a) cache VENCIDO + rede tentada e falhando → degradação REAL, tem que sinalizar
   const old = new Date(Date.now() - 48 * 3600 * 1000);
-  utimesSync(cacheFile, old, old);
-  const deg = await resolve("fake-engine", { registryUrl: "http://127.0.0.1:1/nope.json", allowNetwork: true, timeoutMs: 1200 });
+  const foraUrl = "http://127.0.0.1:1/nope.json";
+  const foraCache = join(cacheDir, `manifest-${createHash("sha256").update(foraUrl).digest("hex").slice(0, 12)}.json`);
+  writeFileSync(foraCache, JSON.stringify(fakeManifest));
+  utimesSync(foraCache, old, old);
+  const deg = await resolve("fake-engine", { registryUrl: foraUrl, allowNetwork: true, timeoutMs: 1200 });
   check("cache vencido + registry fora → staleCache=true", deg.ok && deg.engine.staleCache === true, deg.ok ? String(deg.engine.staleCache) : deg.reason);
   check("e marca offline", deg.ok && deg.engine.offline === true);
 
@@ -201,6 +204,7 @@ try {
   const fresh = await resolve("fake-engine", { allowNetwork: false });
   check("cache fresco → staleCache=false", fresh.ok && fresh.engine.staleCache === false, fresh.ok ? String(fresh.engine.staleCache) : fresh.reason);
 } finally {
+  rmSync(join(cacheDir, `manifest-${createHash("sha256").update("http://127.0.0.1:1/nope.json").digest("hex").slice(0, 12)}.json`), { force: true });
   if (hadCache) { writeFileSync(cacheFile, backup); } else { rmSync(cacheFile, { force: true }); }
 }
 

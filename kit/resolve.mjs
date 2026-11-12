@@ -3,6 +3,7 @@
 // NUNCA lança: devolve { ok:false, reason } para o consumidor decidir (fail-loud no caller).
 import { mkdirSync, existsSync, readFileSync, writeFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 
 export const DEFAULT_REGISTRY_URL =
@@ -26,10 +27,13 @@ export function fill(tpl, vars) {
   return String(tpl).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
 }
 
-function readCache() {
+/** Cada registry tem o seu cache: o descritor de um registry próprio nunca serve ao público. */
+const cacheFile = (url) => (url === DEFAULT_REGISTRY_URL ? CACHE : join(CACHE_DIR, `manifest-${createHash("sha256").update(url).digest("hex").slice(0, 12)}.json`));
+
+function readCache(file) {
   try {
-    const age = Date.now() - statSync(CACHE).mtimeMs;
-    return { manifest: JSON.parse(readFileSync(CACHE, "utf8")), stale: age > CACHE_TTL_MS };
+    const age = Date.now() - statSync(file).mtimeMs;
+    return { manifest: JSON.parse(readFileSync(file, "utf8")), stale: age > CACHE_TTL_MS };
   } catch {
     return null;
   }
@@ -49,7 +53,7 @@ async function fetchManifest(url, timeoutMs) {
  */
 export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowNetwork = true, timeoutMs = 10000, version, manifest: given, refresh = false } = {}) {
   let manifest = null;
-  const cached = given ? null : readCache();
+  const cacheAt = cacheFile(registryUrl), cached = given ? null : readCache(cacheAt);
   // Sinalizações marcadas ONDE acontecem (não deduzidas depois):
   //  • degraded  → tentou a rede, falhou, e caiu num cache VENCIDO (descritor pode estar velho);
   //  • offline   → não se falou com o registry nesta resolução (rede desabilitada ou falha).
@@ -73,7 +77,7 @@ export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowN
     if (allowNetwork) {
       try {
         manifest = await fetchManifest(registryUrl, timeoutMs);
-        try { mkdirSync(CACHE_DIR, { recursive: true }); writeFileSync(CACHE, JSON.stringify(manifest, null, 2)); } catch { /* cache é best-effort */ }
+        try { mkdirSync(CACHE_DIR, { recursive: true }); writeFileSync(cacheAt, JSON.stringify(manifest, null, 2)); } catch { /* cache é best-effort */ }
       } catch (e) {
         if (!cached) { return { ok: false, reason: `registry inacessível (${e.message}) e sem cache` }; }
       }

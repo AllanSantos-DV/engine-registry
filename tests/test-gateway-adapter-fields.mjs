@@ -65,7 +65,7 @@ rmSync(join(GW_HOME, "auth-token"));
 }
 
 {
-  const cache = join(HOME, ".engine-kit", "manifest.json");
+  const cache = join(HOME, ".engine-kit", `manifest-${createHash("sha256").update(registryUrl).digest("hex").slice(0, 12)}.json`);
   const velho = new Date(Date.now() - 7 * 60 * 60 * 1000);
   utimesSync(cache, velho, velho);
   registry.close();
