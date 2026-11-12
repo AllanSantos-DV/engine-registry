@@ -86,8 +86,12 @@ const ROOT = resolvePath(KIT, "..");
 //   enxugado por duplicação antes de crescer.
 //   2026-11-12 tooling 46800 → 49200: `ensure neural-link --unregister`, `--register` listando os eventos gravados, o estado dos hooks e o
 //   `stoppable` no doctor, e `fetch` recusando `--dest` dentro do home do motor, +2.4 KB (inclui a recusa do `fetch` para motor pending-release). Rodados na mão de quem instala ou diagnostica.
+//   2026-11-12 runtime 28100 → 30300: nove bordas técnicas do ciclo de vida e da confiança, +2.2 KB — `updateEntry` (lock de arquivo e
+//   rename atômico para trust.json, que três caminhos gravavam sem exclusão), cache do descritor por registry, sondagem da porta
+//   quando o runtime não traz pid, `mkdir` do home com falha explícita e a recusa de destino dentro do home passando para
+//   `fetchArtifact` (saiu do fetch.mjs; o ferramental encolheu). Nenhum código funcional foi cortado.
 const BUDGETS = {
-  runtime: { codeBytes: 28100, baseline: 24519, loc: 900 },
+  runtime: { codeBytes: 30300, baseline: 24519, loc: 900 },
   tooling: { codeBytes: 49200, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 6100, baseline: 1859, loc: 150 },
 };

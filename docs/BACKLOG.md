@@ -4,17 +4,7 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
 
 ## Técnico
 
-Achados da lente de feature irmã desta rodada (melhoria pura, reversível):
-
-- Cache do descritor em `kit/resolve.mjs` ignora `registryUrl`: registry próprio grava o cache global lido pelo registry público. Chavear o cache pela URL.
-- `findAlive` em `kit/lifecycle.mjs` não captura exceção de `healthCheck` do consumidor, contra o "nunca lança" de `ensureEngine`.
-- `mkdirSync(home)` em `kit/provision.mjs` fica fora do try: EACCES/ENOTDIR lança em vez de `{ok:false}` (cabe no teto do runtime só com corte em outro ponto).
-- `saveTrust` grava sem atomicidade e sem lock no read-modify-write: queda no meio deixa `trust.json` ilegível e todos os comandos recusam.
-- `shutdown` sem `pid` no runtime devolve `stopped:true` sem verificar nada.
-- A mensagem de `stopEngine` para motor `cli` sem `shutdownPath` fala em "quem o sobe", que não se aplica a motor sem processo.
-- `120000` do lock repetido em `kit/doctor.mjs` e `kit/provision.mjs`; a guarda de `--dest` no home existe só no `fetchCommand`, não no `fetchArtifact` da lib.
-- Docs de `index.mjs` e `consumers/neural-link.mjs` falam em "versão mínima" onde o código usa a versão exata.
-- Testes faltando: `doctor --fix` com motor em ERRO, `fetch` com versão do artefato diferente do descritor, dois `registryUrl` na mesma sessão, `ensureNeuralLink` com `install()` falho, `ENGINE_KIT_NO_AUTO_UPDATE` na lib.
+Vazio.
 
 ## Negócio, espera o dono
 
@@ -40,6 +30,15 @@ Cada item muda o uso do produto. Recomendação entre parênteses de cada um.
 
 ## Decidido
 
+- **Resolvido (Jarvis, 2026-11-12): nove achados técnicos da lente construídos, cada um com teste que falha sem a correção.** (1) o cache do
+  descritor é por `registryUrl` (`kit/resolve.mjs`; registry próprio não envenena o público); (2) `findAlive` trata `healthCheck` que lança
+  como motor não saudável; (3) `mkdir` do home em `provision` devolve `{ok:false}`; (4) `trust.json` passa a ser gravado por `updateEntry`
+  (lock de arquivo, tmp + rename; lock órfão reclamado por idade) nos três caminhos que gravavam; (5) `shutdown` sem pid confirma a saída pela
+  porta; (6) a mensagem do `stopEngine` para motor `kind=cli` diz que não há processo; (7) `LOCK_STALE_MS` exportado e usado pelo doctor, e a
+  recusa de destino dentro do home vive no `fetchArtifact` (a lib também); (8) docs de `index.mjs` e `consumers/neural-link.mjs` falam em
+  versão exata; (9) testes novos em `tests/test-tecnico.mjs` e `tests/test-stop.mjs`. Teto do runtime 28100 → 30300 com entrada datada em
+  `kit/budget.mjs`. Os testes de `doctor --fix` com ERRO, `fetch` com versão divergente do artefato, `ensureNeuralLink` com `install()` falho e
+  `NO_AUTO_UPDATE` na lib não foram escritos: cada um fixaria um comportamento que os candidatos (a), (b), (c) e (e) do dono ainda vão decidir.
 - **Resolvido (Jarvis, 2026-11-12): nove candidatos do 0.2.13 e da lente construídos.** (1) `engine-kit ensure neural-link --unregister`
   (`kit/register.mjs`, falha alto enquanto o motor não expõe `uninstall()`); (2) o `doctor` mostra o estado dos hooks do neural-link
   (`_dispatcher-*.json` no config global); (3) `doctor --json` traz `stoppable`; (4) `--register` lista os eventos gravados;
