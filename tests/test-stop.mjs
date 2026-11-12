@@ -34,13 +34,13 @@ const srv = http.createServer((req, res) => {
   if (req.url === '/shutdown' && req.method === 'POST') {
     if (req.headers['x-shutdown-token'] !== shutdownToken) { res.writeHead(401).end('token'); return; }
     const busy = process.env.FAKE_BUSY === '1';
-    res.writeHead(busy ? 202 : 200).end('ok'); setTimeout(() => process.exit(0), busy ? 800 : 50); return;
+    res.writeHead(busy ? 202 : 200).end('ok'); setTimeout(() => process.exit(0), process.env.FAKE_NOPID === '1' ? 3000 : busy ? 800 : 50); return;
   }
   res.writeHead(404).end();
 });
 srv.listen(0, '127.0.0.1', () => {
   mkdirSync(join(home, 'run'), { recursive: true });
-  writeFileSync(join(home, 'run', 'daemon.json'), JSON.stringify({ name: 'fake', port: srv.address().port, pid: process.pid, shutdownToken }));
+  writeFileSync(join(home, 'run', 'daemon.json'), JSON.stringify({ name: 'fake', port: srv.address().port, ...(process.env.FAKE_NOPID === '1' ? {} : { pid: process.pid }), shutdownToken }));
 });
 `);
 
@@ -68,7 +68,7 @@ async function daemonVivo(home, env = {}) {
   mkdirSync(home, { recursive: true });
   const proc = spawn(process.execPath, [DAEMON], { env: { ...process.env, FAKE_HOME: home, ...env }, windowsHide: true, stdio: "ignore" });
   for (let i = 0; i < 100 && !(() => { try { readFileSync(join(home, "run", "daemon.json")); return true; } catch { return false; } })(); i++) { await sleep(100); }
-  return { proc, pid: JSON.parse(readFileSync(join(home, "run", "daemon.json"), "utf8")).pid };
+  return { proc, pid: proc.pid };
 }
 
 {
@@ -90,7 +90,17 @@ async function daemonVivo(home, env = {}) {
 }
 
 {
+  const home = join(RUN, "home-sem-pid");
+  const { proc, pid } = await daemonVivo(home, { FAKE_NOPID: "1" });
+  check("runtime do daemon fake não traz pid", JSON.parse(readFileSync(join(home, "run", "daemon.json"), "utf8")).pid === undefined);
+  const r = await stopEngine("fake-engine", { manifest: manifestWith(home, RUNTIME) });
+  check("motor sem pid no runtime: stopped:true só depois do processo realmente sair", r.ok === true && r.stopped === true && !vivo(pid), `${JSON.stringify(r)} vivo=${vivo(pid)}`);
+  proc.kill();
+}
+
+{
   const r = await stopEngine("fake-engine", { manifest: manifestWith(join(RUN, "home-lib-sem"), undefined) });
+  check("stopEngine de motor kind=cli sem shutdownPath explica que não há processo para desligar", r.ok === false && /kind=cli, roda por evento e não tem processo/.test(r.reason), r.reason);
   check("stopEngine de motor sem shutdownPath recusa com o motivo", r.ok === false && /não declara shutdownPath/.test(r.reason), r.reason);
   const f = await stopEngine("nao-existe", { manifest: manifestWith(join(RUN, "x"), RUNTIME) });
   check("stopEngine de motor fora do registry devolve ok:false, sem lançar", f.ok === false, f.reason);

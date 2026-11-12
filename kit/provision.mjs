@@ -8,7 +8,7 @@
 //   • shutdown-first (Windows: DLL/EXE em uso impede sobrescrever o diretório).
 // NUNCA lança: devolve { ok:false, reason }.
 import { mkdirSync, existsSync, renameSync, rmSync, openSync, closeSync, readFileSync, writeFileSync, unlinkSync, statSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join, dirname, resolve as resolvePath, relative, isAbsolute } from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { verifyBlob, DEFAULT_ALGORITHM } from "./signature.mjs";
@@ -27,7 +27,7 @@ const dropFile = (p) => { try { unlinkSync(p); } catch { /* ignore */ } };
 const rmTree = (p) => rmSync(p, { recursive: true, force: true });
 
 /** Lock mais velho que isto é considerado ÓRFÃO (processo morreu antes do finally). */
-const LOCK_STALE_MS = 120000;
+export const LOCK_STALE_MS = 120000;
 
 /**
  * Extrai o .tgz. Usa o `tar` do sistema (presente por padrão no Windows 10 1803+, macOS e Linux).
@@ -187,8 +187,12 @@ async function verifyAuthenticity(engine, blob, { log, fetcher, trustedKeys }) {
  *
  * @returns {Promise<{ok:true, path:string, version:string, signed:boolean} | {ok:false, reason:string}>} nunca lança.
  */
-export async function fetchArtifact(engine, { log = () => {}, destDir, downloadTimeoutMs = 300000, fetcher = fetchBuf, trustedKeys } = {}) {
-  const dir = destDir ?? engine.homeDir;
+export async function fetchArtifact(engine, { log = () => {}, destDir = process.cwd(), downloadTimeoutMs = 300000, fetcher = fetchBuf, trustedKeys, intoHome = false } = {}) {
+  const dir = destDir;
+  const dentro = relative(resolvePath(engine.homeDir), resolvePath(dir));
+  if (!intoHome && !dentro.startsWith("..") && !isAbsolute(dentro)) {
+    return { ok: false, reason: `${engine.name}: destino ${dir} está dentro do home de ${engine.name} (${engine.homeDir}): o doctor --fix trata o artefato ali como sobra de instalação e o apagaria → escolha outra pasta` };
+  }
   try {
     mkdirSync(dir, { recursive: true });
   } catch (e) {
@@ -265,7 +269,8 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
   const rb = !allowDowngrade && !exact && rollbackReason(engine.name, engine.version);
   if (rb) { return { ok: false, reason: rb }; }
 
-  mkdirSync(home, { recursive: true });
+  try { mkdirSync(home, { recursive: true }); }
+  catch (e) { return { ok: false, reason: `${engine.name}: não consegui criar ${home}: ${e?.message || e}` }; }
 
   // LOCK atômico: só um consumidor provisiona; os demais aguardam o resultado dele.
   // Um lock órfão (processo morto) é reclamado por idade — não trava a máquina para sempre.
@@ -284,7 +289,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
 
   try {
     // 1-3.5) Sidecar SHA256 obrigatório, integridade e AUTENTICIDADE antes de qualquer byte tocar o disco.
-    const auth = await fetchArtifact(engine, { log, destDir: home, downloadTimeoutMs, fetcher, trustedKeys });
+    const auth = await fetchArtifact(engine, { log, destDir: home, intoHome: true, downloadTimeoutMs, fetcher, trustedKeys });
     if (!auth.ok) { return auth; }
     const tgz = auth.path;
 

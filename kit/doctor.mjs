@@ -16,7 +16,7 @@ import { readFileSync, existsSync, readdirSync, statSync, rmSync } from "node:fs
 import { homedir } from "node:os";
 import { join, basename, dirname } from "node:path";
 import { resolve } from "./resolve.mjs";
-import { provision, satisfiesPin, installedVersion } from "./provision.mjs";
+import { provision, satisfiesPin, installedVersion, LOCK_STALE_MS } from "./provision.mjs";
 import { shutdown } from "./lifecycle.mjs";
 import { lifeOf, pointerOf } from "./diagnose.mjs";
 import { pinOf, readTrust } from "./trust.mjs";
@@ -46,7 +46,7 @@ function leftovers(engine) {
   const lock = join(engine.homeDir, "provision.lock");
   try {
     const pid = Number(readFileSync(lock, "utf8"));
-    if (Date.now() - statSync(lock).mtimeMs < 120000 || (pid > 0 && (process.kill(pid, 0), true))) return [];
+    if (Date.now() - statSync(lock).mtimeMs < LOCK_STALE_MS || (pid > 0 && (process.kill(pid, 0), true))) return [];
   } catch (e) { if (e.code === "EPERM") return []; }
   const ls = (dir, isLeft) => { try { return readdirSync(dir).filter(isLeft).map((n) => join(dir, n)); } catch { return []; } };
   const asset = engine.assetName;

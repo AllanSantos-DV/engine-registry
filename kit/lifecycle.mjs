@@ -57,7 +57,8 @@ export function readFreshRuntime(engine, { staleMs } = {}) {
 async function findAlive(engine, healthCheck) {
   const rt = readRuntime(engine);
   if (!rt) { return null; }
-  const health = await healthCheck(rt);
+  let health = null;
+  try { health = await healthCheck(rt); } catch { /* healthCheck do consumidor que lança = motor não saudável */ }
   return health ? { runtime: rt, health } : null;
 }
 
@@ -65,6 +66,15 @@ async function findAlive(engine, healthCheck) {
 export async function waitExit(pid, ms) {
   for (const fim = Date.now() + ms; ; await sleep(500)) {
     try { process.kill(pid, 0); } catch { return true; }
+    if (Date.now() >= fim) { return false; }
+  }
+}
+
+/** Sem pid no runtime, a saída do motor se vê pela porta: true = recusou conexão (até `ms`). */
+async function portClosed(port, ms) {
+  for (const fim = Date.now() + ms; ; await sleep(500)) {
+    try { await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(1000) }); }
+    catch (e) { if (e?.cause?.code === "ECONNREFUSED") { return true; } }
     if (Date.now() >= fim) { return false; }
   }
 }
@@ -106,7 +116,7 @@ export async function shutdown(engine, { log = () => {}, timeoutMs = 5000, waitB
     log(`[engine-kit] ${engine.name}: shutdown pedido (pid ${rt.pid ?? "?"}, HTTP ${res.status})`);
     if (adiado) { log(`[engine-kit] ${engine.name}: ocupado, aguardando até ${waitBusyMs / 1000}s o trabalho em curso acabar`); }
     // O motor responde ANTES de sair. Sem esta espera, o swap ainda encontra o arquivo em uso.
-    if (rt.pid ? !(await waitExit(rt.pid, adiado ? waitBusyMs : 15000)) : await sleep(1500)) {
+    if (!(await (rt.pid ? waitExit(rt.pid, adiado ? waitBusyMs : 15000) : portClosed(rt.port, adiado ? waitBusyMs : 15000)))) {
       return { ok: false, reason: `${engine.name}: ainda ocupado após o pedido; rode de novo depois` };
     }
     return { ok: true, stopped: true };
@@ -124,7 +134,10 @@ export async function shutdown(engine, { log = () => {}, timeoutMs = 5000, waitB
 export async function stopEngine(name, { registryUrl, manifest, log } = {}) {
   const r = await resolve(name, { registryUrl, refresh: true, ...(manifest ? { manifest } : {}) });
   if (!r.ok) { return r; }
-  if (!r.engine.runtime?.shutdownPath) { return { ok: false, reason: `${name} não declara shutdownPath no registry: o kit não sabe desligá-lo (quem o sobe é o consumidor ou o próprio motor)` }; }
+  if (!r.engine.runtime?.shutdownPath) {
+    const por = r.engine.kind === "cli" ? "é kind=cli, roda por evento e não tem processo para desligar" : "o kit não sabe desligá-lo (quem o sobe é o consumidor ou o próprio motor)";
+    return { ok: false, reason: `${name} não declara shutdownPath no registry: ${por}` };
+  }
   return shutdown(r.engine, { log });
 }
 

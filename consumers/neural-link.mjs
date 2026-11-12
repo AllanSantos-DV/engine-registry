@@ -32,7 +32,7 @@ const DEFAULT_PIN = "0.7.16";
  * binário e sai (ver `kit/lifecycle.mjs`).
  *
  * @param {object} opts
- * @param {string=} opts.version pin de versão mínima (default: {@link DEFAULT_PIN}).
+ * @param {string=} opts.version versão exata (default: {@link DEFAULT_PIN}).
  * @param {(msg:string)=>void=} opts.log
  * @param {string=} opts.registryUrl registry próprio (a chave embarcada do primeiro contato então não se aplica).
  * @param {Record<string,string>=} opts.trustedKeys chave do primeiro contato (default: a do manifest embarcado).
