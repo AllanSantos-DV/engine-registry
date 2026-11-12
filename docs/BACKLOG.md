@@ -22,16 +22,22 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
 - **`engine-kit stop <motor>` (decisão do dono, ainda pendente).** Desliga pelo `shutdownPath` declarado; o mcp-gateway
   precisaria do drain do adaptador. Ganho, esforço e peças em `docs/research/2026-11-11-lente-feature-irma-engine-kit-0.2.6.md`.
 
-- **Negócio, espera o dono: `engine-kit ensure neural-link` rodar o `install()` do motor.** Hoje só o adaptador registra os
+## Aguardando decisão do dono
+
+- **`engine-kit ensure neural-link` rodar o `install()` do motor (pendência 929130).** Hoje só o adaptador registra os
   hooks (escreve no config global de hooks do usuário); quem instala pela CLI fica com o dispatcher sem companion
-  registrado. Muda o que o comando faz na máquina do usuário. Origem: `docs/research/2026-11-12-backlog-zerado-doctor-pelo-bin-e-campos-do-adaptador.md`.
+  registrado. Muda o que o comando faz na máquina do usuário. Recomendação: N3, `--register` opcional. Origem:
+  `docs/research/2026-11-12-backlog-zerado-doctor-pelo-bin-e-campos-do-adaptador.md`; quadro e fontes em
+  `docs/research/2026-11-12-board-tres-decisoes-do-engine-kit.md`.
 
-- **Negócio, espera o dono: verbo para subir um daemon depois do `ensure`.** A vitrine promete sessões no mesmo endereço
+- **Verbo para subir um daemon depois do `ensure` (pendência 929130).** A vitrine promete sessões no mesmo endereço
   local, e a CLI só diz que quem sobe é o consumidor. Conflita com a regra de o kit não adivinhar a saúde do motor.
-  Origem: `docs/research/2026-11-12-backlog-zerado-doctor-pelo-bin-e-campos-do-adaptador.md`.
+  Recomendação: S1, não construir. Origem: `docs/research/2026-11-12-backlog-zerado-doctor-pelo-bin-e-campos-do-adaptador.md`;
+  quadro e fontes em `docs/research/2026-11-12-board-tres-decisoes-do-engine-kit.md`.
 
-- **Negócio, espera o dono: verbo para remover um motor** (junto do `engine-kit stop`). O manifest não declara quais pastas do
-  home são estado do usuário. Origem: `docs/research/2026-11-12-backlog-zerado-doctor-pelo-bin-e-campos-do-adaptador.md`.
+- **Verbo para remover um motor, junto do `engine-kit stop` (pendência 929130).** O manifest não declara quais pastas do
+  home são estado do usuário. Recomendação: R2, só o `stop`. Origem: `docs/research/2026-11-12-backlog-zerado-doctor-pelo-bin-e-campos-do-adaptador.md`;
+  quadro e fontes em `docs/research/2026-11-12-board-tres-decisoes-do-engine-kit.md`.
 
 ## Decidido
 

@@ -1,6 +1,6 @@
 # Três decisões do dono sobre o engine-kit: pesquisa e recomendações
 
-Quadro narrado: `C:\Users\allan\Desktop\visual-explanations\engine-registry-tres-decisoes-engine-kit.html` (spec em `2026-11-12-board-tres-decisoes-do-engine-kit.json`, gerada por `2026-11-12-board-tres-decisoes-do-engine-kit.gen.mjs`).
+Quadro narrado: `engine-registry-tres-decisoes-engine-kit.html` (pasta visual-explanations do usuário) (spec em `2026-11-12-board-tres-decisoes-do-engine-kit.json`, gerada por `2026-11-12-board-tres-decisoes-do-engine-kit.gen.mjs`).
 Nenhuma das três decisões foi construída e nenhum hook foi criado ou alterado.
 
 ## Backlog aberto (todo de negócio, espera o dono)
