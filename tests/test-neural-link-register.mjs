@@ -75,6 +75,8 @@ for (const args of [["ensure", "vxk", "--register"], ["pin", "neural-link", "--r
   check(`\`${args.join(" ")}\`: --register fora do ensure neural-link é recusado`, r.code === 1 && /--register só vale para/.test(r.out), r.out.trim());
 }
 check("o uso do bin lista --register e o stop", /--register/.test((await cli(["--help"])).out) && /engine-kit stop/.test((await cli(["--help"])).out));
+check("a CLI registra pelo kit, sem importar o adaptador de consumers/", !/consumers\//.test(readFileSync(new URL("../kit/cli.mjs", import.meta.url), "utf8")));
+check("o adaptador de consumers/ segue exportando registerNeuralLink", typeof (await import("../consumers/neural-link.mjs")).registerNeuralLink === "function");
 
 rmSync(RUN, { recursive: true, force: true });
 console.log(`\n== ${failures === 0 ? "TUDO VERDE" : `${failures} FALHA(S)`} ==`);

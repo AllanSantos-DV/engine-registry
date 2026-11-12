@@ -14,20 +14,10 @@
 //   // n.entryPath -> caminho do dispatcher instalado (kind=cli, sem processo persistente)
 //
 // Contrato: nunca lança.
-import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { ensureEngine } from "../kit/index.mjs";
-import { firstContactKeys } from "../kit/ensure.mjs";
+import { registerNeuralLink } from "../kit/register.mjs";
 
-/**
- * Roda o `install()` do próprio neural-link: grava a declaração global de cada evento em `~/.copilot/hooks/` e sela os
- * companions. Lança se o binário não traz `install.js` ou se o `install()` falha: quem chama decide o que fazer.
- * @param {string} entryPath entrypoint instalado do dispatcher.
- */
-export async function registerNeuralLink(entryPath) {
-  const installMod = await import(pathToFileURL(join(dirname(entryPath), "install.js")).href);
-  return installMod.install({});
-}
+export { registerNeuralLink };
 
 /** Pin default: última versão do neural-link confirmada publicada no manifest deste kit. */
 const DEFAULT_PIN = "0.7.16";
@@ -55,7 +45,7 @@ const DEFAULT_PIN = "0.7.16";
  * @returns {Promise<{available:true, entryPath:string, version:string, registered:object|null, staleCache?:true}
  *                  | {available:false, reason:string}>}
  */
-export async function ensureNeuralLink({ version = DEFAULT_PIN, log = () => {}, allowNetwork = true, registryUrl, refresh, fetcher, trustedKeys = firstContactKeys("neural-link", registryUrl) } = {}) {
+export async function ensureNeuralLink({ version = DEFAULT_PIN, log = () => {}, allowNetwork = true, registryUrl, refresh, fetcher, trustedKeys } = {}) {
   const r = await ensureEngine("neural-link", { version, allowNetwork, log, registryUrl, refresh, fetcher, trustedKeys });
   if (!r.available) { return r; }
 

@@ -13,7 +13,7 @@
 // ENGINE_KIT_NO_AUTO_UPDATE=1 desliga os dois e deixa só o aviso de versão nova (ver update.mjs).
 // Exit code: 0 = motor instalado (ou reusado). 1 = recusou/falhou, com o motivo na saída de erro.
 import { ensureCommand, pinCommand, unpinCommand, stopCommand } from "./ensure.mjs";
-import { registerNeuralLink } from "../consumers/neural-link.mjs";
+import { registerNeuralLink } from "./register.mjs";
 import { fetchCommand } from "./fetch.mjs";
 import { selfUpdate, autoUpdateEnabled } from "./update.mjs";
 
