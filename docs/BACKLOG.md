@@ -22,11 +22,16 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
 - **`engine-kit stop <motor>` (decisão do dono, ainda pendente).** Desliga pelo `shutdownPath` declarado; o mcp-gateway
   precisaria do drain do adaptador. Ganho, esforço e peças em `docs/research/2026-11-11-lente-feature-irma-engine-kit-0.2.6.md`.
 
-- **Candidatos da lente de feature irmã (2026-11-12) que mudam o uso ou mexem fora deste repositório.** (a) `ensure neural-link`
-  pela CLI rodar o `install()` do motor (registra hooks no config global do usuário); (b) verbo que sobe um daemon
-  depois do `ensure`; (c) verbo para remover um motor, junto do `stop`; (d) atualizar o mcp-gateway vivo pela CLI: o
-  gateway só derruba por `POST /admin/drain` com bearer e corpo, então a mudança é no protocolo do mcp-gateway
-  (projeto dono), não no kit. Detalhe em `docs/research/2026-11-12-backlog-zerado-doctor-pelo-bin-e-campos-do-adaptador.md`.
+- **Negócio, espera o dono: `engine-kit ensure neural-link` rodar o `install()` do motor.** Hoje só o adaptador registra os
+  hooks (escreve no config global de hooks do usuário); quem instala pela CLI fica com o dispatcher sem companion
+  registrado. Muda o que o comando faz na máquina do usuário. Origem: `docs/research/2026-11-12-backlog-zerado-doctor-pelo-bin-e-campos-do-adaptador.md`.
+
+- **Negócio, espera o dono: verbo para subir um daemon depois do `ensure`.** A vitrine promete sessões no mesmo endereço
+  local, e a CLI só diz que quem sobe é o consumidor. Conflita com a regra de o kit não adivinhar a saúde do motor.
+  Origem: `docs/research/2026-11-12-backlog-zerado-doctor-pelo-bin-e-campos-do-adaptador.md`.
+
+- **Negócio, espera o dono: verbo para remover um motor** (junto do `engine-kit stop`). O manifest não declara quais pastas do
+  home são estado do usuário. Origem: `docs/research/2026-11-12-backlog-zerado-doctor-pelo-bin-e-campos-do-adaptador.md`.
 
 ## Decidido
 
@@ -37,6 +42,12 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
   `ENGINE_KIT_NO_AUTO_UPDATE`; (5) o `ensure` de motor self-managed aponta a release do instalador e o `fetch`.
   Testes: `tests/test-gateway-adapter-fields.mjs`, `tests/test-doctor-cli.mjs`, `tests/test-ensure-self-managed.mjs`,
   `tests/test-site.mjs`. Detalhe em `docs/research/2026-11-12-backlog-zerado-doctor-pelo-bin-e-campos-do-adaptador.md`.
+
+- **Decidido (Jarvis, 2026-11-12): CLI mostrar o pacote de instruções do agente: não construído, ganho baixo.** O adaptador do
+  gateway já devolve `instructions`; na CLI o texto não muda a decisão de quem instala.
+
+- **Decidido (Jarvis, 2026-11-12): atualizar o mcp-gateway vivo pela CLI é do projeto mcp-gateway.** O gateway só derruba por
+  `POST /admin/drain` com bearer e corpo; o `shutdown` do kit usa só o declarado no manifest. Repassado ao projeto dono.
 
 - **Resolvido (Jarvis, 2026-11-09): `trust.json` ilegível falha fechado.** `readTrust` lança quando o arquivo existe e não
   se lê; `ensure`, `pin`, `unpin`, `ensureEngine` e o doctor recusam explicando e não regravam o arquivo
