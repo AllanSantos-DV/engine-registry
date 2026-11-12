@@ -58,10 +58,10 @@ await ok('só disparo manual: sem push nem cron publicando sozinhos', () => {
   assert.ok(WORKFLOW.includes('workflow_dispatch'));
   assert.ok(!/^\s*(push|schedule|pull_request):/m.test(WORKFLOW), 'a publicação é decisão explícita do dono');
 });
-await ok('runner Linux hospedado, sem Windows, macOS nem CI_RUNNER', () => {
+await ok('runner Linux hospedado por padrão, local só com CI_RUNNER=local, sem Windows nem macOS', () => {
   const runsOn = WORKFLOW.split('\n').find((l) => l.includes('runs-on:')) ?? '';
-  assert.ok(runsOn.includes('ubuntu-latest') && !runsOn.includes('CI_RUNNER'));
-  assert.ok(!/windows|macos|-eph|self-hosted/i.test(runsOn));
+  assert.ok(runsOn.includes('ubuntu-latest') && runsOn.includes("vars.CI_RUNNER == 'local'"));
+  assert.ok(!/windows|macos|-eph/i.test(runsOn));
 });
 await ok('sem suíte no runner hospedado; ordem: site com mídia → publicar → verificar', () => {
   const at = (s) => WORKFLOW.indexOf(s);

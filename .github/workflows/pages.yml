@@ -2,7 +2,8 @@
 # Fonte do Pages = "Deploy from a branch", gh-pages, "/": sem artefato do Actions (a cota mensal de armazenamento da conta
 # bloqueia o deploy-pages). O push usa a chave de deploy PAGES_DEPLOY_KEY (push com GITHUB_TOKEN não dispara a
 # publicação). Só roda por disparo manual: publicar é decisão do dono. Processo e reversão: docs/PAGES.md.
-# Runner Linux hospedado; a suíte roda na checagem local antes do disparo.
+# Runner Linux hospedado, ou o local com CI_RUNNER=local (docs/billing-fallback.md). Hospedado nunca roda teste: a conferência
+# do site completo (--require-media) só roda no runner local; a suíte roda na checagem local antes do disparo.
 
 name: pages
 
@@ -18,9 +19,14 @@ concurrency:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER == 'local' && fromJSON('["self-hosted","Linux"]') || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
+      - name: Limpar pastas de trabalho do runner persistente
+        if: vars.CI_RUNNER == 'local'
+        shell: bash
+        run: find "$GITHUB_WORKSPACE" "$RUNNER_TEMP" -mindepth 1 -delete
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
@@ -28,6 +34,7 @@ jobs:
           node-version: 22
 
       - name: Site completo, com a mídia de apresentação
+        if: vars.CI_RUNNER == 'local'
         run: node tests/test-site.mjs --require-media
 
       - name: Publicar o site na gh-pages
