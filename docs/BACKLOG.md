@@ -6,7 +6,7 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
 
 Vazio.
 
-## Negócio, espera o dono
+## Aguardando decisão do dono
 
 Cada item muda o uso do produto. O candidato (k) traz ganho, esforço (pequeno, médio ou grande, sem prazo), reuso e recomendação.
 
