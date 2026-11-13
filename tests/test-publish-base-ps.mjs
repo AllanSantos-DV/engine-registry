@@ -3,6 +3,7 @@
    release que ainda não existe (gh com stderr e saída 1) segue para a criação, e uma release que já existe aborta sem criar.
    Usa um gh falso no PATH; nada vai à rede e nenhuma chave real é lida.
      node tests/test-publish-base-ps.mjs */
+import "./_tmp.mjs";
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';

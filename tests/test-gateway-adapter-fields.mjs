@@ -6,6 +6,7 @@
 // Hermético: gateway falso numa porta livre, motor já instalado numa pasta temporária, registry local.
 //
 //   node tests/test-gateway-adapter-fields.mjs
+import "./_tmp.mjs";
 import { createServer } from "node:http";
 import { mkdirSync, writeFileSync, rmSync, readFileSync, utimesSync } from "node:fs";
 import { join } from "node:path";

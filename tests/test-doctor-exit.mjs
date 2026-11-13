@@ -2,6 +2,7 @@
 // registry publicado, `process.exit()` com sockets do fetch fechando abortava o Node no Windows
 // ("Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)", exit 127) logo após "conciliados".
 // Registry local por HTTP; roda o doctor como processo filho, com HOME isolado.
+import "./_tmp.mjs";
 import { readFileSync, mkdtempSync } from "node:fs";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";

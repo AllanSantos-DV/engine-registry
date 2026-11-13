@@ -4,6 +4,7 @@
 // HOME, trust.json, LOCALAPPDATA e registries isolados; as pastas reais do dono são conferidas antes e depois. Nenhum daemon real é tocado.
 //
 //   node tests/test-backlog-decidido.mjs
+import { pastaTmpDoProduto } from "./_tmp.mjs";
 import { mkdirSync, writeFileSync, readFileSync, mkdtempSync, rmSync, readdirSync, statSync, existsSync, utimesSync } from "node:fs";
 import { spawn, execFileSync } from "node:child_process";
 import { createServer } from "node:http";
@@ -13,9 +14,10 @@ import { tmpdir, homedir } from "node:os";
 import { pathToFileURL } from "node:url";
 
 const REAL_LOCAL = process.env.LOCALAPPDATA;
+const tmpDosTestes = pastaTmpDoProduto();
 const realTree = (root) => {
   const out = [];
-  const walk = (d) => { try { for (const n of readdirSync(d)) { const p = join(d, n); out.push(`${p}|${statSync(p).mtimeMs}`); if (statSync(p).isDirectory()) walk(p); } } catch { /* pasta ausente */ } };
+  const walk = (d) => { try { for (const n of readdirSync(d)) { const p = join(d, n); if (p === tmpDosTestes) continue; out.push(`${p}|${statSync(p).mtimeMs}`); if (statSync(p).isDirectory()) walk(p); } } catch { /* pasta ausente */ } };
   walk(root);
   return out.sort().join("\n");
 };

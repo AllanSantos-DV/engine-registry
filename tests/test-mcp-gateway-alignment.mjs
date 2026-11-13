@@ -11,6 +11,7 @@
 //
 //   node tests/test-mcp-gateway-alignment.mjs            # offline
 //   node tests/test-mcp-gateway-alignment.mjs --network  # + versão do manifest == package.json do .tgz
+import "./_tmp.mjs";
 import { readFileSync, mkdtempSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";

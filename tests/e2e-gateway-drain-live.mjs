@@ -5,6 +5,7 @@
    A chamada precisa terminar com o resultado e o daemon sair com código 0 pelo drain.
 
      node tests/e2e-gateway-drain-live.mjs            (bin em ~/.mcp-gateway/bin; GW_BIN troca) */
+import "./_tmp.mjs";
 import { createServer } from 'node:http';
 import { createServer as netServer } from 'node:net';
 import { spawn } from 'node:child_process';

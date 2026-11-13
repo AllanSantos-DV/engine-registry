@@ -5,6 +5,7 @@
 // reusa sem rebaixar.
 //
 //   node tests/e2e-consumer-neural-link.mjs
+import "./_tmp.mjs";
 import { ensureNeuralLink } from "../consumers/neural-link.mjs";
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";

@@ -4,6 +4,7 @@
 //
 //   node tests/smoke.mjs            # valida resolve + contratos (offline)
 //   node tests/smoke.mjs --network  # idem, resolvendo do registry remoto
+import "./_tmp.mjs";
 import { resolve, provision, lifecycle, satisfiesPin, ensureEngine } from "../kit/index.mjs";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

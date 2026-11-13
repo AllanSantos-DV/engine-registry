@@ -5,6 +5,7 @@
 // Hermético: HOME e trust.json isolados, registry local e download injetado.
 //
 //   node tests/test-neural-link-adapter-trust.mjs
+import "./_tmp.mjs";
 import { createServer } from "node:http";
 import { mkdtempSync, rmSync, readFileSync } from "node:fs";
 import { join } from "node:path";

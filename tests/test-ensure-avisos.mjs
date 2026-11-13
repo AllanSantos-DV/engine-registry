@@ -4,6 +4,7 @@
 // HOME, cache do registry e raiz de confiança isolados antes de importar o kit; nada de rede real.
 //
 //   node tests/test-ensure-avisos.mjs
+import "./_tmp.mjs";
 import { mkdirSync, writeFileSync, readFileSync, utimesSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";

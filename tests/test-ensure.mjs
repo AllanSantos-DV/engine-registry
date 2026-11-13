@@ -9,6 +9,7 @@
 // Hermético: registry e downloads servidos de memória; o .tgz é real (o `tar` roda).
 //
 //   node tests/test-ensure.mjs
+import "./_tmp.mjs";
 import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync } from "node:fs";
 import { execFileSync, spawnSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";

@@ -5,6 +5,7 @@
 // Hermético: HOME e trust.json em pasta temporária, download injetado, o config global de hooks real nunca é tocado.
 //
 //   node tests/test-neural-link-register.mjs
+import "./_tmp.mjs";
 import { mkdirSync, writeFileSync, existsSync, readFileSync, mkdtempSync, rmSync } from "node:fs";
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";

@@ -6,6 +6,7 @@
 // VAULT_DIR temporário) — um cofre simulado não provaria o formato. Nenhum token real é lido.
 //
 //   node tests/test-mcp-gateway-token.mjs
+import "./_tmp.mjs";
 import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";

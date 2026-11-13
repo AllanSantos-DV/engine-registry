@@ -3,6 +3,7 @@
 // nada toca o daemon vivo da máquina, sem janela e sem áudio.
 //
 //   node tests/test-regras-escopo.mjs
+import "./_tmp.mjs";
 import http from "node:http";
 import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, readdirSync, existsSync } from "node:fs";

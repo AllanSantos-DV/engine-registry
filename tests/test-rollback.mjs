@@ -1,6 +1,7 @@
 // test-rollback.mjs — prova o ANTI-ROLLBACK local: o kit lembra a maior versão instalada de cada motor
 // e recusa instalar uma menor, salvo pedido explícito (`allowDowngrade`, que o `ensure --version` liga).
 // Tudo em HOME de kit isolado (ENGINE_KIT_HOME), sem rede: o fetcher é injetado.
+import "./_tmp.mjs";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

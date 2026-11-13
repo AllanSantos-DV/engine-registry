@@ -18,6 +18,7 @@
 // arquivo nesse layout. Qualquer host pode chamar essa função no próprio setup.
 //
 //   node tests/test-mcp-gateway-instructions.mjs
+import "./_tmp.mjs";
 import { readFileSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";

@@ -1,5 +1,6 @@
 // test-diagnose.mjs — prova o diagnóstico de vida e de ponteiro do doctor (kit/diagnose.mjs).
 // Só leitura, em pastas temporárias: nenhum motor real é consultado e nenhum daemon é tocado.
+import "./_tmp.mjs";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

@@ -2,6 +2,7 @@
 // HOME isolado, registries locais e processos filhos próprios: nada da máquina é tocado.
 //
 //   node tests/test-tecnico.mjs
+import "./_tmp.mjs";
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, utimesSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";

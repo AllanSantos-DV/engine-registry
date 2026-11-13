@@ -3,6 +3,7 @@
 // "C:\..." como host remoto). No Windows o kit usa %SystemRoot%\System32\tar.exe; nos demais, o do PATH.
 //
 //   node tests/test-gateway-provision.mjs
+import "./_tmp.mjs";
 import { createServer } from "node:http";
 import { mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, copyFileSync } from "node:fs";
 import { join, delimiter } from "node:path";

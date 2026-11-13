@@ -1,5 +1,6 @@
 // test-list-e-plataforma.mjs — `engine-kit list` mostra a plataforma de cada motor e o `ensure` recusa cedo o motor sem build para esta máquina.
 // HOME e trust.json isolados; manifest embarcado injetado, sem rede.
+import "./_tmp.mjs";
 import { mkdtempSync, rmSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";

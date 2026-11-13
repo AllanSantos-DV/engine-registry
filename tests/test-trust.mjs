@@ -3,6 +3,7 @@
 // Cenário que motivou: a `publicKey` vinha do mesmo manifest que o kit baixa. Quem controla o
 // repo troca artefato + assinatura + chave, e o fail-closed aprova — a tranca com a chave
 // pendurada na porta. Aqui o kit passa a lembrar a chave e recusar a troca.
+import "./_tmp.mjs";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

@@ -1,6 +1,7 @@
 // test-resolve-cache.mjs — o cache do manifest (TTL 6h) não pode esconder um manifest novo de
 // quem pede a verdade do registry. Caso real: o e2e do vxk rodou duas vezes contra a v0.9.0
 // depois de publicada a v0.9.1, porque o cache fresco venceu a rede. HOME isolado + registry local.
+import "./_tmp.mjs";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { join } from "node:path";

@@ -2,6 +2,7 @@
 //
 // O provision grava o sha256 de cada arquivo extraído dentro da pasta instalada; a conferência é sob demanda e `--fix` reinstala.
 // Hermético: HOME e trust.json isolados, registry local, download injetado.
+import "./_tmp.mjs";
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";

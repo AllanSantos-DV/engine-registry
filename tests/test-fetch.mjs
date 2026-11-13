@@ -8,6 +8,7 @@
 // Hermético: registry e downloads servidos de memória, raiz de confiança em pasta temporária.
 //
 //   node tests/test-fetch.mjs
+import "./_tmp.mjs";
 import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync } from "node:fs";
 import { spawnSync, execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";

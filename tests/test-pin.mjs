@@ -12,6 +12,7 @@
 // Hermético: HOME, trust.json e registry isolados; downloads de memória; o .tgz é real.
 //
 //   node tests/test-pin.mjs
+import "./_tmp.mjs";
 import { mkdirSync, writeFileSync, readFileSync, existsSync, mkdtempSync, rmSync } from "node:fs";
 import { execFileSync, spawn } from "node:child_process";
 import { createServer } from "node:http";

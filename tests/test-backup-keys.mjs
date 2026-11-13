@@ -2,6 +2,7 @@
 //
 // Só com pasta de chaves TEMPORÁRIA e HOME isolado: a pasta real de chaves nunca é lida. A frase-senha entra pela
 // entrada padrão e não pode aparecer na saída nem nos arquivos.
+import "./_tmp.mjs";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

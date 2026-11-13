@@ -7,6 +7,7 @@
 // Aqui o home ganha um `weights/learned.json` ANTES da instalação e é conferido depois.
 //
 //   node tests/e2e-neural-link.mjs
+import "./_tmp.mjs";
 import { resolve, provision, lifecycle } from "../kit/index.mjs";
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";

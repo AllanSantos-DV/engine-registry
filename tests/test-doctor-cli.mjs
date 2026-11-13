@@ -5,6 +5,7 @@
 // Hermético: HOME, trust.json e registry isolados (servidor local); nenhum daemon real é consultado.
 //
 //   node tests/test-doctor-cli.mjs
+import "./_tmp.mjs";
 import { mkdirSync, writeFileSync, readFileSync, existsSync, mkdtempSync, rmSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";

@@ -4,6 +4,7 @@
 // Hermético: HOME isolado, registry local, motor já instalado (nada é baixado).
 //
 //   node tests/test-doctor-leftovers.mjs
+import "./_tmp.mjs";
 import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, existsSync, utimesSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";

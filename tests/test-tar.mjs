@@ -1,6 +1,7 @@
 // test-tar.mjs — o engine-kit extrai com o tar NATIVO no Windows, mesmo com o GNU tar do Git Bash na
 // frente do PATH (caso real: Copilot/Claude abertos de um terminal Git Bash). Antes, `tar -xzf C:\...`
 // pelo PATH caía no GNU tar, que lê "C:" como host remoto, e a instalação de qualquer motor falhava.
+import "./_tmp.mjs";
 import { mkdirSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";

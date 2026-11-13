@@ -8,6 +8,7 @@
 // Hermético: HOME/ENGINE_KIT_HOME em pasta temporária, downloads de memória, sem janela e sem áudio.
 //
 //   node tests/test-ensure-daemon.mjs
+import "./_tmp.mjs";
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";

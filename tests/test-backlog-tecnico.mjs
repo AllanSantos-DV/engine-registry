@@ -3,6 +3,7 @@
 // HOME, trust.json, LOCALAPPDATA e registries isolados; nenhum daemon real é tocado.
 //
 //   node tests/test-backlog-tecnico.mjs
+import "./_tmp.mjs";
 import { mkdirSync, writeFileSync, readFileSync, mkdtempSync, rmSync, existsSync, utimesSync, readdirSync } from "node:fs";
 import { spawn, execFileSync } from "node:child_process";
 import { createServer } from "node:http";

@@ -1,6 +1,7 @@
 // test-edge.mjs — os caminhos ADVERSARIAIS que o smoke (happy-path) não cobre:
 // SHA256 divergente, sidecar ausente, contenção de lock, lock órfão, runtime obsoleto e
 // artefato incompleto. Tudo local (servidor HTTP efêmero), sem tocar a rede pública.
+import "./_tmp.mjs";
 import { createServer } from "node:http";
 import { mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, utimesSync } from "node:fs";
 import { join } from "node:path";

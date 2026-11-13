@@ -4,6 +4,7 @@
 // HOME, trust.json e registries isolados; nenhum daemon real é tocado.
 //
 //   node tests/test-defeitos.mjs
+import "./_tmp.mjs";
 import { mkdirSync, writeFileSync, readFileSync, mkdtempSync, rmSync, utimesSync } from "node:fs";
 import { spawn, execFileSync } from "node:child_process";
 import { createServer } from "node:http";

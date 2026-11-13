@@ -3,6 +3,7 @@
 // mata na hora e corta as chamadas em curso, então a prova é a chamada em curso terminar.
 //
 //   node tests/test-gateway-drain.mjs
+import "./_tmp.mjs";
 import { mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";

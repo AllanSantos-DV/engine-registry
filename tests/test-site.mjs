@@ -7,6 +7,7 @@
 // O verificador de página de produto do orquestrador (vídeo primeiro, três caminhos, diálogo modal, uma voz) roda quando está
 // nesta máquina (ORQ_PAGE_CHECK ou ../orchestrador/tools/product-page-check.mjs); ele abre um navegador sem janela e uma porta
 // local. Onde não está (CI), as mesmas regras de ordem, posição do vídeo e voz única são conferidas no HTML, sem navegador.
+import "./_tmp.mjs";
 import { readFileSync, existsSync, statSync, readdirSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";

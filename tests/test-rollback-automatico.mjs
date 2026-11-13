@@ -3,6 +3,7 @@
 // Sem isto, uma atualização ruim deixava o motor quebrado no disco e `available:false` para sempre. Agora o swap guarda a
 // pasta anterior até a nova responder; se não responde, volta para ela e diz o que aconteceu em `engine.rolledBack`.
 // Hermético: HOME e trust.json isolados, registry em servidor local, download injetado, motores-fantasma que se encerram sozinhos.
+import "./_tmp.mjs";
 import { createServer } from "node:http";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";

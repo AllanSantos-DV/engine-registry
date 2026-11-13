@@ -1,5 +1,6 @@
 // test-diagnose-api.mjs — o diagnóstico do doctor é uma API da lib: o import devolve o mesmo estado do `doctor --json`, sem subprocesso e sem lançar.
 // HOME e trust.json isolados; nada toca motor vivo da máquina.
+import "./_tmp.mjs";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";

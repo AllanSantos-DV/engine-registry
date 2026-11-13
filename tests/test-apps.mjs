@@ -6,6 +6,7 @@
 // publicar e recusa as erradas, (2) que o manifest.json inteiro continua válido, (3) que
 // kit/update-manifest.mjs --app atualiza só a entrada do app, e (4) que verifyAppRelease
 // confere TODOS os assets (sha256 + assinatura) e recusa cada forma de release quebrada.
+import "./_tmp.mjs";
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";

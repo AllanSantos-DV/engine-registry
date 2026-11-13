@@ -4,6 +4,7 @@
 // e numa pasta temporária: nenhum daemon real da máquina é consultado. O bloco `runtime` usado é o do manifest.json.
 //
 //   node tests/test-stop.mjs
+import "./_tmp.mjs";
 import { mkdirSync, writeFileSync, readFileSync, mkdtempSync, rmSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { join } from "node:path";

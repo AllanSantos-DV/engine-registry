@@ -1,6 +1,7 @@
 // test-rotacao-de-chave.mjs — a chave de um motor muda sem passo manual na máquina quando a chave anterior assina a nova.
 //
 // A troca sem essa assinatura continua ABORT (é o ataque do registry comprometido); o que muda é só a rotação legítima.
+import "./_tmp.mjs";
 import { mkdirSync, writeFileSync, readFileSync, copyFileSync, mkdtempSync, rmSync } from "node:fs";
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";

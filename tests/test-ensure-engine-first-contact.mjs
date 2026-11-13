@@ -5,6 +5,7 @@
 // Hermético: HOME e trust.json isolados, descritor do registry vindo do cache local, download injetado.
 //
 //   node tests/test-ensure-engine-first-contact.mjs
+import "./_tmp.mjs";
 import { createServer } from "node:http";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

@@ -3,6 +3,7 @@
    não usa artefato do Actions, só roda por disparo manual e a conferência da página no ar lê a URL de verdade (servidor
    local; nada é publicado).
      node tests/test-pages-branch.mjs */
+import "./_tmp.mjs";
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as http from 'node:http';

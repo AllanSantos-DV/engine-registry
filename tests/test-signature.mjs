@@ -9,6 +9,7 @@
 // artefato é um .tgz de verdade (o `tar` roda), então a extração e o swap são exercitados.
 //
 //   node tests/test-signature.mjs
+import "./_tmp.mjs";
 import { provision, lifecycle, generateKeyPairHex, signBlob, verifyBlob } from "../kit/index.mjs";
 
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";

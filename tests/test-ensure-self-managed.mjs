@@ -6,6 +6,7 @@
 // Hermético: HOME e trust.json isolados, manifest injetado, nenhuma rede.
 //
 //   node tests/test-ensure-self-managed.mjs
+import "./_tmp.mjs";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";

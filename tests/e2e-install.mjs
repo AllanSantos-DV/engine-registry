@@ -8,6 +8,7 @@
 //
 // O `--local` existe porque "publiquei o asset" e "o manifest que aponta para ele está no ar" são
 // dois estados diferentes: testar só o remoto esconde o descritor novo até depois do push.
+import "./_tmp.mjs";
 import { resolve, provision, lifecycle } from "../kit/index.mjs";
 import { mkdirSync, existsSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";

@@ -2,6 +2,7 @@
 /* tests/test-publish-manifest.mjs — o publish leva a versão nova ao manifest e ao README da main sem passo manual, mescla
    a main na develop e não toca a cópia de trabalho local; falha antes do push não envia nada (remoto bare local).
      node tests/test-publish-manifest.mjs */
+import "./_tmp.mjs";
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
