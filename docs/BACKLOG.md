@@ -29,15 +29,15 @@ Cada item muda o uso do produto. O candidato (k) traz ganho, esforço (pequeno, 
   `updateEntry` e a chave de cache por `registryUrl` que já existe em `kit/resolve.mjs`. Recomendação: construir por registry e nome, com
   migração; é decisão do esquema de confiança, então fica atrás da pendência 3a178e.
 
-- **Decisão do dono: cinco candidatos restantes da lente de feature irmã.** (1), (2) e (6) foram construídos (ver Decidido); nada abaixo foi construído sem decisão e o runtime está a ~40 B do teto (36700).
-  (3) Retentativa com backoff em falha transitória de rede: pequeno, reusa o padrão de `renameRetry`; custa bytes do runtime.
-  (4) Espelho de registry e proxy: médio; a assinatura é conferida em qualquer origem.
-  (5) Callback de progresso de download (`onProgress`): pequeno; custa bytes do runtime.
-  (7) Adaptadores prontos para embed-house e vxk: pequeno, sem mudar o uso.
-  (8) Canais estável e beta (`--channel`): grande, muda schema e publicação.
-  Recomendação: 3, 4, 5, 7 só quando alguém pedir; 8 não construir agora.
+- **Decisão do dono: (3) retentativa com backoff em falha transitória de rede.** Muda o uso: o `ensure` deixa de abortar na primeira queda. Esforço pequeno, reusa o padrão de `renameRetry`; custa bytes do runtime, que está a ~40 B do teto (36700). Recomendação: só quando alguém pedir.
+- **Decisão do dono: (4) espelho de registry e proxy.** Muda o uso: instalação por trás de proxy ou de espelho próprio; a assinatura é conferida em qualquer origem. Esforço médio. Recomendação: só quando alguém pedir.
+- **Decisão do dono: (5) callback de progresso de download (`onProgress`).** Muda o uso de quem embute a lib. Esforço pequeno; custa bytes do runtime (teto 36700). Recomendação: só quando alguém pedir.
+- **Decisão do dono: (7) adaptadores prontos para embed-house e vxk.** Não muda o uso do kit; mexe nos repositórios desses motores. Esforço pequeno. Recomendação: só quando alguém pedir.
+- **Decisão do dono: (8) canais estável e beta (`--channel`).** Muda o uso, o schema do manifest e a publicação. Esforço grande. Recomendação: não construir agora.
 
-- **Decisão do dono: três candidatos restantes da lente do 0.2.14.** (2) e (3) foram construídos (ver Decidido). (1) `engine-kit run <motor-cli>`: pequeno, reusa `ensureCommand` e `entryPath`; o usuário deixa de digitar o caminho do entrypoint, mas o kit passa a executar código do motor. (4) `engine-kit stop --all`: pequeno, reusa `stopCommand`; derrubar o client-harness pode deixar hooks sem resposta. (5) `doctor --project`: médio, só vale se algum host lê o bloco `engines`. Recomendação: 1 depois de decidir a política de executar código do motor; 4 e 5 só se pedirem. Fonte: `docs/research/2026-11-12-lente-feature-irma-engine-kit-0.2.14.md`.
+- **Decisão do dono: (1) `engine-kit run <motor-cli>`.** Muda o uso: o usuário deixa de digitar o caminho do entrypoint, mas o kit passa a executar código do motor. Esforço pequeno, reusa `ensureCommand` e `entryPath`. Recomendação: depois de decidir a política de executar código do motor. Fonte: `docs/research/2026-11-12-lente-feature-irma-engine-kit-0.2.14.md`.
+- **Decisão do dono: (4) `engine-kit stop --all`.** Muda o uso; derrubar o client-harness pode deixar hooks sem resposta. Esforço pequeno, reusa `stopCommand`. Recomendação: só se pedirem.
+- **Decisão do dono: (5) `doctor --project`.** Muda o uso só se algum host ler o bloco `engines`. Esforço médio. Recomendação: só se pedirem.
 
 ## Decidido
 
