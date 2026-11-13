@@ -1,0 +1,109 @@
+WEBVTT
+
+1
+00:00:00.550 --> 00:00:03.319
+Esta é a casa dos motores locais: você
+
+2
+00:00:03.319 --> 00:00:06.107
+instala cada um uma vez e todos os seus
+
+3
+00:00:06.107 --> 00:00:08.936
+aplicativos e agentes passam a usar.
+
+4
+00:00:10.150 --> 00:00:13.446
+Hoje, cada ferramenta de inteligência artificial
+
+5
+00:00:13.446 --> 00:00:16.427
+costuma carregar o próprio modelo, o próprio
+
+6
+00:00:16.427 --> 00:00:19.606
+servidor e o próprio processo, e várias sessões
+
+7
+00:00:19.606 --> 00:00:22.720
+repetem o mesmo trabalho. Aqui, um motor faz o
+
+8
+00:00:22.720 --> 00:00:26.017
+trabalho pesado uma única vez, nesta máquina.
+
+9
+00:00:26.950 --> 00:00:30.614
+Aqui vivem oito motores locais que atendem o Claude
+
+10
+00:00:30.614 --> 00:00:34.617
+Code, o Codex, o Copilot, o Cursor e os seus scripts.
+
+11
+00:00:35.950 --> 00:00:39.474
+O Vox Engine dita, transcreve, traduz e fala. O Cerne
+
+12
+00:00:39.474 --> 00:00:42.819
+lê um vídeo e guarda o que importa numa memória que
+
+13
+00:00:42.819 --> 00:00:45.972
+dá para pesquisar. O VXK transforma o roteiro do
+
+14
+00:00:45.972 --> 00:00:49.703
+agente numa explicação animada e narrada. E o mcp-gateway
+
+15
+00:00:49.703 --> 00:00:52.977
+reúne todos os servidores MCP num endereço só.
+
+16
+00:00:53.950 --> 00:00:56.764
+O embed-house serve os vetores de busca sem
+
+17
+00:00:56.764 --> 00:00:59.717
+repetir o modelo em cada sessão. O neural-link
+
+18
+00:00:59.717 --> 00:01:02.606
+devolve uma decisão única para cada evento de
+
+19
+00:01:02.606 --> 00:01:05.308
+hook. O skill-engine só ativa as skills de
+
+20
+00:01:05.308 --> 00:01:08.197
+terceiros que saem limpas. E o client-harness
+
+21
+00:01:08.197 --> 00:01:11.337
+faz o agente respeitar os padrões do cliente.
+
+22
+00:01:12.550 --> 00:01:17.342
+São oito motores. Antes de instalar, cada um passa
+
+23
+00:01:17.342 --> 00:01:21.805
+por duas conferências, o SHA-256 e a assinatura
+
+24
+00:01:21.805 --> 00:01:26.361
+Ed25519, e se alguma falhar, nada é instalado. O
+
+25
+00:01:26.361 --> 00:01:32.097
+instalador tem menos de vinte e sete quilobytes de código.
+
+26
+00:01:32.950 --> 00:01:36.555
+Para começar, escolha o motor e instale pelo kit.
+
+27
+00:01:36.555 --> 00:01:40.857
+Engine-registry: instale uma vez, use em qualquer lugar.

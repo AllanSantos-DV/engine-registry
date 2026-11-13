@@ -1,0 +1,12 @@
+{
+  "origem": "vox-engine",
+  "voz": "pt-BR-Chirp3-HD-Iapetus",
+  "motor": "0.33.2",
+  "padraoDoMotor": "pt-BR-Chirp3-HD-Iapetus",
+  "pedidaPeloDono": false,
+  "formato": "aac",
+  "falas": 7,
+  "audioSeg": 102.6,
+  "videoSeg": 102.6,
+  "geradoEm": "2026-11-11T23:56:54.000Z"
+}
