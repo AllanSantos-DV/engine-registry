@@ -112,6 +112,7 @@ td .sem{color:var(--fraco)}
 .passo::before{content:counter(p);display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:var(--menta);color:var(--tinta);font:700 18px var(--f-tit);margin-bottom:12px}
 .passo h3{font-size:20px;margin-bottom:8px}
 .passo p{color:var(--mut);font-size:15px}
+.passo pre{border:0;border-radius:0;padding:12px 0 0;background:transparent}
 pre{margin:12px 0 0;padding:12px 14px;border-radius:10px;background:var(--bg);border:1px solid var(--linha);overflow-x:auto;font:500 13.5px/1.5 var(--f-mono);color:var(--menta)}
 
 /* métricas */
@@ -164,5 +165,5 @@ pre{margin:12px 0 0;padding:12px 14px;border-radius:10px;background:var(--bg);bo
   .mapa [data-s],.ficha,.apres-barra i{transition:none}
   .ficha{transform:none}
 }
-.copiar{font:600 12px var(--f-mono);color:var(--txt);background:transparent;border:1px solid var(--mut);border-radius:6px;padding:2px 8px;margin-left:6px;cursor:pointer}
+.copiar{font:600 13px var(--f-mono);color:var(--txt);background:transparent;border:1px solid var(--mut);border-radius:6px;padding:8px 14px;min-height:44px;min-width:44px;margin-left:6px;cursor:pointer}
 .copiar:hover,.copiar:focus-visible{color:var(--menta);border-color:var(--menta)}

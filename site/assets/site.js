@@ -74,8 +74,9 @@
   }
 
   // ---- copiar: cada comando da vitrine; sem área de transferência (página fora de https, navegador antigo), o botão diz que não copiou ----
-  document.querySelectorAll(".cmd").forEach((linha) => {
-    const comando = $("code", linha);
+  document.querySelectorAll(".cmd, .passo pre").forEach((linha) => {
+    const ehPre = linha.tagName === "PRE";
+    const comando = ehPre ? linha : $("code", linha);
     if (!comando) { return; }
     const botao = el("button", "copiar", "Copiar");
     botao.type = "button";
@@ -87,7 +88,7 @@
       botao.textContent = msg;
       setTimeout(() => { botao.textContent = "Copiar"; }, 2500);
     });
-    linha.append(" ", botao);
+    if (ehPre) { linha.after(botao); } else { linha.append(" ", botao); }
   });
 
   // ---- modo Apresentar -------------------------------------------------------------------------------------------------
@@ -236,19 +237,6 @@
     raiz.focus();
     falar();
   }
-
-  // ---- comandos: botão de copiar ao lado de cada comando do kit ---------------------------------------------------------
-  document.querySelectorAll("p.cmd code, .passo pre").forEach((cmd) => {
-    if (!navigator.clipboard) { return; }
-    const bt = el("button", "btn peq", "Copiar");
-    bt.type = "button";
-    bt.setAttribute("aria-label", `Copiar o comando: ${cmd.textContent.split("\n")[0]}`);
-    bt.addEventListener("click", () => {
-      navigator.clipboard.writeText(cmd.textContent).then(() => { bt.textContent = "Copiado"; }, () => { bt.textContent = "Não copiou"; });
-      setTimeout(() => { bt.textContent = "Copiar"; }, 2000);
-    });
-    cmd.after(bt);
-  });
 
   abrir.forEach((b) => b.addEventListener("click", () => abrirApresentacao(b)));
 })();

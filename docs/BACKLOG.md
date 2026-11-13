@@ -4,13 +4,7 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
 
 ## Técnico
 
-- **Dois botões de copiar por comando na vitrine (`site/assets/site.js`).** O bloco "comandos" (linha 240) já injetava o botão `btn peq` ao lado de cada
-  comando; o bloco "copiar" (linha 76) injeta outro, `.copiar`, no mesmo `.cmd`. No ar há 8 comandos com 2 botões cada (o Smart Design aponta o `.copiar`:
-  `small-touch-target`, 60x20 px). Correção: manter um só, o `.copiar` com a mensagem "não consegui copiar" e alvo de 44 px, remover o de `btn peq`, e ajustar
-  `tests/test-site-copiar.mjs` para provar que cada `.cmd` tem exatamente um botão. Achado em 13/11 ao validar a página publicada; vai no próximo lote, sem versão só para isso.
-
-  O mesmo relatório do Smart Design traz `nested-cards`: o bloco `pre` de `npx engine-kit pin/stop/doctor` dentro do cartão do passo 3 "Controle a versão".
-  Decisão visual junto com a correção acima.
+Vazio.
 
 ## Aguardando decisão do dono
 
@@ -37,6 +31,7 @@ Cada item muda o uso do produto. O candidato (k) traz ganho, esforço (pequeno, 
 
 ## Decidido
 
+- **Resolvido (Jarvis, 13/11): um botão de copiar por comando na vitrine e o `pre` do passo 2 sem cartão dentro de cartão.** O bloco antigo de `site/assets/site.js` saiu; o bloco `.copiar` passou a cobrir também o `pre` do passo "Instale pelo kit", com a mensagem "não consegui copiar" e alvo de 44 px (`site/assets/styles.css`); o `.passo pre` perdeu borda e fundo próprios. Teste que falha sem a correção: `tests/test-site-copiar.mjs` (exatamente um botão por `.cmd` e um no `pre`).
 - **Decisão do dono: (3) retentativa com backoff em falha transitória de rede.** Muda o uso: o `ensure` deixa de abortar na primeira queda. Esforço pequeno, reusa o padrão de `renameRetry`; custa bytes do runtime, que está a ~40 B do teto (36700). Recomendação: só quando alguém pedir. **Decidido (Jarvis, 13/11):** não construir agora, conforme a recomendação do próprio item; reabrir só se alguém pedir.
 - **Decisão do dono: (4) espelho de registry e proxy.** Muda o uso: instalação por trás de proxy ou de espelho próprio; a assinatura é conferida em qualquer origem. Esforço médio. Recomendação: só quando alguém pedir. **Decidido (Jarvis, 13/11):** não construir agora, conforme a recomendação do próprio item; reabrir só se alguém pedir.
 - **Decisão do dono: (5) callback de progresso de download (`onProgress`).** Muda o uso de quem embute a lib. Esforço pequeno; custa bytes do runtime (teto 36700). Recomendação: só quando alguém pedir. **Decidido (Jarvis, 13/11):** não construir agora, conforme a recomendação do próprio item; reabrir só se alguém pedir.
