@@ -29,22 +29,20 @@ Cada item muda o uso do produto. O candidato (k) traz ganho, esforço (pequeno, 
   `updateEntry` e a chave de cache por `registryUrl` que já existe em `kit/resolve.mjs`. Recomendação: construir por registry e nome, com
   migração; é decisão do esquema de confiança, então fica atrás da pendência 3a178e.
 
+## Decidido
+
 - **Decisão do dono: (3) retentativa com backoff em falha transitória de rede.** Muda o uso: o `ensure` deixa de abortar na primeira queda. Esforço pequeno, reusa o padrão de `renameRetry`; custa bytes do runtime, que está a ~40 B do teto (36700). Recomendação: só quando alguém pedir. **Decidido (Jarvis, 13/11):** não construir agora, conforme a recomendação do próprio item; reabrir só se alguém pedir.
 - **Decisão do dono: (4) espelho de registry e proxy.** Muda o uso: instalação por trás de proxy ou de espelho próprio; a assinatura é conferida em qualquer origem. Esforço médio. Recomendação: só quando alguém pedir. **Decidido (Jarvis, 13/11):** não construir agora, conforme a recomendação do próprio item; reabrir só se alguém pedir.
 - **Decisão do dono: (5) callback de progresso de download (`onProgress`).** Muda o uso de quem embute a lib. Esforço pequeno; custa bytes do runtime (teto 36700). Recomendação: só quando alguém pedir. **Decidido (Jarvis, 13/11):** não construir agora, conforme a recomendação do próprio item; reabrir só se alguém pedir.
 - **Decisão do dono: (7) adaptadores prontos para embed-house e vxk.** Não muda o uso do kit; mexe nos repositórios desses motores. Esforço pequeno. Recomendação: só quando alguém pedir. **Decidido (Jarvis, 13/11):** não construir agora, conforme a recomendação do próprio item; reabrir só se alguém pedir.
 - **Decisão do dono: (8) canais estável e beta (`--channel`).** Muda o uso, o schema do manifest e a publicação. Esforço grande. Recomendação: não construir agora. **Decidido (Jarvis, 13/11):** não construir agora, conforme a recomendação do próprio item; reabrir só se alguém pedir.
-
 - **Decisão do dono: (1) `engine-kit run <motor-cli>`.** Muda o uso: o usuário deixa de digitar o caminho do entrypoint, mas o kit passa a executar código do motor. Esforço pequeno, reusa `ensureCommand` e `entryPath`. Recomendação: depois de decidir a política de executar código do motor. Fonte: `docs/research/2026-11-12-lente-feature-irma-engine-kit-0.2.14.md`. **Decidido (Jarvis, 13/11):** não construir agora, conforme a recomendação do próprio item; reabrir só se alguém pedir.
 - **Decisão do dono: (4) `engine-kit stop --all`.** Muda o uso; derrubar o client-harness pode deixar hooks sem resposta. Esforço pequeno, reusa `stopCommand`. Recomendação: só se pedirem. **Decidido (Jarvis, 13/11):** não construir agora, conforme a recomendação do próprio item; reabrir só se alguém pedir.
 - **Decisão do dono: (5) `doctor --project`.** Muda o uso só se algum host ler o bloco `engines`. Esforço médio. Recomendação: só se pedirem. **Decidido (Jarvis, 13/11):** não construir agora, conforme a recomendação do próprio item; reabrir só se alguém pedir.
-
 - **Decisão do dono: rollback na CLI (`ensure` e `doctor --fix`).** Hoje só o `ensureEngine` da lib volta para a versão anterior quando a nova não sobe. A CLI não sabe o que é "subir": exigiria executar o motor (`healthCheck`) a cada `ensure`, o mesmo limite do `run`; passar só `keepPrevious` deixaria a pasta anterior sem quem a use. Esforço médio. Recomendação: decidir junto com o `run`. **Decidido (Jarvis, 13/11):** não construir agora; reabrir só se alguém pedir.
 - **Decisão do dono: `doctor --json` com as versões em campos estruturados.** Hoje a versão instalada e a do registry vêm só no texto do `detail`. Esforço pequeno, reusa `engineView`. **Decidido (Jarvis, 13/11):** não construir agora; reabrir só se alguém pedir.
 - **Decisão do dono: `engine-kit info <motor>`.** Um verbo que junta descritor, versão instalada, pin, plataformas e release de um motor. Esforço pequeno, reusa `diagnoseEngines` e `listCommand`. **Decidido (Jarvis, 13/11):** não construir agora; reabrir só se alguém pedir.
 - **Decisão do dono: `list` mostra o pin e os apps.** Hoje `list` só traz os motores e o instalado. Esforço pequeno, reusa `pinOf` e `manifest.apps`. **Decidido (Jarvis, 13/11):** não construir agora; reabrir só se alguém pedir.
-
-## Decidido
 
 - **Decidido (dono, 13/11): rotação de chave assinada pela chave anterior, rollback automático, diagnóstico como API, verificação da instalação, `list` e link da release nos cards; construídos na develop, cada um com teste que falha sem o código.**
   (a) Rotação: `update-manifest --rotate-from <chave privada antiga>` grava `install.rotation = { from, signature }`; a máquina aceita a chave nova só se a gravada (ou a fixada em `trustedKeys`) for a `from` e a assinatura conferir; qualquer outra troca segue ABORT (`tests/test-rotacao-de-chave.mjs`). Contexto: `docs/research/2026-11-09-pin-por-motor-acoplamento-e-custodia-de-chaves.md`.
