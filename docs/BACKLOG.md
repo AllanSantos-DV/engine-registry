@@ -4,7 +4,13 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
 
 ## Técnico
 
-Vazio.
+- **Dois botões de copiar por comando na vitrine (`site/assets/site.js`).** O bloco "comandos" (linha 240) já injetava o botão `btn peq` ao lado de cada
+  comando; o bloco "copiar" (linha 76) injeta outro, `.copiar`, no mesmo `.cmd`. No ar há 8 comandos com 2 botões cada (o Smart Design aponta o `.copiar`:
+  `small-touch-target`, 60x20 px). Correção: manter um só, o `.copiar` com a mensagem "não consegui copiar" e alvo de 44 px, remover o de `btn peq`, e ajustar
+  `tests/test-site-copiar.mjs` para provar que cada `.cmd` tem exatamente um botão. Achado em 13/11 ao validar a página publicada; vai no próximo lote, sem versão só para isso.
+
+  O mesmo relatório do Smart Design traz `nested-cards`: o bloco `pre` de `npx engine-kit pin/stop/doctor` dentro do cartão do passo 3 "Controle a versão".
+  Decisão visual junto com a correção acima.
 
 ## Aguardando decisão do dono
 
