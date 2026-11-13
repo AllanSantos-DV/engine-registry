@@ -14,11 +14,6 @@ Cada item muda o uso do produto. O candidato (k) traz ganho, esforço (pequeno, 
   chama o `uninstall()` do motor instalado, mas o neural-link só exporta `install()`: hoje o comando falha alto dizendo isso. O motor passa a exportar
   `uninstall({})`, que remove os `_dispatcher-<Evento>.json` e devolve `{ removed: [...] }`. Nada a mudar neste repositório.
 
-- **Decisão do dono: rotação de chave de motor sem passo manual nas máquinas.** Hoje, trocar a chave de um motor faz toda máquina que já o tinha abortar
-  (`checkTrust` em `kit/trust.mjs`), e a rotação legítima exige apagar a entrada do `trust.json` à mão. Está atada ao esquema de confiança da pendência aberta 3a178e;
-  até o dono escolher, nenhum passo manual por máquina é introduzido. Contexto: `docs/research/2026-11-09-pin-por-motor-acoplamento-e-custodia-de-chaves.md`.
-  Efeito para o usuário final: quem já tem o motor instalado hoje precisa de um engine-kit novo (`npx engine-kit@latest ensure <motor>`) quando a chave rotaciona; com a rotação assinada pela chave antiga, a troca passa a ser automática e sem comando extra, ao custo de guardar uma cadeia de chaves.
-  Recomendação: decidir junto com 3a178e, adotando a rotação assinada pela chave anterior (a máquina aceita a chave nova só se a antiga a assinou) e mantendo a recusa fail-closed para qualquer outra troca.
 - **Decidido (Jarvis, 12/11): segue do dono.** **Esquema de confiança do registry: assinatura sem chave e publicação do kit com aprovação.** Pendência aberta 3a178e: muda como o dono
   publica o kit (um clique de aprovação 2FA por release) e o que ele guarda. Recomendação: esquema D, com os motores assinados sem chave
   (keyless) no CI hospedado, nos três repositórios pesados (native-java, cerne, vox-engine), e o engine-kit publicado no npm só com a
@@ -34,21 +29,26 @@ Cada item muda o uso do produto. O candidato (k) traz ganho, esforço (pequeno, 
   `updateEntry` e a chave de cache por `registryUrl` que já existe em `kit/resolve.mjs`. Recomendação: construir por registry e nome, com
   migração; é decisão do esquema de confiança, então fica atrás da pendência 3a178e.
 
-- **Decisão do dono: oito candidatos da lente de feature irmã, agrupados.** Todos mudam o uso ou gastam o teto do runtime (a 247 B do limite, 33800); nada foi construído sem decisão.
-  (1) Rollback automático quando a versão nova não sobe (`kit/index.mjs`; `kit/provision.mjs` apaga o `aside` logo após o swap): esforço médio, reusa o `aside` e o `allowDowngrade`; o `ensure` passaria a dizer "revertido para vX".
-  (2) Diagnóstico do doctor como API da lib (hoje só script): médio, reusa `kit/diagnose.mjs` e as linhas do `doctor --json`; painel e hook leem o estado sem subprocesso.
+- **Decisão do dono: cinco candidatos restantes da lente de feature irmã.** (1), (2) e (6) foram construídos (ver Decidido); nada abaixo foi construído sem decisão e o runtime está a ~40 B do teto (36700).
   (3) Retentativa com backoff em falha transitória de rede: pequeno, reusa o padrão de `renameRetry`; custa bytes do runtime.
   (4) Espelho de registry e proxy: médio; a assinatura é conferida em qualquer origem.
   (5) Callback de progresso de download (`onProgress`): pequeno; custa bytes do runtime.
-  (6) Verificação sob demanda da instalação em disco (hash por arquivo extraído, estado ADULTERADO no doctor): médio; parente do monitor agendado de integridade.
   (7) Adaptadores prontos para embed-house e vxk: pequeno, sem mudar o uso.
   (8) Canais estável e beta (`--channel`): grande, muda schema e publicação.
-  Efeito para o usuário final: (1) o motor não fica quebrado depois de uma atualização ruim; (2) e (6) ganham diagnóstico e detecção de adulteração; os demais só aparecem para quem usa rede restrita, interface própria ou pré-lançamentos.
-  Recomendação: construir 1, 2 e 6 primeiro, nessa ordem, no ferramental quando possível; 3, 4, 5, 7 só quando alguém pedir; 8 não construir agora.
+  Recomendação: 3, 4, 5, 7 só quando alguém pedir; 8 não construir agora.
 
-- **Decisão do dono: cinco candidatos da lente do 0.2.14.** Nenhum foi construído. (1) `engine-kit run <motor-cli>`: pequeno, reusa `ensureCommand` e `entryPath`; o usuário deixa de digitar o caminho do entrypoint, mas o kit passa a executar código do motor. (2) `engine-kit list` com checagem de `platforms`: pequeno, reusa `bundledManifest` e `target()`; o `ensure` recusa cedo fora da plataforma. (3) link da release exata nos cards da vitrine: pequeno a médio, reusa `install.tag` e `tools/publish-manifest.mjs`. (4) `engine-kit stop --all`: pequeno, reusa `stopCommand`; derrubar o client-harness pode deixar hooks sem resposta. (5) `doctor --project`: médio, só vale se algum host lê o bloco `engines`. Recomendação: 2 e 3 primeiro; 1 depois de decidir a política de executar código do motor; 4 e 5 só se pedirem. Fonte: `docs/research/2026-11-12-lente-feature-irma-engine-kit-0.2.14.md`.
+- **Decisão do dono: três candidatos restantes da lente do 0.2.14.** (2) e (3) foram construídos (ver Decidido). (1) `engine-kit run <motor-cli>`: pequeno, reusa `ensureCommand` e `entryPath`; o usuário deixa de digitar o caminho do entrypoint, mas o kit passa a executar código do motor. (4) `engine-kit stop --all`: pequeno, reusa `stopCommand`; derrubar o client-harness pode deixar hooks sem resposta. (5) `doctor --project`: médio, só vale se algum host lê o bloco `engines`. Recomendação: 1 depois de decidir a política de executar código do motor; 4 e 5 só se pedirem. Fonte: `docs/research/2026-11-12-lente-feature-irma-engine-kit-0.2.14.md`.
 
 ## Decidido
+
+- **Decidido (dono, 13/11): rotação de chave assinada pela chave anterior, rollback automático, diagnóstico como API, verificação da instalação, `list` e link da release nos cards; construídos na develop, cada um com teste que falha sem o código.**
+  (a) Rotação: `update-manifest --rotate-from <chave privada antiga>` grava `install.rotation = { from, signature }`; a máquina aceita a chave nova só se a gravada (ou a fixada em `trustedKeys`) for a `from` e a assinatura conferir; qualquer outra troca segue ABORT (`tests/test-rotacao-de-chave.mjs`). Contexto: `docs/research/2026-11-09-pin-por-motor-acoplamento-e-custodia-de-chaves.md`.
+  (b) Rollback automático: `ensureEngine` guarda a pasta anterior do swap, volta para ela se a versão nova não sobe e devolve `engine.rolledBack = { version, reason }` (`tests/test-rollback-automatico.mjs`); repete a cada `ensure` enquanto o registry oferecer a versão que falha.
+  (c) Diagnóstico como API: `diagnoseEngines` e `engineView` em `engine-kit/kit/diagnose.mjs`, sem lançar e iguais ao `doctor --json` (`tests/test-diagnose-api.mjs`).
+  (d) Verificação da instalação: o `provision` grava `.engine-kit-files.json` (sha256 por arquivo); `doctor --verify` marca ADULTERADO e `--fix` reinstala a mesma versão; o registro mora na pasta instalada, então não pega quem refaz pasta e registro juntos (`tests/test-verificacao-da-instalacao.mjs`).
+  (e) `engine-kit list [--json]` e `ensure` que recusa cedo fora de `platforms` (`tests/test-list-e-plataforma.mjs`).
+  (f) Cards da vitrine apontam para a release exata do motor, alinhados pelo `tools/publish-manifest.mjs` (`tests/test-site.mjs`, `tests/test-publish-manifest.mjs`).
+  Tetos recalibrados com entrada datada em `kit/budget.mjs`: runtime 33800 → 36700 (vitrine "< 37 KB"), ferramental 54600 → 59500. Sem bump de versão: fica para o dono.
 
 - **Resolvido (Jarvis, 12/11): sete itens construídos na develop, cada um com teste que falha sem o código** (`tests/test-backlog-tecnico.mjs`). (1) (g2) `--json` em `ensure`, `fetch`, `pin` e `stop`: um objeto JSON na forma das linhas do `doctor --json` (`name`, `ok`, `state`, `detail`, `warns`, `pin`, mais os campos do verbo), também na falha, sem log de progresso em stdout; recusado com `--register`/`--unregister`; `unpin` não o aceita. (2) (o) `ensureEngine` desliga o daemon pelo `shutdownPath` do descritor antes do swap; `onBeforeReplace` troca o gancho e `false` desliga. (3) (p) `ensureEngine` aceita `allowDowngrade`: com `version`, instala a exata. (4) `ensure <motor> --version <x>` instala a versão exata, como o `pin`. (5) a lib exporta `pin` junto de `unpin`. (6) `verify-release` confere a versão dentro do `.tgz` contra a anunciada. (7) o manifest declara o `shutdownPath` do mcp-gateway (`/admin/shutdown`, token `shutdownToken` no cabeçalho `x-shutdown-token`): o gateway já o implementa desde a 0.17.7, nada muda no projeto mcp-gateway, e o prazo padrão do `shutdown` subiu de 5 s para 90 s porque o gateway drena até cerca de 60 s.
 - **Decidido (Jarvis, 12/11): seis itens construídos na develop, cada um com teste que falha sem o código** (`tests/test-backlog-decidido.mjs`).

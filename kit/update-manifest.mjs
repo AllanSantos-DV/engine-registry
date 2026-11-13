@@ -16,6 +16,8 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { signBlob, publicKeyHexFromPrivateHex } from "./signature.mjs";
+import { rotationBlob } from "./trust.mjs";
 
 const die = (msg) => { console.error(`FALHOU: ${msg}`); process.exit(1); };
 
@@ -98,6 +100,19 @@ if (publicKey) {
   if (engine.install.publicKey && engine.install.publicKey.toLowerCase() !== publicKey.toLowerCase()) {
     console.warn(`AVISO: publicKey de "${engineName}" MUDOU — releases assinadas com a chave antiga passam a ser recusadas.`);
   }
+  const antiga = engine.install.publicKey?.toLowerCase();
+  const rotateFrom = opt("--rotate-from");
+  if (antiga && antiga !== publicKey.toLowerCase()) {
+    delete engine.install.rotation;
+    if (rotateFrom) {
+      let sig;
+      try {
+        if (publicKeyHexFromPrivateHex(readFileSync(rotateFrom, "utf8").trim()) !== antiga) { die(`--rotate-from não é a chave privada da chave atual do manifest de "${engineName}"`); }
+        sig = signBlob(rotationBlob(engineName, publicKey), readFileSync(rotateFrom, "utf8").trim());
+      } catch (e) { die(`--rotate-from ilegível (${rotateFrom}): ${e.message}`); }
+      engine.install.rotation = { from: antiga, signature: sig.toString("hex") };
+    }
+  } else if (rotateFrom) { die("--rotate-from só vale quando --public-key troca a chave do motor"); }
   engine.install.publicKey = publicKey.toLowerCase();
   engine.install.signatureAlgorithm = "ed25519-sha256-raw";
   engine.install.signatureRequired = true;

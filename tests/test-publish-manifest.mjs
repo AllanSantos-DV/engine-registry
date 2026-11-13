@@ -8,7 +8,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { publishManifest } from '../tools/publish-manifest.mjs';
+import { publishManifest, alignSite, releaseUrl } from '../tools/publish-manifest.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ENGINE = 'client-harness';
@@ -56,6 +56,17 @@ let fails = 0;
 const ok = (name, fn) => {
   try { fn(); console.log('OK   ' + name); } catch (e) { fails++; console.log('FAIL ' + name + ' — ' + e.message); }
 };
+
+ok('alignSite troca só o link de release do card do motor pedido, para a release exata', () => {
+  const card = (m, href) => `<article data-motor="${m}"><a href="${href}">x</a></article>`;
+  const q = (m) => `https://github.com/o/r/releases?q=${m}`;
+  const html = card('a', q('a')) + card('b', 'https://exemplo.invalid/produto/') + card('c', q('c'));
+  const url = releaseUrl({ install: { repo: 'o/r', tag: 'b-v{version}' } }, '2.0.0');
+  assert.equal(url, 'https://github.com/o/r/releases/tag/b-v2.0.0');
+  assert.equal(alignSite(html, 'a', url), card('a', url) + card('b', 'https://exemplo.invalid/produto/') + card('c', q('c')));
+  assert.equal(alignSite(html, 'b', url), html, 'card sem link de release não herda o link do vizinho');
+  assert.equal(alignSite(alignSite(html, 'a', url), 'a', url), alignSite(html, 'a', url), 'idempotente');
+});
 
 ok('a main recebe manifest e README, a develop contém a main e a cópia local fica intacta', () => {
   const { remote, local } = setup();

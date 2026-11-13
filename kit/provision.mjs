@@ -7,7 +7,7 @@
 //   • download -> .part -> rename atômico; extração em staging -> swap;
 //   • shutdown-first (Windows: DLL/EXE em uso impede sobrescrever o diretório).
 // NUNCA lança: devolve { ok:false, reason }.
-import { mkdirSync, existsSync, renameSync, rmSync, openSync, closeSync, readFileSync, writeFileSync, unlinkSync, statSync } from "node:fs";
+import { mkdirSync, existsSync, renameSync, rmSync, openSync, closeSync, readFileSync, writeFileSync, unlinkSync, statSync, readdirSync } from "node:fs";
 import { join, dirname, resolve as resolvePath, relative, isAbsolute } from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
@@ -111,6 +111,20 @@ async function fetchBuf(url, timeoutMs) {
   return Buffer.from(await res.arrayBuffer());
 }
 
+/** Registro dos hashes dos arquivos extraídos, gravado dentro da pasta instalada para acompanhar o swap e o rollback. */
+export const FILES_MANIFEST = ".engine-kit-files.json";
+
+/** sha256 de cada arquivo sob `dir` (caminho relativo com `/`), exceto o próprio registro. */
+export function hashTree(dir, sub = "") {
+  const out = {};
+  for (const d of readdirSync(join(dir, sub), { withFileTypes: true })) {
+    const rel = sub ? `${sub}/${d.name}` : d.name;
+    if (d.isDirectory()) { Object.assign(out, hashTree(dir, rel)); }
+    else if (d.isFile() && rel !== FILES_MANIFEST) { out[rel] = createHash("sha256").update(readFileSync(join(dir, rel))).digest("hex"); }
+  }
+  return out;
+}
+
 /** Lê a versão instalada a partir do package.json do artefato (se houver). */
 export function installedVersion(binDir) {
   try { return JSON.parse(readFileSync(join(binDir, "package.json"), "utf8")).version; } catch { return null; }
@@ -155,9 +169,11 @@ async function verifyAuthenticity(engine, blob, { log, fetcher, trustedKeys }) {
 
   // A chave veio do MESMO manifest que o kit baixou — sozinha, ela não prova nada contra um
   // registry comprometido. Confronta com a raiz de confiança LOCAL antes de usá-la.
-  const t = checkTrust(engine.name, publicKey, { trustedKeys });
+  const t = checkTrust(engine.name, publicKey, { trustedKeys, rotation: engine.install?.rotation });
   if (!t.ok) { return { ok: false, reason: t.reason }; }
-  if (t.saved === false) {
+  if (t.rotated) {
+    log(`[engine-kit] ${engine.name}: chave rotacionada, assinada pela chave anterior${t.saved === false ? ` (NÃO gravada em ${trustPath()})` : ""}`);
+  } else if (t.saved === false) {
     log(`[engine-kit] ${engine.name}: chave aceita, mas NÃO gravada em ${trustPath()} — o próximo ensure repete o primeiro contato`);
   } else if (t.tofu) {
     const how = trustedKeys?.[engine.name] ? "chave FIXADA pelo consumidor conferiu e foi gravada" : "chave pública gravada na 1ª vez (TOFU)";
@@ -229,7 +245,7 @@ export async function fetchArtifact(engine, { log = () => {}, destDir = process.
  * adivinha como derrubar um daemon: quem sabe é o descritor/consumidor).
  * @returns {Promise<{ok:true, entryPath:string, version:string, reused?:boolean, installed?:boolean} | {ok:false, reason:string}>}
  */
-export async function provision(engine, { log = () => {}, allowNetwork = true, onBeforeReplace, downloadTimeoutMs = 120000, fetcher = fetchBuf, trustedKeys, allowDowngrade, exact, lockWaitMs = LOCK_STALE_MS } = {}) {
+export async function provision(engine, { log = () => {}, allowNetwork = true, onBeforeReplace, downloadTimeoutMs = 120000, fetcher = fetchBuf, trustedKeys, allowDowngrade, exact, keepPrevious, repair, lockWaitMs = LOCK_STALE_MS } = {}) {
   const home = engine.homeDir;
   const binDir = join(home, engine.install.extractTo ?? "bin");
   const entryPath = join(home, engine.install.entry);
@@ -240,7 +256,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
   // arquivo truncado) NÃO é motivo para reusar: é estado desconhecido → reprovisiona.
   // Reusar aqui seria fail-open silencioso — o oposto do resto do kit — e congelaria a máquina
   // numa instalação quebrada para sempre, ignorando o pin do registry.
-  if (existsSync(entryPath)) {
+  if (!repair && existsSync(entryPath)) {
     const inst = installedVersion(binDir);
     if (inst && (exact ? inst === engine.version : satisfiesPin(inst, engine.version))) {
       noteVersion(engine.name, inst);
@@ -313,6 +329,8 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
       return abort(`${engine.name}: o artefato diz v${got ?? "? (package.json ausente/ilegível)"} e o registry pede v${engine.version} → ABORT`);
     }
 
+    writeFileSync(join(staging, FILES_MANIFEST), JSON.stringify(hashTree(staging)));
+
     // A instalação atual sai do caminho por RENAME, não por rmSync: no Windows, com o motor em uso
     // (sem shutdownPath, ou um host segurando o processo), o rmSync apagava metade da pasta antes do
     // EPERM e deixava a máquina sem motor nenhum. O rename falha inteiro ou passa inteiro.
@@ -337,7 +355,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
       if (aside) { try { renameSync(aside, binDir); } catch { /* o reason abaixo diz onde ficou */ } }
       return { ok: false, reason: `${engine.name}: swap falhou (${e.code || e.message})${aside && existsSync(aside) ? `; a instalação anterior está em ${aside}` : ""}` };
     }
-    if (aside) {
+    if (aside && !keepPrevious) {
       try { rmTree(aside); }
       catch (e) { log(`[engine-kit] ${engine.name}: instalado, mas a versão anterior ficou em ${aside} (${e.code || e.message})`); }
     }
@@ -348,7 +366,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
     }
     noteVersion(engine.name, engine.version);
     log(`[engine-kit] ${engine.name} instalado em ${binDir} (v${engine.version})`);
-    return { ok: true, entryPath, version: engine.version, installed: true, signed: auth.signed };
+    return { ok: true, entryPath, version: engine.version, installed: true, signed: auth.signed, ...(keepPrevious && aside ? { previousDir: aside } : {}) };
   } catch (e) {
     return { ok: false, reason: `${engine.name}: provision falhou: ${e?.message || e}` };
   } finally {

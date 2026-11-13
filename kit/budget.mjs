@@ -101,9 +101,14 @@ const ROOT = resolvePath(KIT, "..");
 //   o token passa a ser lido de forma assíncrona e com limite de tempo (`readTokenAsync`), sem bloquear a ativação do host; `readToken` síncrono segue exportado. Nenhum código funcional foi cortado.
 //   2026-11-12 tooling 51900 → 52200: o `doctor --fix` passou a respeitar `ENGINE_KIT_NO_AUTO_UPDATE` (pula o motor desatualizado, como o `ensure` e a lib). Nenhum código funcional foi cortado.
 //   2026-11-12 runtime 33600 → 33800 e tooling 52200 → 54600: ensureEngine passa a desligar o daemon pelo shutdownPath por padrão, aceita allowDowngrade e exporta `pin`; o prazo do shutdown cobre a drenagem do gateway. Ferramental: `--json` em ensure/fetch/pin/stop (forma do doctor), `ensure --version` exato e o verify-release confere a versão dentro do .tgz. Nenhum código funcional foi cortado.
+//   2026-11-13 runtime 33800 → 36700 e tooling 54600 → 59500: decisões do dono (rotação de chave, ciclo de vida e verbo `list`). Runtime, +2.9 KB:
+//   rotação de chave assinada pela chave anterior (`checkTrust` aceita `install.rotation` e regrava trust.json), rollback automático quando a versão nova não sobe
+//   (`ensureEngine` guarda a pasta anterior do swap e a devolve) e o registro de hashes dos arquivos extraídos (`hashTree`, `repair`). Ferramental, +4.8 KB: o
+//   diagnóstico do doctor virou API (`diagnoseEngines`, `engineView`), `doctor --verify` (ADULTERADO), `engine-kit list` com checagem de `platforms`, `--rotate-from` no update-manifest
+//   e o link da release exata nos cards. Nenhum código funcional foi cortado.
 const BUDGETS = {
-  runtime: { codeBytes: 33800, baseline: 24519, loc: 900 },
-  tooling: { codeBytes: 54600, baseline: 16420, loc: 1050 },
+  runtime: { codeBytes: 36700, baseline: 24519, loc: 900 },
+  tooling: { codeBytes: 59500, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

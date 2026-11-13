@@ -35,11 +35,22 @@ function hasRef(ref, cwd) {
   return spawnSync('git', ['rev-parse', '--verify', '--quiet', ref], { cwd, windowsHide: true }).status === 0;
 }
 
-const REGENERABLE = ['manifest.json', 'README.md'];
+const REGENERABLE = ['manifest.json', 'README.md', 'site/index.html'];
 
 /** Troca a versão da linha `| \`motor\` | x.y.z |` do README; README sem a linha fica como está. */
 export function alignReadme(readme, engine, version) {
   return readme.replace(new RegExp('^(\\| `' + engine + '` \\| )[^ |]+( \\|)', 'm'), `$1${version}$2`);
+}
+
+/** URL da release exata de um motor do manifest. */
+export function releaseUrl(engine, version) {
+  const { repo, tag } = engine.install;
+  return `https://github.com/${repo}/releases/tag/${tag.replace('{version}', version)}`;
+}
+
+/** Aponta o link de release do card do motor na vitrine para a release exata; card sem link de release fica como está. */
+export function alignSite(html, engine, url) {
+  return html.replace(new RegExp('(data-motor="' + engine + '"(?:(?!</article>)[\\s\\S])*?)https://github\\.com/[^"/]+/[^"/]+/releases(?:/tag/|\\?q=)[^"]+'), `$1${url}`);
 }
 
 /** Aplica a versão do motor ao manifest.json e/ou à linha do README.md do worktree. */
@@ -50,6 +61,11 @@ function applyVersion(wt, { engine, version, updateArgs, files = REGENERABLE }) 
   const readmePath = path.join(wt, 'README.md');
   if (files.includes('README.md') && fs.existsSync(readmePath)) {
     fs.writeFileSync(readmePath, alignReadme(fs.readFileSync(readmePath, 'utf8'), engine, version));
+  }
+  const sitePath = path.join(wt, 'site', 'index.html');
+  if (files.includes('site/index.html') && fs.existsSync(sitePath)) {
+    const entry = JSON.parse(fs.readFileSync(path.join(wt, 'manifest.json'), 'utf8')).engines.find((e) => e.name === engine);
+    fs.writeFileSync(sitePath, alignSite(fs.readFileSync(sitePath, 'utf8'), engine, releaseUrl(entry, version)));
   }
 }
 
@@ -102,12 +118,12 @@ export function publishManifest({ engine, version, updateArgs = [], repoDir = RO
     applyVersion(mainWt, release);
     assertSchema(mainWt);
     verify(manifest, mainWt);
-    git(['add', 'manifest.json', 'README.md'], mainWt);
+    git(['add', 'manifest.json', 'README.md', ...(fs.existsSync(path.join(mainWt, 'site', 'index.html')) ? ['site/index.html'] : [])], mainWt);
     // Compara o índice, não o status: com autocrlf, reescrever o arquivo com LF aparece como modificado sem mudar o conteúdo.
     if (spawnSync('git', ['diff', '--cached', '--quiet'], { cwd: mainWt, windowsHide: true }).status === 0) {
       return { ok: true, unchanged: true, main: git(['rev-parse', 'HEAD'], mainWt), develop: null };
     }
-    git(['commit', '-m', `${engine} ${version} no manifest e no README`], mainWt);
+    git(['commit', '-m', `${engine} ${version} no manifest, no README e na vitrine`], mainWt);
     const main = git(['rev-parse', 'HEAD'], mainWt);
     git(['push', remote, 'HEAD:refs/heads/main'], mainWt);
 

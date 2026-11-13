@@ -55,12 +55,13 @@ check("assets/site.js tem sintaxe válida", (() => { try { execFileSync(process.
 const cards = [...html.matchAll(/<article class="card c-[a-z]+" id="m-([^"]+)" data-motor="([^"]+)"[\s\S]*?<\/article>/g)].map((m) => ({ id: m[1], motor: m[2], html: m[0] }));
 check("um card por motor do manifest.json, nem a mais nem a menos", JSON.stringify(cards.map((c) => c.motor).sort()) === JSON.stringify([...engines].sort()),
   `cards: ${cards.map((c) => c.motor).join(", ")} | manifest: ${engines.join(", ")}`);
-// a página do produto vem do manifest (pagesUrl): o card de quem tem Pages leva a ela, os demais à versão atual
+// a página do produto vem do manifest (pagesUrl): o card de quem tem Pages leva a ela, os demais à release exata da versão do manifest
+const releaseExata = (e) => `https://github.com/${e.install.repo}/releases/tag/${e.install.tag.replace("{version}", e.version)}`;
 const PAGES_PROPRIO = Object.fromEntries(manifest.engines.filter((e) => e.pagesUrl).map((e) => [e.name, e.pagesUrl]));
 for (const c of cards) {
   const href = c.html.match(/class="btn pri peq" href="([^"]+)"/)?.[1] ?? "";
-  const esperado = PAGES_PROPRIO[c.motor] ?? `https://github.com/AllanSantos-DV/engine-registry/releases?q=${c.motor}`;
-  check(`card ${c.motor}: ${PAGES_PROPRIO[c.motor] ? "link da página do produto" : "link da versão atual (o produto ainda não tem Pages)"}`, href === esperado, href);
+  const esperado = PAGES_PROPRIO[c.motor] ?? releaseExata(manifest.engines.find((e) => e.name === c.motor));
+  check(`card ${c.motor}: ${PAGES_PROPRIO[c.motor] ? "link da página do produto" : "link da release exata da versão do manifest (o produto ainda não tem Pages)"}`, href === esperado, href);
   check(`card ${c.motor}: abre fora com rel noopener`, /target="_blank" rel="noopener noreferrer"/.test(c.html));
 }
 const semPages = engines.filter((n) => !PAGES_PROPRIO[n]);
@@ -107,7 +108,7 @@ const embed = manifest.engines.find((e) => e.name === "embed-house");
 check("métrica de 147 MB vem do resumo do embed-house no manifest", /147 MB/.test(embed?.summary ?? "") && txtMetricas.includes("147 MB"));
 const budget = read(join(REPO, "kit", "budget.mjs"));
 const limite = Number(budget.match(/runtime: \{ codeBytes: (\d+)/)?.[1]);
-check("métrica '< 34 KB' acompanha o limite do kill-switch do kit", limite === 33800 && txtMetricas.includes("< 34 KB"), `limite no budget.mjs: ${limite}`);
+check("métrica '< 37 KB' acompanha o limite do kill-switch do kit", limite === 36700 && txtMetricas.includes("< 37 KB"), `limite no budget.mjs: ${limite}`);
 const sistemas = new Set(manifest.engines.flatMap((e) => e.platforms).map((p) => p.split("-")[0]).filter((p) => p !== "any"));
 check("métrica de sistemas (Windows, Linux, macOS) bate com as plataformas do manifest", sistemas.size === 3 && txtMetricas.includes("3"), [...sistemas].join(", "));
 

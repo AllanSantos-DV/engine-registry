@@ -20,9 +20,9 @@ export {
 export { SIGNING_DIR, keyPathFor } from "./keystore.mjs";
 
 import { resolve } from "./resolve.mjs";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { provision, satisfiesPin, installedVersion, autoUpdateEnabled } from "./provision.mjs";
+import { provision, satisfiesPin, installedVersion, autoUpdateEnabled, renameRetry } from "./provision.mjs";
 import { lifecycle, findAlive, shutdown } from "./lifecycle.mjs";
 import { pinOf, setPin } from "./trust.mjs";
 
@@ -72,6 +72,8 @@ async function vivoSemRegistry(name, healthCheck, reason) {
  *        `shutdownPath` do descritor (motor sem `shutdownPath` não é tocado); `false` desliga.
  * @param {boolean=} opts.allowDowngrade com `version`, instala EXATAMENTE essa versão mesmo que haja uma maior da mesma major (rollback);
  *        o pin do dono continua mandando.
+ * Atualização que não sobe: o kit guarda a pasta anterior do swap até o motor novo responder; se ele não responde, a anterior volta, sobe de novo e
+ *        `engine.rolledBack = { version, reason }` diz o que falhou. Se a volta também falha, `available:false` traz o caminho da pasta anterior.
  * @returns {Promise<{available:true, runtime:object, health:object, engine:object} | {available:false, reason:string}>}
  */
 export async function ensureEngine(name, opts = {}) {
@@ -88,21 +90,36 @@ export async function ensureEngine(name, opts = {}) {
   const entryPath = join(r.engine.homeDir, r.engine.install.entry);
   const previous = existsSync(entryPath) ? installedVersion(join(r.engine.homeDir, r.engine.install.extractTo ?? "bin")) : null;
   const keep = !autoUpdateEnabled({ ...process.env, ...env }) && !version && !pin && previous && !satisfiesPin(previous, r.engine.version);
-  let installed = previous, updateAvailable;
+  let installed = previous, updateAvailable, previousDir;
   if (keep) { updateAvailable = r.engine.version; }
   else {
     const antes = onBeforeReplace === undefined
       ? async () => { const s = await shutdown(r.engine, { log }); if (!s.ok) { log(`aviso: ${s.reason} — o swap pode falhar com o motor vivo`); } }
       : onBeforeReplace || undefined;
-    const p = await provision(r.engine, { log, allowNetwork, onBeforeReplace: antes, trustedKeys, exact: Boolean(pin) || (allowDowngrade && Boolean(version)), ...(fetcher ? { fetcher } : {}) });
+    const p = await provision(r.engine, { log, allowNetwork, onBeforeReplace: antes, trustedKeys, keepPrevious: true, exact: Boolean(pin) || (allowDowngrade && Boolean(version)), ...(fetcher ? { fetcher } : {}) });
     if (!p.ok) { return { available: false, reason: p.reason }; }
     installed = p.version;
+    previousDir = p.previousDir;
   }
 
-  const l = await lifecycle(r.engine, entryPath, { healthCheck, log, bootTimeoutMs, env });
+  const bin = join(r.engine.homeDir, r.engine.install.extractTo ?? "bin");
+  let l = await lifecycle(r.engine, entryPath, { healthCheck, log, bootTimeoutMs, env });
+  let rolledBack;
+  if (!l.available && previousDir) {
+    const failed = { version: installed, reason: l.reason };
+    try {
+      await shutdown(r.engine, { log });
+      rmSync(bin, { recursive: true, force: true });
+      await renameRetry(previousDir, bin);
+    } catch (e) { return { available: false, reason: `${l.reason}; a volta para v${previous} falhou (${e.code || e.message}); a versão anterior está em ${previousDir}` }; }
+    installed = previous;
+    log(`[engine-kit] ${name}: v${failed.version} não subiu (${failed.reason}) — voltei para v${previous}`);
+    l = await lifecycle(r.engine, entryPath, { healthCheck, log, bootTimeoutMs, env });
+    rolledBack = failed;
+  } else if (previousDir) { try { rmSync(previousDir, { recursive: true, force: true }); } catch { /* sobra limpa pelo doctor --fix */ } }
   if (!l.available) { return l; }
 
   const tofu = registryUrl && !trustedKeys?.[name];
-  return { ...l, engine: { ...r.engine, installedVersion: installed, ...(updateAvailable ? { updateAvailable } : {}),
+  return { ...l, engine: { ...r.engine, installedVersion: installed, ...(updateAvailable ? { updateAvailable } : {}), ...(rolledBack ? { rolledBack } : {}),
     ...(tofu ? { trust: "tofu", trustHint: `registry próprio sem chave fixada: a chave da 1ª instalação é gravada; passe trustedKeys: { "${name}": "<chave>" } para não depender dela` } : {}) } };
 }

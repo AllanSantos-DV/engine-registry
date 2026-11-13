@@ -101,6 +101,16 @@
               "pattern": "^[0-9a-fA-F]{64}$",
               "description": "Chave pública Ed25519 do motor, 32 bytes em hex (64 chars). PINADA aqui: declarada = a assinatura passa a ser verificada e OBRIGATÓRIA para este motor."
             },
+            "rotation": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["from", "signature"],
+              "description": "Rotação de chave: 'from' é a chave pública anterior e 'signature' (128 hex) é a assinatura Ed25519 dela sobre 'engine-kit:rotate:<motor>:<chave nova>'. A máquina que confia na chave anterior aceita a nova sem passo manual; sem assinatura válida a troca é ABORT.",
+              "properties": {
+                "from": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+                "signature": { "type": "string", "pattern": "^[0-9a-fA-F]{128}$" }
+              }
+            },
             "signatureAlgorithm": {
               "type": "string",
               "enum": ["ed25519-sha256-raw"],

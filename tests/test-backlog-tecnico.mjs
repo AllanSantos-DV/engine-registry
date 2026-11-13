@@ -38,7 +38,9 @@ const tgzOf = (version) => {
   const src = join(RUN, `src-${version}`);
   mkdirSync(src, { recursive: true });
   writeFileSync(join(src, "package.json"), JSON.stringify({ name: "fake-engine", version }));
-  writeFileSync(join(src, "fake-engine.mjs"), "");
+  writeFileSync(join(src, "fake-engine.mjs"), version === "1.1.0"
+    ? "import { writeFileSync } from 'node:fs'; import { join } from 'node:path';\nwriteFileSync(join(process.env.FAKE_HOME, 'runtime.json'), JSON.stringify({ pid: process.pid, version: '1.1.0' }));\nsetTimeout(() => process.exit(0), 3000);\n"
+    : "");
   execFileSync(tarBinary(), ["-czf", `${src}.tgz`, "-C", src, "."], { stdio: "ignore", windowsHide: true });
   return readFileSync(`${src}.tgz`);
 };
@@ -76,7 +78,7 @@ const srv = http.createServer((req, res) => {
 srv.listen(0, '127.0.0.1', () => writeFileSync(join(home, 'runtime.json'), JSON.stringify({ port: srv.address().port, pid: process.pid, shutdownToken: 'tok' })));
 `);
   const runtime = { transport: "http", runtimeFile: "runtime.json", healthPath: "/health", shutdownPath: "/admin/shutdown", shutdownTokenField: "shutdownToken", shutdownTokenHeader: "x-shutdown-token" };
-  const healthCheck = async () => null;
+  const healthCheck = async (rt) => (rt?.version === "1.1.0" ? { ok: true } : null);
   const rodada = async (nome, opts) => {
     const home = join(RUN, `home-${nome}`);
     mkdirSync(home, { recursive: true });
@@ -87,7 +89,7 @@ srv.listen(0, '127.0.0.1', () => writeFileSync(join(home, 'runtime.json'), JSON.
     const proc = spawn(process.execPath, [DAEMON], { env: { ...process.env, FAKE_HOME: home }, windowsHide: true, stdio: "ignore" });
     for (let i = 0; i < 100 && !existsSync(join(home, "runtime.json")); i++) { await sleep(100); }
     const reg2 = await serveJson({ engines: [engineOf(home, "1.1.0", { runtime })] });
-    await ensureEngine("fake-engine", { ...base, ...opts, registryUrl: reg2.url, refresh: true });
+    await ensureEngine("fake-engine", { ...base, ...opts, env: { FAKE_HOME: home }, bootTimeoutMs: 3000, registryUrl: reg2.url, refresh: true });
     reg2.s.close();
     await sleep(300);
     proc.kill();

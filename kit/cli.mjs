@@ -7,12 +7,13 @@
 //   npx engine-kit pin <motor> [--version <x.y.z>]   # congela UM motor; a atualização automática pula só ele
 //   npx engine-kit unpin <motor>                     # o motor volta a receber atualizações
 //   npx engine-kit fetch <motor|app> [--dest <pasta>] # baixa e confere sha256 + Ed25519 SEM instalar
-//   npx engine-kit doctor [--fix] [--engine <motor>]  # concilia os motores instalados com o registry
+//   npx engine-kit list [--json]                      # motores do pacote, plataformas que atendem e o que está instalado aqui
+//   npx engine-kit doctor [--fix|--verify] [--engine <motor>]  # concilia os motores instalados com o registry
 //
 // Por padrão o kit se atualiza (roda de novo como a última versão do npm) e atualiza o motor instalado.
 // ENGINE_KIT_NO_AUTO_UPDATE=1 desliga os dois e deixa só o aviso de versão nova (ver update.mjs).
 // Exit code: 0 = motor instalado (ou reusado). 1 = recusou/falhou, com o motivo na saída de erro.
-import { ensureCommand, pinCommand, unpinCommand, stopCommand } from "./ensure.mjs";
+import { ensureCommand, pinCommand, unpinCommand, stopCommand, listCommand } from "./ensure.mjs";
 import { registerNeuralLink, unregisterNeuralLink } from "./register.mjs";
 import { fetchCommand } from "./fetch.mjs";
 import { selfUpdate, autoUpdateEnabled } from "./update.mjs";
@@ -25,12 +26,13 @@ const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-ur
   "     engine-kit stop <motor> [--registry-url <url>]   desliga o motor pelo shutdownPath que o registry declara\n" +
   "     engine-kit ensure neural-link --register     além de instalar, registra os hooks no config global do usuário\n" +
   "     engine-kit ensure neural-link --unregister   além de instalar, desfaz esse registro (precisa de um neural-link que exponha uninstall)\n" +
-  "     engine-kit doctor [--fix|--json] [--engine <motor>] [--local] [--registry-url <url>]   diagnostica os motores instalados (--fix instala o que falta e atualiza o que está velho)\n" +
+  "     engine-kit list [--json]                     motores do pacote, a plataforma de cada um e a versão instalada (sem rede)\n" +
+  "     engine-kit doctor [--fix|--json|--verify] [--engine <motor>] [--local] [--registry-url <url>]   diagnostica os motores instalados (--fix instala o que falta e atualiza o que está velho)\n" +
   "ENGINE_KIT_NO_AUTO_UPDATE=1 desliga a atualização automática do kit e dos motores (fica só o aviso).";
 
 const args = process.argv.slice(2);
 const flag = (n) => { const i = args.indexOf(n); return i === -1 ? undefined : args[i + 1]; };
-const VERBS = ["ensure", "pin", "unpin", "fetch", "stop", "doctor"];
+const VERBS = ["ensure", "pin", "unpin", "fetch", "stop", "doctor", "list"];
 const [cmd, name] = args;
 const COM_VALOR = ["--version", "--registry-url", "--dest", "--engine"];
 const FLAGS = {
@@ -39,12 +41,13 @@ const FLAGS = {
   unpin: [],
   fetch: ["--version", "--registry-url", "--dest", "--json"],
   stop: ["--registry-url", "--json"],
-  doctor: ["--fix", "--json", "--engine", "--local", "--registry-url"],
+  doctor: ["--fix", "--json", "--verify", "--engine", "--local", "--registry-url"],
+  list: ["--json"],
 };
 /** Primeira flag que o verbo não aceita, ou argumento solto além do nome do motor. */
 const sobra = () => {
   const aceitas = FLAGS[cmd] ?? [];
-  for (let i = cmd === "doctor" ? 1 : 2; i < args.length; i++) {
+  for (let i = ["doctor", "list"].includes(cmd) ? 1 : 2; i < args.length; i++) {
     if (!args[i].startsWith("-")) { return `argumento inesperado: ${args[i]}`; }
     if (!aceitas.includes(args[i]) && /^--(un)?register$/.test(args[i])) { return "--register e --unregister só valem para `engine-kit ensure neural-link`"; }
     if (!aceitas.includes(args[i])) { return `${args[i]} não vale para \`${cmd}\``; }
@@ -81,7 +84,7 @@ const semValor = ["--dest", "--registry-url", "--engine"].find((f) => args.inclu
 
 if (cmd === "--help" || cmd === "-h") {
   console.log(USAGE);
-} else if (!VERBS.includes(cmd) || (cmd !== "doctor" && (!name || name.startsWith("-")))) {
+} else if (!VERBS.includes(cmd) || (!["doctor", "list"].includes(cmd) && (!name || name.startsWith("-")))) {
   console.error(cmd && !VERBS.includes(cmd) ? `comando desconhecido: ${cmd}\n${USAGE}` : USAGE);
   process.exitCode = 1;
 } else if (semValor) {
@@ -106,6 +109,14 @@ if (cmd === "--help" || cmd === "-h") {
     process.exitCode = u.status;
   } else if (cmd === "doctor") {
     await import("./doctor.mjs");
+  } else if (cmd === "list") {
+    const r = listCommand();
+    if (!r.ok) { console.error(`FALHOU list: ${r.reason}`); process.exitCode = 1; }
+    else if (asJson) { console.log(JSON.stringify(r, null, 2)); }
+    else {
+      const w = Math.max(...r.engines.map((e) => e.name.length));
+      for (const e of r.engines) { console.log(`${e.supported ? "  ok  " : " fora "} ${e.name.padEnd(w)}  v${e.version.padEnd(8)} ${e.platforms.join(",")}${e.supported ? "" : ` (esta máquina: ${r.platform})`}  ${e.selfManaged ? "instala pelo próprio updater" : e.installed ? `instalado v${e.installed}` : "não instalado"}`); }
+    }
   } else if (cmd === "unpin") {
     const r = unpinCommand(name);
     if (!r.ok) { console.error(`FALHOU ${name}: ${r.reason}`); process.exitCode = 1; }

@@ -118,6 +118,8 @@ que dependa do `engine-kit`, ou o selo "Provenance" na página do pacote.
 npx engine-kit doctor [--engine <motor>]          # diagnostica: o que reusar, atualizar ou baixar
 npx engine-kit doctor --fix [--engine <motor>]    # aplica e limpa as sobras de instalação interrompida
 npx engine-kit doctor --json [--engine <motor>]   # mesmo diagnóstico em JSON, para agentes e hooks
+npx engine-kit doctor --verify [--engine <motor>] # confere o sha256 de cada arquivo instalado: alterado ou ausente = ADULTERADO
+npx engine-kit list [--json]                      # os motores do pacote, a plataforma de cada um e a versão instalada (sem rede)
 npx engine-kit ensure|pin|fetch|stop <motor> --json   # um objeto JSON por chamada, na forma das linhas do doctor (name, ok, state, detail, warns, pin), também na falha
 ```
 
@@ -130,6 +132,20 @@ O diagnóstico avisa, sem alterar nada, quando o registry não respondeu (o desc
 publicada pelo registry difere da gravada em `trust.json` (o próximo `ensure` abortaria).
 
 No clone do repositório, `node kit/doctor.mjs` faz o mesmo.
+
+O `provision` grava dentro da pasta instalada o sha256 de cada arquivo extraído (`.engine-kit-files.json`). O `doctor --verify` confere a pasta contra esse registro, sob demanda
+(não é o caminho comum): arquivo alterado ou ausente vira o estado `ADULTERADO` e o `--fix` reinstala a mesma versão. Arquivo novo não conta (o motor pode guardar estado
+ali) e instalação anterior ao registro aparece como `SEM-REGISTRO`, nunca como adulterada. O registro mora ao lado dos arquivos: ele pega alteração parcial, não quem refaz a pasta inteira.
+
+O mesmo diagnóstico é uma API, sem subprocesso e sem lançar:
+
+```js
+import { diagnoseEngines, engineView } from "engine-kit/kit/diagnose.mjs";
+const r = await diagnoseEngines({ local: true, verify: true });   // { ok: true, rows } ou { ok: false, reason }
+const json = r.rows.map(engineView);                              // igual ao `doctor --json`
+```
+
+`engine-kit list` lê só o manifest embarcado. `ensure` recusa antes de resolver ou baixar o motor cujo `platforms` não inclui esta máquina (`any` serve a todas).
 
 Desatualizado → atualiza. Ausente → baixa. **Atualizado → reusa**. Fixado (`engine-kit pin`) → `FIXADO`, fica na
 versão fixada; instalado diferente do pin → `FORA DO PIN`, e o `--fix` instala a versão fixada. O diagnóstico não baixa nada,
@@ -254,7 +270,11 @@ assim:
 | **Pin do consumidor** | `ensureEngine(nome, { trustedKeys: { "<motor>": "<hex>" } })`; divergência = **ABORT** já no 1º contato | não depende do registry em momento nenhum (padrão do `vox-engine`) |
 | **Chave no pacote** (`npx engine-kit ensure`/`fetch`/`pin`, mesmo com `--registry-url`; `ensureEngine`, `provision` e `fetchArtifact` no registry público) | o comando e a lib fixam a chave do `manifest.json` embarcado no pacote do npm; motor que o pacote não conhece, ou manifest embarcado ilegível, é recusado sem `trustedKeys`. Só a lib em registry próprio (`registryUrl`) segue em TOFU | registry comprometido **antes** do 1º contato: trocar a chave exige publicar um engine-kit novo, e a publicação deixa proveniência pública |
 
-Rotação legítima é **ato explícito**: apagar a entrada em `~/.engine-kit/trust.json`. Um `trust.json` que existe e
+**Rotação de chave.** O dono troca a chave de um motor assinando a nova com a anterior: `node kit/update-manifest.mjs <motor> --public-key <nova> --rotate-from <arquivo da chave privada antiga>`
+grava `install.rotation = { from, signature }` no manifest (`signature` é Ed25519 sobre `engine-kit:rotate:<motor>:<chave nova>`). O kit aceita a chave nova só quando a chave gravada
+no `trust.json` (ou a fixada pelo consumidor em `trustedKeys`) é a `from` e a assinatura confere; então regrava o `trust.json` com a nova e a anterior deixa de valer. Troca sem essa
+assinatura continua ABORT. A rotação é um salto a partir da chave que a máquina já conhece: quem ainda está duas chaves atrás precisa atualizar o kit (`npx engine-kit@latest`).
+Sem a chave anterior (perdida ou vazada), a saída segue sendo explícita: apagar a entrada em `~/.engine-kit/trust.json`. Um `trust.json` que existe e
 não se lê falha fechado: `ensure`, `pin`, `unpin`, `ensureEngine` e o doctor recusam explicando e não regravam o arquivo,
 para não apagar as chaves de primeiro contato e os pins dos outros motores.
 
@@ -276,7 +296,7 @@ kit/
   lifecycle.mjs    # garante o processo vivo (daemon) ou entrega o binário (cli)
   register.mjs     # registerNeuralLink: roda o install() do neural-link instalado (ensure neural-link --register)
   trust.mjs        # trust.json por motor: chave do 1º contato, maior versão vista (anti-rollback) e o pin
-  cli.mjs          # comando `engine-kit` (bin do pacote): ensure, fetch, pin, unpin, stop e doctor
+  cli.mjs          # comando `engine-kit` (bin do pacote): ensure, fetch, pin, unpin, stop, doctor e list
   ensure.mjs       # ensure, pin, unpin e stop: resolve → provision com a chave do manifest embarcado no pacote
   fetch.mjs        # fetch: baixa e confere motor ou app sem instalar
   doctor.mjs       # concilia a máquina inteira (OK, DESATUALIZADO, AUSENTE, FIXADO...); --fix aplica

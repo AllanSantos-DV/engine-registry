@@ -17,6 +17,7 @@
 //     TUF) fecha isso, e essa é decisão de produto — está registrada, não esquecida.
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { verifyBlob } from "./signature.mjs";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, openSync, closeSync, unlinkSync, statSync } from "node:fs";
 
 // Lido a CADA chamada, não no import: assim um teste (ou um consumidor com HOME próprio) pode
@@ -66,13 +67,22 @@ export function updateEntry(name, change) {
   } finally { try { unlinkSync(lock); } catch { /* já liberado */ } }
 }
 
+/** Mensagem que a chave anterior assina para legitimar a nova. */
+export const rotationBlob = (name, key) => Buffer.from(`engine-kit:rotate:${name}:${String(key).toLowerCase()}`);
+
+/** A chave nova é legítima só se `anchor` (a que a máquina já confia) a assinou em `rotation: {from, signature}`. */
+const rotationSigned = (name, publicKey, rotation, anchor) =>
+  Boolean(anchor && String(rotation?.from).toLowerCase() === anchor.toLowerCase() &&
+    verifyBlob(rotationBlob(name, publicKey), Buffer.from(String(rotation?.signature), "hex"), anchor).ok);
+
 /**
- * Confronta a chave que veio do registry com a raiz de confiança local.
- * @returns {{ok:true, tofu:boolean} | {ok:false, reason:string}} lança só com trust.json ilegível (`readTrust`).
+ * Confronta a chave que veio do registry com a raiz de confiança local. Chave diferente só passa com `rotation`
+ * assinada pela chave que a máquina já confia (fixada ou gravada); sem isso é ABORT.
+ * @returns {{ok:true, tofu:boolean, rotated?:boolean} | {ok:false, reason:string}} lança só com trust.json ilegível (`readTrust`).
  */
-export function checkTrust(engineName, publicKey, { trustedKeys } = {}) {
+export function checkTrust(engineName, publicKey, { trustedKeys, rotation } = {}) {
   const pinned = trustedKeys?.[engineName];
-  if (pinned && pinned !== publicKey) {
+  if (pinned && pinned !== publicKey && !rotationSigned(engineName, publicKey, rotation, pinned)) {
     return { ok: false, reason: `${engineName}: chave do registry ≠ chave FIXADA pelo consumidor → ABORT (registry pode estar comprometido)` };
   }
 
@@ -81,11 +91,18 @@ export function checkTrust(engineName, publicKey, { trustedKeys } = {}) {
   const mudou = () => ({
     ok: false,
     reason:
-      `${engineName}: a chave pública MUDOU desde a primeira instalação → ABORT. ` +
-      `Rotação legítima exige apagar a entrada em ${trustFile()} de propósito; ` +
-      `se você não rotacionou, o registry pode estar comprometido.`,
+      `${engineName}: a chave pública MUDOU desde a primeira instalação sem rotação assinada pela chave anterior → ABORT. ` +
+      `Rotação legítima exige que o registry publique a assinatura da chave antiga; ` +
+      `se você não rotacionou, ele pode estar comprometido (entrada em ${trustFile()}).`,
   });
-  if (known && known !== publicKey) { return mudou(); }
+  if (known && known !== publicKey) {
+    if (!rotationSigned(engineName, publicKey, rotation, known)) { return mudou(); }
+    try {
+      const gravada = updateEntry(engineName, (e) => (e?.publicKey === known ? { ...e, publicKey, rotatedFrom: known, rotatedAt: new Date().toISOString() } : e));
+      if (gravada.publicKey !== publicKey) { return mudou(); }
+    } catch { return { ok: true, tofu: false, rotated: true, saved: false }; }
+    return { ok: true, tofu: false, rotated: true };
+  }
   if (known) return { ok: true, tofu: false };
 
   try {

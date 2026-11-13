@@ -11,7 +11,7 @@
 // NUNCA lança: devolve { ok, reason } para o cli decidir o exit code.
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { resolve, fill } from "./resolve.mjs";
+import { resolve, fill, target, expandHome } from "./resolve.mjs";
 import { provision, installedVersion, satisfiesPin } from "./provision.mjs";
 import { shutdown, stopEngine } from "./lifecycle.mjs";
 import { pinOf, setPin } from "./trust.mjs";
@@ -24,6 +24,30 @@ const installedOf = (e) => existsSync(join(e.homeDir, e.install.entry)) ? instal
 /** Manifest que viaja dentro do pacote (lança se ilegível; `ensureCommand` transforma em reason). */
 export function bundledManifest() {
   return JSON.parse(readFileSync(BUNDLED_MANIFEST, "utf8"));
+}
+
+/** Motivo da recusa quando o motor não tem build para esta máquina (`platforms` do descritor), ou null. */
+export function platformReason(engine, platform = target()) {
+  const suportadas = engine.platforms ?? [];
+  return suportadas.length === 0 || suportadas.includes("any") || suportadas.includes(platform)
+    ? null
+    : `${engine.name} não tem build para ${platform} (suporta: ${suportadas.join(", ")})`;
+}
+
+/**
+ * `engine-kit list`: os motores do manifest embarcado, a plataforma que cada um atende e o que está instalado aqui. Não usa rede. Nunca lança.
+ * @returns {{ok:true, platform:string, engines:{name:string, version:string, kind:string, platforms:string[], supported:boolean, installed:string|null, selfManaged:boolean}[]} | {ok:false, reason:string}}
+ */
+export function listCommand({ bundled, platform = target() } = {}) {
+  let local;
+  try { local = bundled ?? bundledManifest(); }
+  catch (e) { return { ok: false, reason: `manifest embarcado ilegível: ${e.message}` }; }
+  const engines = (local.engines ?? []).map((e) => {
+    let installed = null;
+    try { installed = e.status !== "self-managed" && e.install.entry && e.home ? installedOf({ homeDir: expandHome(e.home), install: e.install }) : null; } catch { /* instalação ilegível = não instalado */ }
+    return { name: e.name, version: e.version, kind: e.kind, platforms: e.platforms ?? [], supported: platformReason(e, platform) === null, installed, selfManaged: e.status === "self-managed" };
+  });
+  return { ok: true, platform, engines };
 }
 
 /**
@@ -48,6 +72,8 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
 
   const pinned = (local.engines ?? []).find((e) => e.name === name);
   if (!pinned) { return { ok: false, reason: semMotor(local, name, "ensure") }; }
+  const fora = platformReason(pinned);
+  if (fora) { return { ok: false, reason: fora }; }
   const publicKey = pinned.install?.publicKey;
   if (!publicKey) {
     return { ok: false, reason: `${name}: o manifest embarcado não traz publicKey → sem chave do primeiro contato não instalo (ABORT)` };
