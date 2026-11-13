@@ -10,10 +10,6 @@ Vazio.
 
 Cada item muda o uso do produto. O candidato (k) traz ganho, esforço (pequeno, médio ou grande, sem prazo), reuso e recomendação.
 
-- **Decidido (Jarvis, 12/11): `uninstall()` do neural-link segue a recomendação; trabalho do projeto neural-link.** **`uninstall()` no neural-link (projeto neural-link, `src/install.js`).** O `engine-kit ensure neural-link --unregister` já existe e
-  chama o `uninstall()` do motor instalado, mas o neural-link só exporta `install()`: hoje o comando falha alto dizendo isso. O motor passa a exportar
-  `uninstall({})`, que remove os `_dispatcher-<Evento>.json` e devolve `{ removed: [...] }`. Nada a mudar neste repositório.
-
 - **Decidido (Jarvis, 12/11): segue do dono.** **Esquema de confiança do registry: assinatura sem chave e publicação do kit com aprovação.** Pendência aberta 3a178e: muda como o dono
   publica o kit (um clique de aprovação 2FA por release) e o que ele guarda. Recomendação: esquema D, com os motores assinados sem chave
   (keyless) no CI hospedado, nos três repositórios pesados (native-java, cerne, vox-engine), e o engine-kit publicado no npm só com a
@@ -21,9 +17,6 @@ Cada item muda o uso do produto. O candidato (k) traz ganho, esforço (pequeno, 
   sempre no log público de transparência. Fontes: `docs/research/2026-11-09-confianca-do-registry-sem-custodia-de-chave.md` e
   `docs/research/2026-11-09-chaves-contra-runners-sem-acl.md`.
 
-- **Decidido (Jarvis, 12/11): (h) `DEFAULT_PIN` fica como está, a trava é proposital.** **(h) Neural-link novo fica preso em `DEFAULT_PIN`.** `ensureNeuralLink()` pede a versão mínima `DEFAULT_PIN` da mesma major; uma major nova do
-  motor exige subir a constante e publicar o kit. O adaptador só aceita o contrato que conhece, e a major nova é decisão do dono do neural-link;
-  `tests/test-neural-link-alignment.mjs` trava a constante contra o manifest.
 - **Decidido (Jarvis, 12/11): segue do dono.** **(k) `trust.json` guarda chave e `maxVersion` por motor, não por registry.** Um registry próprio com chave própria faz o público abortar, e
   o contrário. Ganho: quem opera um registry próprio convive com o público. Esforço: médio (migração do arquivo de confiança). Reuso:
   `updateEntry` e a chave de cache por `registryUrl` que já existe em `kit/resolve.mjs`. Recomendação: construir por registry e nome, com
@@ -31,6 +24,12 @@ Cada item muda o uso do produto. O candidato (k) traz ganho, esforço (pequeno, 
 
 ## Decidido
 
+- **Decidido (Jarvis, 12/11): `uninstall()` do neural-link segue a recomendação; trabalho do projeto neural-link.** **`uninstall()` no neural-link (projeto neural-link, `src/install.js`).** O `engine-kit ensure neural-link --unregister` já existe e
+  chama o `uninstall()` do motor instalado, mas o neural-link só exporta `install()`: hoje o comando falha alto dizendo isso. O motor passa a exportar
+  `uninstall({})`, que remove os `_dispatcher-<Evento>.json` e devolve `{ removed: [...] }`. Nada a mudar neste repositório.
+- **Decidido (Jarvis, 12/11): (h) `DEFAULT_PIN` fica como está, a trava é proposital.** **(h) Neural-link novo fica preso em `DEFAULT_PIN`.** `ensureNeuralLink()` pede a versão mínima `DEFAULT_PIN` da mesma major; uma major nova do
+  motor exige subir a constante e publicar o kit. O adaptador só aceita o contrato que conhece, e a major nova é decisão do dono do neural-link;
+  `tests/test-neural-link-alignment.mjs` trava a constante contra o manifest.
 - **Resolvido (Jarvis, 13/11): um botão de copiar por comando na vitrine e o `pre` do passo 2 sem cartão dentro de cartão.** O bloco antigo de `site/assets/site.js` saiu; o bloco `.copiar` passou a cobrir também o `pre` do passo "Instale pelo kit", com a mensagem "não consegui copiar" e alvo de 44 px (`site/assets/styles.css`); o `.passo pre` perdeu borda e fundo próprios. Teste que falha sem a correção: `tests/test-site-copiar.mjs` (exatamente um botão por `.cmd` e um no `pre`).
 - **Decisão do dono: (3) retentativa com backoff em falha transitória de rede.** Muda o uso: o `ensure` deixa de abortar na primeira queda. Esforço pequeno, reusa o padrão de `renameRetry`; custa bytes do runtime, que está a ~40 B do teto (36700). Recomendação: só quando alguém pedir. **Decidido (Jarvis, 13/11):** não construir agora, conforme a recomendação do próprio item; reabrir só se alguém pedir.
 - **Decisão do dono: (4) espelho de registry e proxy.** Muda o uso: instalação por trás de proxy ou de espelho próprio; a assinatura é conferida em qualquer origem. Esforço médio. Recomendação: só quando alguém pedir. **Decidido (Jarvis, 13/11):** não construir agora, conforme a recomendação do próprio item; reabrir só se alguém pedir.
