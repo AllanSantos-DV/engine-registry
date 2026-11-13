@@ -15,8 +15,8 @@ import { spawn } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { resolve } from "./resolve.mjs";
+import { sleep } from "./provision.mjs";
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
  * Janela padrão de frescor quando o motor não declara `heartbeatMs`.

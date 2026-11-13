@@ -8,14 +8,12 @@ import { resolve } from "./resolve.mjs";
 import { fetchArtifact, extractTgz, installedVersion } from "./provision.mjs";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { verifyAppRelease, findApp } from "./app-release.mjs";
 import { bundledManifest } from "./ensure.mjs";
 import { pinOf } from "./trust.mjs";
-
-/** Raiz estável das conferências de artefato; o `verify-release` põe aqui o asset baixado. */
-export const verifyRoot = () => join(process.env.LOCALAPPDATA || join(homedir(), ".cache"), "engine-kit", "verify");
+import { verifyRoot } from "./diagnose.mjs";
+export { verifyRoot };
 
 /**
  * A assinatura prova quem publicou o artefato, não qual versão ele é: uma release antiga legitimamente assinada passaria. Só confere

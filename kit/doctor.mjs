@@ -16,7 +16,7 @@
 import { rmSync } from "node:fs";
 import { provision, autoUpdateEnabled } from "./provision.mjs";
 import { shutdown } from "./lifecycle.mjs";
-import { lifeOf, pointerOf, diagnoseEngines, engineView } from "./diagnose.mjs";
+import { lifeOf, pointerOf, diagnoseEngines, engineView, staleVerify, SEM_ACAO } from "./diagnose.mjs";
 import { firstContactKeys } from "./trust.mjs";
 
 const args = process.argv.slice(2);
@@ -42,7 +42,7 @@ if (asJson) { console.log(JSON.stringify(rows.map(engineView), null, 2)); }
 const pad = (s, n) => String(s).padEnd(n);
 const w0 = Math.max(12, ...rows.map((r) => r.name.length));
 for (const r of rows) {
-  const mark = ["OK", "SELF-MANAGED", "FIXADO"].includes(r.state) ? "  OK  " : r.state === "ERRO" ? " ERRO " : "  !!  ";
+  const mark = SEM_ACAO.includes(r.state) ? "  OK  " : r.state === "ERRO" ? " ERRO " : "  !!  ";
   say(`${mark} ${pad(r.name, w0)}  ${pad(r.state, 14)} ${r.detail}`);
   for (const w of r.warns ?? []) say(`       ${pad("", w0)}  aviso: ${w}`);
   if (r.engine && r.engine.status !== "self-managed") {
@@ -56,9 +56,10 @@ for (const r of rows) {
 }
 
 let sweepFail = 0;
-if (doFix && rows.some((r) => r.left?.length)) {
-  console.log("\n-- limpando sobras de instalação interrompida (--fix) --");
-  for (const p of rows.flatMap((r) => r.left ?? [])) {
+const sobras = doFix ? [...rows.flatMap((r) => r.left ?? []), ...staleVerify()] : [];
+if (sobras.length) {
+  console.log("\n-- limpando sobras de instalação interrompida e cache de conferência (--fix) --");
+  for (const p of sobras) {
     try { rmSync(p, { recursive: true, force: true }); console.log(`  removido ${p}`); }
     catch (e) { sweepFail++; console.log(` FALHA ${p} — ${e.message}`); }
   }

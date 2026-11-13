@@ -164,3 +164,5 @@ pre{margin:12px 0 0;padding:12px 14px;border-radius:10px;background:var(--bg);bo
   .mapa [data-s],.ficha,.apres-barra i{transition:none}
   .ficha{transform:none}
 }
+.copiar{font:600 12px var(--f-mono);color:var(--txt);background:transparent;border:1px solid var(--mut);border-radius:6px;padding:2px 8px;margin-left:6px;cursor:pointer}
+.copiar:hover,.copiar:focus-visible{color:var(--menta);border-color:var(--menta)}

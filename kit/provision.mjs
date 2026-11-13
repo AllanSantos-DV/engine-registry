@@ -14,7 +14,7 @@ import { execFileSync } from "node:child_process";
 import { verifyBlob, DEFAULT_ALGORITHM } from "./signature.mjs";
 import { checkTrust, trustPath, cmpVer, rollbackReason, noteVersion, firstContactKeys } from "./trust.mjs";
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // No Windows o handle de quem acabou de sair solta um instante depois: rename ocupado repete com backoff, depois lança.
 export async function renameRetry(a, b, tries = 8) {
@@ -46,14 +46,14 @@ export function tarBinary({ platform = process.platform, systemRoot = process.en
 }
 
 export function extractTgz(tgz, dest) {
-  const tar = tarBinary();
+  const tar = tarBinary(), run = (args) => execFileSync(tar, args, { stdio: "ignore", windowsHide: true });
   try {
-    execFileSync(tar, ["--version"], { stdio: "ignore", windowsHide: true });
+    run(["--version"]);
   } catch {
     return { ok: false, reason: "`tar` não encontrado no PATH: instale-o para extrair o artefato." };
   }
   try {
-    execFileSync(tar, ["-xzf", tgz, "-C", dest], { stdio: "ignore", windowsHide: true });
+    run(["-xzf", tgz, "-C", dest]);
     return { ok: true };
   } catch (e) {
     return { ok: false, reason: `extração (tar) falhou: ${e?.message || e}` };
@@ -105,7 +105,7 @@ async function downloadChecked(engine, { log, fetcher, timeoutMs }) {
   return actual === expected ? { buf } : { reason: `${engine.name}: SHA256 mismatch (esperado ${expected.slice(0, 12)}…, obtido ${actual.slice(0, 12)}…) → ABORT` };
 }
 
-async function fetchBuf(url, timeoutMs) {
+export async function fetchBuf(url, timeoutMs) {
   const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
   if (!res.ok) { const e = new Error(`HTTP ${res.status}`); e.status = res.status; throw e; }
   return Buffer.from(await res.arrayBuffer());
@@ -250,6 +250,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
   const binDir = join(home, engine.install.extractTo ?? "bin");
   const entryPath = join(home, engine.install.entry);
   const lock = join(home, "provision.lock");
+  const serves = (v) => v && (exact ? v === engine.version : satisfiesPin(v, engine.version));
 
   // Já instalado? Só reusa se a versão instalada for LEGÍVEL e satisfizer o pin.
   // Versão ilegível (package.json ausente/corrompido = extração interrompida, disco cheio,
@@ -258,7 +259,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
   // numa instalação quebrada para sempre, ignorando o pin do registry.
   if (!repair && existsSync(entryPath)) {
     const inst = installedVersion(binDir);
-    if (inst && (exact ? inst === engine.version : satisfiesPin(inst, engine.version))) {
+    if (serves(inst)) {
       noteVersion(engine.name, inst);
       return { ok: true, entryPath, version: inst, reused: true };
     }
@@ -298,11 +299,8 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
   const lockFd = claimLock(lock);
   if (lockFd === null) {
     for (const fim = Date.now() + lockWaitMs; Date.now() < fim; await sleep(1000)) {
-      if (existsSync(entryPath)) {
-        const inst = installedVersion(binDir);
-        // Se o vencedor terminou mas a versão continua ilegível, não invente: sinalize.
-        if (inst && (exact ? inst === engine.version : satisfiesPin(inst, engine.version))) { return { ok: true, entryPath, version: inst, reused: true }; }
-      }
+      const inst = existsSync(entryPath) && installedVersion(binDir);
+      if (serves(inst)) { return { ok: true, entryPath, version: inst, reused: true }; }
     }
     return { ok: false, reason: `${engine.name}: provision-locked-timeout (outro consumidor está instalando há >${lockWaitMs / 1000}s)` };
   }

@@ -73,6 +73,23 @@
     }));
   }
 
+  // ---- copiar: cada comando da vitrine; sem área de transferência (página fora de https, navegador antigo), o botão diz que não copiou ----
+  document.querySelectorAll(".cmd").forEach((linha) => {
+    const comando = $("code", linha);
+    if (!comando) { return; }
+    const botao = el("button", "copiar", "Copiar");
+    botao.type = "button";
+    botao.setAttribute("aria-label", `Copiar: ${comando.textContent}`);
+    botao.setAttribute("aria-live", "polite");
+    botao.addEventListener("click", async () => {
+      let msg = "Copiado";
+      try { await navigator.clipboard.writeText(comando.textContent); } catch { msg = "não consegui copiar"; }
+      botao.textContent = msg;
+      setTimeout(() => { botao.textContent = "Copiar"; }, 2500);
+    });
+    linha.append(" ", botao);
+  });
+
   // ---- modo Apresentar -------------------------------------------------------------------------------------------------
   const abrir = document.querySelectorAll("[data-apresentar]");
   if (!abrir.length) { return; }

@@ -11,7 +11,8 @@
 // NUNCA lança: devolve { ok, reason } para o cli decidir o exit code.
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { resolve, fill, target, expandHome } from "./resolve.mjs";
+import { resolve, fill, target, expandHome, platformReason } from "./resolve.mjs";
+export { platformReason };
 import { provision, installedVersion, satisfiesPin } from "./provision.mjs";
 import { shutdown, stopEngine } from "./lifecycle.mjs";
 import { pinOf, setPin } from "./trust.mjs";
@@ -24,14 +25,6 @@ const installedOf = (e) => existsSync(join(e.homeDir, e.install.entry)) ? instal
 /** Manifest que viaja dentro do pacote (lança se ilegível; `ensureCommand` transforma em reason). */
 export function bundledManifest() {
   return JSON.parse(readFileSync(BUNDLED_MANIFEST, "utf8"));
-}
-
-/** Motivo da recusa quando o motor não tem build para esta máquina (`platforms` do descritor), ou null. */
-export function platformReason(engine, platform = target()) {
-  const suportadas = engine.platforms ?? [];
-  return suportadas.length === 0 || suportadas.includes("any") || suportadas.includes(platform)
-    ? null
-    : `${engine.name} não tem build para ${platform} (suporta: ${suportadas.join(", ")})`;
 }
 
 /**

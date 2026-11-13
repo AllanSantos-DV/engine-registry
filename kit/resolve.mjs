@@ -5,6 +5,7 @@ import { mkdirSync, existsSync, readFileSync, writeFileSync, statSync } from "no
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { homedir } from "node:os";
+import { fetchBuf } from "./provision.mjs";
 
 export const DEFAULT_REGISTRY_URL =
   "https://raw.githubusercontent.com/AllanSantos-DV/engine-registry/main/manifest.json";
@@ -22,6 +23,10 @@ export function target() {
   return `${process.platform}-${process.arch}`;
 }
 
+/** Motivo da recusa quando o motor não tem build para esta máquina (`platforms` do descritor), ou null. */
+export const platformReason = ({ name, platforms: p = [] }, plat = target()) =>
+  p.length && !p.includes("any") && !p.includes(plat) ? `${name} não tem build para ${plat} (suporta: ${p.join(", ")})` : null;
+
 /** Substitui {version}, {platform}, {arch}, {asset} num template. */
 export function fill(tpl, vars) {
   return String(tpl).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
@@ -37,12 +42,6 @@ function readCache(file) {
   } catch {
     return null;
   }
-}
-
-async function fetchManifest(url, timeoutMs) {
-  const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
-  if (!res.ok) { throw new Error(`HTTP ${res.status}`); }
-  return res.json();
 }
 
 /**
@@ -76,7 +75,7 @@ export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowN
   } else {
     if (allowNetwork) {
       try {
-        manifest = await fetchManifest(registryUrl, timeoutMs);
+        manifest = JSON.parse(await fetchBuf(registryUrl, timeoutMs));
         try { mkdirSync(CACHE_DIR, { recursive: true }); writeFileSync(cacheAt, JSON.stringify(manifest, null, 2)); } catch { /* cache é best-effort */ }
       } catch (e) {
         if (!cached) { return { ok: false, reason: `registry inacessível (${e.message}) e sem cache` }; }

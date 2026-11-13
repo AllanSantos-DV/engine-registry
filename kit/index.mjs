@@ -19,7 +19,7 @@ export {
 } from "./signature.mjs";
 export { SIGNING_DIR, keyPathFor } from "./keystore.mjs";
 
-import { resolve } from "./resolve.mjs";
+import { resolve, platformReason } from "./resolve.mjs";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { provision, satisfiesPin, installedVersion, autoUpdateEnabled, renameRetry } from "./provision.mjs";
@@ -87,8 +87,11 @@ export async function ensureEngine(name, opts = {}) {
   const r = await resolve(name, { version: pin ?? version, allowNetwork, registryUrl, refresh });
   if (!r.ok) { return await vivoSemRegistry(name, healthCheck, r.reason) ?? { available: false, reason: r.reason }; }
 
+  const fora = platformReason(r.engine);
+  if (fora) { return { available: false, reason: fora }; }
   const entryPath = join(r.engine.homeDir, r.engine.install.entry);
-  const previous = existsSync(entryPath) ? installedVersion(join(r.engine.homeDir, r.engine.install.extractTo ?? "bin")) : null;
+  const bin = join(r.engine.homeDir, r.engine.install.extractTo ?? "bin");
+  const previous = existsSync(entryPath) ? installedVersion(bin) : null;
   const keep = !autoUpdateEnabled({ ...process.env, ...env }) && !version && !pin && previous && !satisfiesPin(previous, r.engine.version);
   let installed = previous, updateAvailable, previousDir;
   if (keep) { updateAvailable = r.engine.version; }
@@ -102,8 +105,7 @@ export async function ensureEngine(name, opts = {}) {
     previousDir = p.previousDir;
   }
 
-  const bin = join(r.engine.homeDir, r.engine.install.extractTo ?? "bin");
-  let l = await lifecycle(r.engine, entryPath, { healthCheck, log, bootTimeoutMs, env });
+  let l =await lifecycle(r.engine, entryPath, { healthCheck, log, bootTimeoutMs, env });
   let rolledBack;
   if (!l.available && previousDir) {
     const failed = { version: installed, reason: l.reason };

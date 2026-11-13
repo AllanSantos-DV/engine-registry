@@ -5,7 +5,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative } from "node:path";
 import { readRuntime } from "./lifecycle.mjs";
-import { resolve } from "./resolve.mjs";
+import { resolve, platformReason } from "./resolve.mjs";
 import { satisfiesPin, installedVersion, hashTree, FILES_MANIFEST, LOCK_STALE_MS } from "./provision.mjs";
 import { pinOf, readTrust, firstContactKeys } from "./trust.mjs";
 
@@ -89,7 +89,21 @@ function hooksOf() {
   } catch { return { registered: false, events: [] }; }
 }
 
-const SEM_ACAO = ["OK", "SELF-MANAGED", "FIXADO"];
+export const SEM_ACAO = ["OK", "SELF-MANAGED", "FIXADO", "SEM-BUILD"];
+
+/** Raiz estável das conferências de artefato; o `verify-release` põe aqui o asset baixado. */
+export const verifyRoot = () => join(process.env.LOCALAPPDATA || join(homedir(), ".cache"), "engine-kit", "verify");
+
+/**
+ * Entradas do cache de conferência (`verifyRoot`) mais velhas que o lock de instalação: um `fetch` em curso escreve agora, e o cache se refaz sob demanda.
+ * @returns {string[]} caminhos a remover.
+ */
+export function staleVerify(now = Date.now()) {
+  const root = verifyRoot();
+  let names;
+  try { names = readdirSync(root); } catch { return []; }
+  return names.map((n) => join(root, n)).filter((p) => { try { return now - statSync(p).mtimeMs > LOCK_STALE_MS; } catch { return false; } });
+}
 
 /**
  * Confere a pasta instalada contra os hashes gravados na extração: arquivo alterado ou sumido é ADULTERADO.
@@ -113,7 +127,7 @@ export function verifyInstall(engine) {
 
 /**
  * Concilia os motores do manifest com o disco, sem baixar nem alterar nada (o que o `engine-kit doctor` mostra).
- * Estados: OK, AUSENTE, DESATUALIZADO, FIXADO, FORA DO PIN, ILEGÍVEL, SELF-MANAGED, ERRO. Nunca lança.
+ * Estados: OK, AUSENTE, DESATUALIZADO, FIXADO, FORA DO PIN, ILEGÍVEL, SELF-MANAGED, SEM-BUILD (motor sem build para esta plataforma), ERRO. Nunca lança.
  * @param {{only?:string, local?:boolean, verify?:boolean, registryUrl?:string, manifest?:object}=} opts `local` usa o manifest em vez do publicado;
  *        `verify` confere os hashes dos arquivos instalados (estado ADULTERADO); `manifest` default = o embarcado no pacote.
  * @returns {Promise<{ok:true, rows:object[]} | {ok:false, reason:string}>}
@@ -139,10 +153,12 @@ export async function diagnoseEngines({ only = null, local = false, verify = fal
     const present = existsSync(join(engine.homeDir, engine.install.entry));
     const inst = present ? installedVersion(join(engine.homeDir, engine.install.extractTo ?? "bin")) : null;
 
-    let state, detail;
+    let state, detail, semBuild;
     if (engine.status === "self-managed") {
       // O doctor não opina sobre a versão: olhar o disco pelo caminho do manifest daria "ausente" para um motor instalado em outro lugar.
       state = "SELF-MANAGED"; detail = `v${engine.version} no registry — atualiza pelo próprio updater`;
+    } else if ((semBuild = platformReason(engine))) {
+      state = "SEM-BUILD"; detail = semBuild;
     } else if (pin && inst === pin) {
       state = "FIXADO"; detail = `v${pin} fixado (registry v${latest}) → engine-kit unpin ${name} volta a atualizar`;
     } else if (!present) {

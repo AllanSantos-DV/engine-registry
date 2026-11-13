@@ -106,9 +106,11 @@ const ROOT = resolvePath(KIT, "..");
 //   (`ensureEngine` guarda a pasta anterior do swap e a devolve) e o registro de hashes dos arquivos extraídos (`hashTree`, `repair`). Ferramental, +4.8 KB: o
 //   diagnóstico do doctor virou API (`diagnoseEngines`, `engineView`), `doctor --verify` (ADULTERADO), `engine-kit list` com checagem de `platforms`, `--rotate-from` no update-manifest
 //   e o link da release exata nos cards. Nenhum código funcional foi cortado.
+//   2026-11-13 tooling 59500 → 59800: `doctor --fix` limpa o cache de conferência (`verify/`) e o doctor passa a mostrar o estado SEM-BUILD (motor sem build para a plataforma).
+//   Runtime fica em 36700: `ensureEngine` recusa cedo o motor sem build, pago com a remoção de duplicatas (`sleep`, o download do manifest, a extração do tar, o teste de versão servida).
 const BUDGETS = {
   runtime: { codeBytes: 36700, baseline: 24519, loc: 900 },
-  tooling: { codeBytes: 59500, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 59800, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 
