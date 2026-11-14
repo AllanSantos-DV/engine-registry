@@ -53,17 +53,27 @@ export function alignSite(html, engine, url) {
   return html.replace(new RegExp('(data-motor="' + engine + '"(?:(?!</article>)[\\s\\S])*?)https://github\\.com/[^"/]+/[^"/]+/releases(?:/tag/|\\?q=)[^"]+'), `$1${url}`);
 }
 
+/** Diz se `name` é um aplicativo (manifest.apps) no manifest do worktree, e não um motor. */
+export function isApp(wt, name) {
+  return (JSON.parse(fs.readFileSync(path.join(wt, 'manifest.json'), 'utf8')).apps ?? []).some((a) => a.name === name);
+}
+
+/** Argumentos que nomeiam a entrada no update-manifest e no verify-release: aplicativo vai por `--app`. */
+const entryArgs = (wt, name) => (isApp(wt, name) ? ['--app', name] : [name]);
+
 /** Aplica a versão do motor ao manifest.json e/ou à linha do README.md do worktree. */
 function applyVersion(wt, { engine, version, updateArgs, files = REGENERABLE }) {
+  const app = isApp(wt, engine);
   if (files.includes('manifest.json')) {
-    run(process.execPath, [path.join(wt, 'kit', 'update-manifest.mjs'), engine, '--version', version, ...updateArgs, '--manifest', path.join(wt, 'manifest.json')], wt);
+    run(process.execPath, [path.join(wt, 'kit', 'update-manifest.mjs'), ...entryArgs(wt, engine), '--version', version, ...updateArgs, '--manifest', path.join(wt, 'manifest.json')], wt);
   }
   const readmePath = path.join(wt, 'README.md');
   if (files.includes('README.md') && fs.existsSync(readmePath)) {
     fs.writeFileSync(readmePath, alignReadme(fs.readFileSync(readmePath, 'utf8'), engine, version));
   }
   const sitePath = path.join(wt, 'site', 'index.html');
-  if (files.includes('site/index.html') && fs.existsSync(sitePath)) {
+  // O card de um aplicativo aponta para a página do produto, não para uma release.
+  if (!app && files.includes('site/index.html') && fs.existsSync(sitePath)) {
     const entry = JSON.parse(fs.readFileSync(path.join(wt, 'manifest.json'), 'utf8')).engines.find((e) => e.name === engine);
     fs.writeFileSync(sitePath, alignSite(fs.readFileSync(sitePath, 'utf8'), engine, releaseUrl(entry, version)));
   }
@@ -150,7 +160,7 @@ function cli(argv) {
   const remote = opt('--remote') ?? 'origin';
   const updateArgs = argv.slice(1).filter((a, i, all) => !['--version', '--remote', '--manifest'].includes(a)
     && !['--version', '--remote', '--manifest'].includes(all[i - 1]));
-  const verify = (manifest, wt) => run(process.execPath, [path.join(wt, 'kit', 'verify-release.mjs'), engine, '--manifest', manifest], wt);
+  const verify = (manifest, wt) => run(process.execPath, [path.join(wt, 'kit', 'verify-release.mjs'), ...entryArgs(wt, engine), '--manifest', manifest], wt);
   return publishManifest({ engine, version: opt('--version'), updateArgs, remote, verify });
 }
 

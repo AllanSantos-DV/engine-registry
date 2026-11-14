@@ -9,7 +9,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { publishManifest, alignSite, releaseUrl } from '../tools/publish-manifest.mjs';
+import { publishManifest, alignSite, releaseUrl, isApp } from '../tools/publish-manifest.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ENGINE = 'client-harness';
@@ -160,6 +160,21 @@ ok('motor desconhecido falha alto sem enviar nada', () => {
   const before = git(remote, 'rev-parse', 'main');
   assert.throws(() => publishManifest({ engine: 'motor-inexistente', version: '1.0.0', repoDir: local, verify: () => {} }), /update-manifest/);
   assert.equal(git(remote, 'rev-parse', 'main'), before);
+  assert.equal(worktrees(local), 1);
+});
+
+ok('aplicativo (manifest.apps) é publicado pelo mesmo fluxo: a entrada do app e a linha dele no README mudam, os motores não', () => {
+  const APP = 'smart-design';
+  const { remote, local } = setup();
+  const engineBefore = versionAt(remote, 'main');
+  const asApp = [];
+  publishManifest({ engine: APP, version: '9.9.9', repoDir: local, verify: (m, wt) => asApp.push(isApp(wt, APP)) });
+  assert.deepEqual(asApp, [true], 'a prova roda uma vez e trata a entrada como aplicativo');
+  const main = JSON.parse(remoteFile(remote, 'main', 'manifest.json'));
+  assert.equal(main.apps.find((a) => a.name === APP).version, '9.9.9');
+  assert.equal(versionAt(remote, 'main'), engineBefore);
+  assert.match(remoteFile(remote, 'main', 'README.md'), new RegExp('^\\| `' + APP + '` \\| 9\\.9\\.9 \\|', 'm'));
+  git(remote, 'merge-base', '--is-ancestor', 'main', 'develop');
   assert.equal(worktrees(local), 1);
 });
 

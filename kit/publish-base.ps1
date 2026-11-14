@@ -160,7 +160,8 @@ if ($MarketplaceMirror) {
 # A copia de trabalho local nao e tocada.
 if ($SkipManifest) {
     Step "Provando o caminho REAL (baixa do release publicado e confere sha256 + assinatura)"
-    node (Join-Path $kit "verify-release.mjs") $Engine --manifest $manifest
+    $entry = if ((Get-Content $manifest -Raw | ConvertFrom-Json).apps | Where-Object { $_.name -eq $Engine }) { @("--app", $Engine) } else { @($Engine) }
+    node (Join-Path $kit "verify-release.mjs") @entry --manifest $manifest
     if ($LASTEXITCODE -ne 0) { Fail "a release publicada NAO passa pelo caminho do consumidor - conserte antes de anunciar" }
 } else {
     Step "Levando manifest e README a main (prova a release antes do push) e mesclando na develop"
