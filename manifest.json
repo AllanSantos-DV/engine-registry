@@ -10,7 +10,7 @@
   "apps": [
     {
       "name": "agent-launcher",
-      "version": "1.3.6",
+      "version": "1.3.7",
       "summary": "Abre Claude Code, Codex, Copilot CLI, VS Code e o Copilot app nos seus projetos por qualquer host de modelos. Leva só o launcher; cada ferramenta se instala pelo cartão dela. Windows.",
       "homepage": "https://allansantos-dv.github.io/agent-launcher/",
       "license": "MIT",
