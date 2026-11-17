@@ -18,6 +18,7 @@ import { provision, autoUpdateEnabled } from "./provision.mjs";
 import { shutdown } from "./lifecycle.mjs";
 import { lifeOf, pointerOf, diagnoseEngines, engineView, staleVerify, SEM_ACAO } from "./diagnose.mjs";
 import { firstContactKeys } from "./trust.mjs";
+import { keysWithoutBackup, backupReminder } from "./key-backup.mjs";
 
 const args = process.argv.slice(2);
 const useLocal = args.includes("--local");
@@ -54,6 +55,10 @@ for (const r of rows) {
     if (r.hooks) { say(`       ${pad("", w0)}  hooks: ${r.hooks.registered ? `registrados (${r.hooks.events.join(", ")})` : "não registrados → engine-kit ensure neural-link --register"}`); }
   }
 }
+
+// Só quem publica tem pasta de chaves; no --json o stdout segue sendo o JSON das linhas.
+const lembrete = backupReminder(keysWithoutBackup());
+if (lembrete) { if (asJson) console.error(lembrete); else console.log(`\n${lembrete}`); }
 
 let sweepFail = 0;
 const sobras = doFix ? [...rows.flatMap((r) => r.left ?? []), ...staleVerify()] : [];

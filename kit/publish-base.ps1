@@ -98,6 +98,11 @@ if (-not (Test-Path $keyPath)) {
     Fail "chave privada ausente: $keyPath`n       gere com: node `"$kit\gen-key.mjs`" $Engine`n       ou aponte a existente com: `$env:$envVar = '<caminho>'"
 }
 
+# Lembrete, nao trava: sem backup conferido, perder a chave impede a rotacao e obriga cada maquina a limpar o trust.json.
+$lembrete = node -e "import('file:///' + process.argv[1].replace(/\\/g,'/')).then(m => { const t = m.backupReminder(m.keysWithoutBackup()); if (t) console.log(t); })" (Join-Path $kit "key-backup.mjs")
+if ($LASTEXITCODE -ne 0) { Fail "nao foi possivel conferir o backup das chaves (kit/key-backup.mjs)" }
+if ($lembrete) { Warn ($lembrete -join ' ') }
+
 # --- 2. Assinar e PROVAR a assinatura antes de publicar -----------------------------------
 Step "Assinando (Ed25519 hash-then-sign; a chave privada nunca entra no CI)"
 $upload = @()

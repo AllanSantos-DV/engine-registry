@@ -113,10 +113,13 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-11-16 client (faixa nova, baseline = medido na adoção): o cliente compartilhado da casa de embeddings e do motor de grafo (kit/client.mjs) é
 //   o único arquivo do kit que os PRODUTOS importam sem ser o `index.mjs`; fora do runtime e do ferramental de autor, ele tem teto próprio.
 //   2026-11-16 tooling 59800 → 60300: o doctor mostra SEM-RELEASE (entrada `pending-release`) e não pede ação nem confere hashes de motor com updater próprio, +0.5 KB.
+//   2026-11-16 tooling 60300 → 62100: lembrete de chave de assinatura sem backup conferido, decidido pelo Jarvis na lente do 0.2.15
+//   (kit/key-backup.mjs, a linha do doctor e o carimbo gravado pelo backup e pelo check de tools/backup-keys.mjs), +1.8 KB. Só leitura
+//   de arquivo, na mão de quem publica; o caminho do `import "engine-kit"` não mudou.
 const BUDGETS = {
   runtime: { codeBytes: 36800, baseline: 24519, loc: 900 },
   client: { codeBytes: 9000, baseline: 8500, loc: 200 },
-  tooling: { codeBytes: 60300, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 62100, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

@@ -22,16 +22,15 @@ Cada item muda o uso do produto. O candidato (k) traz ganho, esforço (pequeno, 
   `updateEntry` e a chave de cache por `registryUrl` que já existe em `kit/resolve.mjs`. Recomendação: construir por registry e nome, com
   migração; é decisão do esquema de confiança, então fica atrás da pendência 3a178e.
 
-- **Lente de feature irmã do engine-kit 0.2.15: nove candidatos, decisão de produto antes da release 0.2.15.** Todos mudam o uso,
+## Decidido
+
+- **Decidido (Jarvis, 16/11): construir só o lembrete de backup das chaves no 0.2.15; `path` e o MCP só de leitura no próximo ciclo; os outros seis não são construídos e só reabrem se alguém pedir.** Lente de feature irmã do engine-kit 0.2.15, nove candidatos. Todos mudam o uso,
   menos o lembrete de backup (só o publicador). Candidatos: lembrete de backup das chaves antes de publicar (pequeno), `engine-kit path`
   sem rede (pequeno), servidor MCP só de leitura (pequeno a médio), `export`/`import` (pequeno a médio), varredura com selo datado na
   vitrine (pequeno a médio), hook de início de sessão com `doctor --local --json` (pequeno), registro do mcp-gateway nos clientes (médio,
   depende do token fora do cofre), reparo no logon (pequeno, é o monitor da lente 0.2.4) e `engine-kit install <app>` (médio, mesma
   política do `run`). Recomendação: construir o lembrete de backup já; `path` e o MCP só de leitura no próximo ciclo; os outros seis
   ficam para quando alguém pedir. Fonte: `docs/research/2026-11-16-lente-feature-irma-engine-kit-0.2.15.md`.
-
-## Decidido
-
 - **Decidido (Jarvis, 12/11): `uninstall()` do neural-link segue a recomendação; trabalho do projeto neural-link.** **`uninstall()` no neural-link (projeto neural-link, `src/install.js`).** O `engine-kit ensure neural-link --unregister` já existe e
   chama o `uninstall()` do motor instalado, mas o neural-link só exporta `install()`: hoje o comando falha alto dizendo isso. O motor passa a exportar
   `uninstall({})`, que remove os `_dispatcher-<Evento>.json` e devolve `{ removed: [...] }`. Nada a mudar neste repositório.

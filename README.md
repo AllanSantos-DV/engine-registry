@@ -248,6 +248,10 @@ node tools/backup-keys.mjs restore E:\engine-signing-<data>.ekb --to <pasta nova
 
 A frase-senha nunca vai em argumento, variável de ambiente ou log (`--passphrase-stdin` lê da entrada padrão).
 
+`backup` e `check` que conferem gravam o sha256 de cada chave em `~/.engine-signing.backup.json`. Chave sem esse registro,
+ou trocada depois dele, aparece como lembrete no `engine-kit doctor` e no `publish-base.ps1` antes de assinar; o lembrete
+não trava a publicação.
+
 Política do `provision`, sem meio-termo silencioso:
 
 | Situação no registry | O que acontece |

@@ -10,12 +10,15 @@
  * offline: scrypt deriva a chave e AES-256-GCM cifra e autentica. A frase-senha vem do terminal sem eco ou, com
  * `--passphrase-stdin`, da primeira linha da entrada padrão; nunca de argumento, variável de ambiente ou log.
  * `backup` relê e decifra cada cópia antes de dar OK; `check` decifra e compara com a pasta de chaves; `restore`
- * grava as chaves numa pasta que não pode ter arquivos com os mesmos nomes. Exit 0 = OK; 1 = falhou, com o motivo.
+ * grava as chaves numa pasta que não pode ter arquivos com os mesmos nomes. `backup` e `check` que conferem gravam o
+ * sha256 das chaves em `<pasta>.backup.json`, que o lembrete do `engine-kit doctor` e do publish-base lê.
+ * Exit 0 = OK; 1 = falhou, com o motivo.
  */
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync, createHash } from "node:crypto";
 import { readdirSync, readFileSync, writeFileSync, renameSync, statSync, existsSync, mkdirSync, chmodSync } from "node:fs";
 import { join, resolve, relative, isAbsolute } from "node:path";
 import { SIGNING_DIR } from "../kit/keystore.mjs";
+import { stampBackup } from "../kit/key-backup.mjs";
 
 const MIN_PASSPHRASE = 12;
 const KDF = { N: 2 ** 17, r: 8, p: 1 };
@@ -141,6 +144,7 @@ async function backup(o) {
     if (!sameFiles(decrypt(readFileSync(out), pass), files)) fail(`a cópia em ${out} não decifra para as chaves de ${from}`);
     console.log(`gravado e conferido ${out}`);
   }
+  stampBackup(from);
   console.log(`OK: ${Object.keys(files).length} chave(s) cifradas em ${dests.length} mídias (${name}); cada cópia foi relida e decifrada`);
 }
 
@@ -161,6 +165,7 @@ async function main() {
       console.log(`  ${s.padEnd(15)} ${n}`);
     }
     if (bad) fail(`${bad} chave(s) divergem entre o backup e ${resolve(o.from)}`);
+    stampBackup(resolve(o.from));
     console.log(`OK: o backup restaura as ${names.length} chave(s) de ${resolve(o.from)}`);
   } else if (o.cmd === "restore") {
     const file = o.pos[0] ?? fail("uso: restore <arquivo.ekb> --to <pasta>");
