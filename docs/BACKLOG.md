@@ -22,16 +22,13 @@ Cada item muda o uso do produto. O candidato (k) traz ganho, esforço (pequeno, 
   `updateEntry` e a chave de cache por `registryUrl` que já existe em `kit/resolve.mjs`. Recomendação: construir por registry e nome, com
   migração; é decisão do esquema de confiança, então fica atrás da pendência 3a178e.
 
-- **Lente de saída do engine-kit 0.2.15: dois candidatos que mudam o uso, decisão de produto antes da tag.** (1) `engine-kit probe
-  <casa-de-embeddings|motor-de-grafo>`: pergunta ao motor já de pé se responde o contrato (`/info` e um `/embed` curto na casa, `status` no
-  grafo), sem subir nada. Ganho alto, porque o doctor só olha o pid. Esforço pequeno, reusando `discover`, `casaClient` e `grafoClient` de
-  `kit/client.mjs` e o padrão de verbo de `kit/cli.mjs`. (2) Publicar os esquemas de contrato no pacote (`exports` de `./contratos/*`):
-  muda o que o pacote entrega a quem integra e vira compromisso de versão do contrato. Recomendação: (1) no próximo ciclo, junto de `path`
-  e do MCP só de leitura, quando a casa e o grafo tiverem release; (2) não construir, porque a fonte do contrato é o projeto de cada motor
-  e o pacote passaria a ter uma segunda cópia. Fonte: `docs/research/2026-11-16-lembrete-de-backup-das-chaves.md`, seção Lente de saída.
-
 ## Decidido
 
+- **Decidido (Jarvis, 16/11): lente de saída do engine-kit 0.2.15 segue as recomendações.** (1) `engine-kit probe <motor>` vai para o
+  próximo ciclo, junto de `path` e do MCP só de leitura, quando a casa e o grafo tiverem release. (4) Os esquemas de contrato não entram
+  no pacote: a fonte do contrato é o projeto de cada motor. (3) Registro de hashes fora da pasta instalada fica rejeitado. (2) O gate de
+  contrato vivo da casa entra no passo da primeira release assinada dela; o pedido do esquema do `/embed` vai do Jarvis ao projeto da
+  casa. Fonte: `docs/research/2026-11-16-lembrete-de-backup-das-chaves.md`, seção Lente de saída.
 - **Decidido (Jarvis, 16/11): construir só o lembrete de backup das chaves no 0.2.15; `path` e o MCP só de leitura no próximo ciclo; os outros seis não são construídos e só reabrem se alguém pedir.** Lente de feature irmã do engine-kit 0.2.15, nove candidatos. Todos mudam o uso,
   menos o lembrete de backup (só o publicador). Candidatos: lembrete de backup das chaves antes de publicar (pequeno), `engine-kit path`
   sem rede (pequeno), servidor MCP só de leitura (pequeno a médio), `export`/`import` (pequeno a médio), varredura com selo datado na
