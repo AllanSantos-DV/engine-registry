@@ -22,6 +22,11 @@ Cada item muda o uso do produto. O candidato (k) traz ganho, esforço (pequeno, 
   `updateEntry` e a chave de cache por `registryUrl` que já existe em `kit/resolve.mjs`. Recomendação: construir por registry e nome, com
   migração; é decisão do esquema de confiança, então fica atrás da pendência 3a178e.
 
+- **Lente de feature irmã do engine-kit 0.2.15: nove candidatos.** Servidor MCP só de leitura, `engine-kit path`, registro do mcp-gateway
+  nos clientes, `export`/`import`, varredura com selo na vitrine, hook de início de sessão, lembrete de backup das chaves antes de publicar,
+  reparo no logon e `engine-kit install <app>`, cada um com ganho, esforço e reuso. Recomendação: o lembrete de backup primeiro, depois
+  `path` e o MCP só de leitura. Fonte: `docs/research/2026-11-16-lente-feature-irma-engine-kit-0.2.15.md`.
+
 ## Decidido
 
 - **Decidido (Jarvis, 12/11): `uninstall()` do neural-link segue a recomendação; trabalho do projeto neural-link.** **`uninstall()` no neural-link (projeto neural-link, `src/install.js`).** O `engine-kit ensure neural-link --unregister` já existe e
