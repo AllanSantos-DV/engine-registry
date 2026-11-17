@@ -108,9 +108,15 @@ const ROOT = resolvePath(KIT, "..");
 //   e o link da release exata nos cards. Nenhum código funcional foi cortado.
 //   2026-11-13 tooling 59500 → 59800: `doctor --fix` limpa o cache de conferência (`verify/`) e o doctor passa a mostrar o estado SEM-BUILD (motor sem build para a plataforma).
 //   Runtime fica em 36700: `ensureEngine` recusa cedo o motor sem build, pago com a remoção de duplicatas (`sleep`, o download do manifest, a extração do tar, o teste de versão servida).
+//   2026-11-16 runtime 36700 → 36800: motor com atualizador próprio (`runtime.updatePath`): o `provision` e o `ensureEngine` reusam a instalação presente
+//   em vez de trocá-la, para o kit e o updater do motor não desfazerem o trabalho um do outro, +0.1 KB. Nenhum código funcional foi cortado.
+//   2026-11-16 client (faixa nova, baseline = medido na adoção): o cliente compartilhado da casa de embeddings e do motor de grafo (kit/client.mjs) é
+//   o único arquivo do kit que os PRODUTOS importam sem ser o `index.mjs`; fora do runtime e do ferramental de autor, ele tem teto próprio.
+//   2026-11-16 tooling 59800 → 60300: o doctor mostra SEM-RELEASE (entrada `pending-release`) e não pede ação nem confere hashes de motor com updater próprio, +0.5 KB.
 const BUDGETS = {
-  runtime: { codeBytes: 36700, baseline: 24519, loc: 900 },
-  tooling: { codeBytes: 59800, baseline: 16420, loc: 1050 },
+  runtime: { codeBytes: 36800, baseline: 24519, loc: 900 },
+  client: { codeBytes: 9000, baseline: 8500, loc: 200 },
+  tooling: { codeBytes: 60300, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 
@@ -148,7 +154,8 @@ function closure(entry) {
 
 const runtime = closure(join(KIT, "index.mjs"));
 const all = readdirSync(KIT).filter((f) => f.endsWith(".mjs")).map((f) => join(KIT, f));
-const tooling = all.filter((f) => !runtime.has(f));
+const client = [join(KIT, "client.mjs")];
+const tooling = all.filter((f) => !runtime.has(f) && !client.includes(f));
 
 const rel = (f) => f.replace(ROOT + "\\", "").replace(ROOT + "/", "").replaceAll("\\", "/");
 
@@ -172,6 +179,7 @@ const report = (label, files, budget) => {
 console.log("== engine-kit budget ==  (kill-switch auto-aplicado; métrica = bytes de código)");
 report("runtime do consumidor (fecho de index.mjs)", [...runtime], BUDGETS.runtime);
 report("ferramental de autor (nunca importado por consumidor)", tooling, BUDGETS.tooling);
+report("cliente compartilhado (importado pelos produtos)", client, BUDGETS.client);
 
 for (const f of readdirSync(join(ROOT, "consumers")).filter((x) => x.endsWith(".mjs"))) {
   report(`adaptador ${f}`, [join(ROOT, "consumers", f)], BUDGETS.adapter);

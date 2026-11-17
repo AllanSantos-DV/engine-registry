@@ -148,6 +148,7 @@
             "runtimeFile": { "type": "string", "default": "runtime.json" },
             "healthPath": { "type": "string" },
             "shutdownPath": { "type": "string" },
+            "updatePath": { "type": "string", "description": "O motor traz o próprio updater (ex.: 'POST /update'). Declarado, o kit instala só o que está ausente (ou a versão exata pedida com --version): uma instalação presente é do updater do motor, que o ensure e o doctor não trocam nem para mais nova nem para mais velha. O updater tem de verificar a mesma assinatura e manter o package.json do home com a versão instalada." },
             "shutdownTokenField": {
               "type": "string",
               "description": "Campo do runtime.json que carrega o token de shutdown. Sem ele, o kit não manda token — e NÃO inventa um: um shutdown sem autenticação seria um endpoint de desligar aberto no loopback."

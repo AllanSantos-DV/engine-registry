@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-const VALIDATING = new Set(['$ref', 'type', 'const', 'enum', 'pattern', 'format', 'minLength', 'minimum', 'minItems', 'items',
+const VALIDATING = new Set(['$ref', 'type', 'const', 'enum', 'pattern', 'format', 'minLength', 'minimum', 'maximum', 'minItems', 'items',
   'required', 'properties', 'additionalProperties', 'allOf', 'anyOf', 'if', 'then', 'not']);
 const FORMATS = { uri: (v) => URL.canParse(v) };
 const ANNOTATIONS = new Set(['$schema', '$id', '$comment', 'title', 'description', 'definitions', 'default', 'examples']);
@@ -29,7 +29,8 @@ export function validate(schema, node, value, at = '$') {
   const typeOf = (v) => (Array.isArray(v) ? 'array' : v === null ? 'null' : Number.isInteger(v) ? 'integer' : typeof v);
   if (node.type) {
     const t = typeOf(value);
-    if (!(node.type === t || (node.type === 'number' && t === 'integer'))) return [`${at}: esperado ${node.type}, veio ${t}`];
+    const casa = (want) => want === t || (want === 'number' && t === 'integer');
+    if (![].concat(node.type).some(casa)) return [`${at}: esperado ${[].concat(node.type).join('|')}, veio ${t}`];
   }
   if ('const' in node && value !== node.const) errs.push(`${at}: esperado ${JSON.stringify(node.const)}`);
   if (node.enum && !node.enum.includes(value)) errs.push(`${at}: fora do enum`);
@@ -40,6 +41,7 @@ export function validate(schema, node, value, at = '$') {
   }
   if (node.minLength !== undefined && typeof value === 'string' && value.length < node.minLength) errs.push(`${at}: menos de ${node.minLength} caracteres`);
   if (node.minimum !== undefined && typeof value === 'number' && value < node.minimum) errs.push(`${at}: < ${node.minimum}`);
+  if (node.maximum !== undefined && typeof value === 'number' && value > node.maximum) errs.push(`${at}: > ${node.maximum}`);
   if (Array.isArray(value)) {
     if (node.minItems !== undefined && value.length < node.minItems) errs.push(`${at}: menos de ${node.minItems} itens`);
     if (node.items) value.forEach((v, i) => errs.push(...validate(schema, node.items, v, `${at}[${i}]`)));

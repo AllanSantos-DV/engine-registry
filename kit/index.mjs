@@ -92,7 +92,7 @@ export async function ensureEngine(name, opts = {}) {
   const entryPath = join(r.engine.homeDir, r.engine.install.entry);
   const bin = join(r.engine.homeDir, r.engine.install.extractTo ?? "bin");
   const previous = existsSync(entryPath) ? installedVersion(bin) : null;
-  const keep = !autoUpdateEnabled({ ...process.env, ...env }) && !version && !pin && previous && !satisfiesPin(previous, r.engine.version);
+  const keep = (!autoUpdateEnabled({ ...process.env, ...env }) || r.engine.runtime?.updatePath) && !version && !pin && previous && !satisfiesPin(previous, r.engine.version);
   let installed = previous, updateAvailable, previousDir;
   if (keep) { updateAvailable = r.engine.version; }
   else {

@@ -250,7 +250,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
   const binDir = join(home, engine.install.extractTo ?? "bin");
   const entryPath = join(home, engine.install.entry);
   const lock = join(home, "provision.lock");
-  const serves = (v) => v && (exact ? v === engine.version : satisfiesPin(v, engine.version));
+  const serves = (v) => v && (exact ? v === engine.version : engine.runtime?.updatePath || satisfiesPin(v, engine.version));
 
   // Já instalado? Só reusa se a versão instalada for LEGÍVEL e satisfizer o pin.
   // Versão ilegível (package.json ausente/corrompido = extração interrompida, disco cheio,

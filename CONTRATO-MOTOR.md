@@ -115,6 +115,35 @@ consumidor entrava em laço de reinstalação que nunca resolvia.
 `cli.json` no arranque do daemon e em qualquer invocação do CLI, com escrita atômica). Publicar
 um ponteiro para arquivo inexistente é pior que não publicar — o consumidor confiaria nele.
 
+### Motor com atualizador próprio
+
+Um motor pode trazer o próprio updater (o servidor do grafo atualiza por `POST /api/v1/server/update`) e mesmo assim ser instalado pelo `engine-kit ensure`. Dois atualizadores sobre a mesma pasta se desfazem: o kit baixaria a versão do registry por cima da que o motor acabou de buscar, e o motor buscaria de novo. A regra que impede isso é uma só: **cada pasta instalada tem um dono por vez**.
+
+- O motor declara o caminho em `runtime.updatePath`. Sem ele, o dono é sempre o kit.
+- **Pasta ausente:** o kit instala (sha256 e Ed25519, como qualquer motor). Daí em diante a pasta é do updater do motor.
+- **Pasta presente:** `ensure`, `ensureEngine` e `doctor --fix` não baixam nem trocam nada, nem para uma versão mais nova nem para uma mais velha que a do registry. O `ensure` devolve `available` com a versão que o registry anuncia, o `ensureEngine` devolve `engine.updateAvailable`, e o `doctor` mostra OK (`o motor atualiza pelo próprio updater`).
+- **O dono pede de propósito:** `ensure --version x.y.z` e `pin` instalam exatamente essa versão (o kit derruba o motor pelo `shutdownPath`, troca a pasta e o updater continua dali), e `doctor --fix` reinstala uma instalação ilegível.
+- **O que o updater do motor promete:** verifica a mesma assinatura Ed25519 da `install.publicKey` do manifest (um updater que aceita artefato sem a chave do registry abre o que o kit fecha), troca a pasta inteira (`bin/`) e mantém o `package.json` do home com a versão instalada, porque é dele que o kit lê o que está em disco.
+- **O que o kit deixa de fazer:** a conferência de hashes (`doctor --verify`) pula esse motor, porque o updater legitimamente muda os arquivos extraídos.
+
+### Casa de embeddings e motor de grafo
+
+`casa-de-embeddings` e `motor-de-grafo` são motores `kind: cli` no sentido do vxk: o kit entrega o executável (`bin/<motor>.exe`) e o desliga pelo `shutdownPath`; quem sobe o daemon é o cliente compartilhado (`kit/client.mjs`, `ensureHome`), que espera o anúncio. O anúncio é `run/daemon.json` dentro do home e traz `url`, `port`, `pid`, `version` e `shutdownToken` (`x-casa-token` na casa, `x-shutdown-token` no motor de grafo). Os dois ficam `status: pending-release` até a primeira release assinada; o `ensure` recusa dizendo isso, o `doctor` mostra SEM-RELEASE sem pedir ação e o README e a vitrine só os anunciam depois.
+
+Um produto usa os dois sem peça local:
+
+```js
+import { ensureHome, casaClient, grafoClient, CASA, GRAFO } from "engine-kit/kit/client.mjs";
+const casa = await ensureHome(CASA);          // { ok:false, reason } diz o que faltou e o comando que resolve
+const v = await casaClient(casa).embed(["texto"], { priority: "interactive" });
+const grafo = await ensureHome(GRAFO);
+const g = grafoClient(grafo);
+await g.ready("C:/projeto");                  // status → ingest → espera até ready
+const s = await g.symbols("C:/projeto", { query: "ensure" });
+```
+
+O cliente cumpre os contratos abertos publicados: `POST /embed` e `POST /similarity` (formato do TEI) e `POST /rerank` (Cohere e Jina) da casa, e `POST /api/v1/graph/<status|ingest|symbols|search|callers|callees|references>` do servidor do grafo (path-autoritativo; o servidor deriva o projeto do `path`). Uma resposta fora do contrato (quantidade de vetores errada, índice de rerank fora do intervalo, cosseno fora de [-1, 1]) é recusada, nunca repassada. Os esquemas da casa estão copiados em `tests/contratos/casa`; o contrato do grafo ainda não tem esquema publicado, e o teste do grafo usa um servidor falso com a forma documentada em `docs/REST.md` do servidor.
+
 ## 5. Disciplina de release
 
 Release não é ferramenta de depuração. Publicar para "ver se agora vai" gasta número de versão,

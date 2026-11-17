@@ -89,7 +89,7 @@ function hooksOf() {
   } catch { return { registered: false, events: [] }; }
 }
 
-export const SEM_ACAO = ["OK", "SELF-MANAGED", "FIXADO", "SEM-BUILD"];
+export const SEM_ACAO = ["OK", "SELF-MANAGED", "FIXADO", "SEM-BUILD", "SEM-RELEASE"];
 
 /** Raiz estável das conferências de artefato; o `verify-release` põe aqui o asset baixado. */
 export const verifyRoot = () => join(process.env.LOCALAPPDATA || join(homedir(), ".cache"), "engine-kit", "verify");
@@ -127,7 +127,7 @@ export function verifyInstall(engine) {
 
 /**
  * Concilia os motores do manifest com o disco, sem baixar nem alterar nada (o que o `engine-kit doctor` mostra).
- * Estados: OK, AUSENTE, DESATUALIZADO, FIXADO, FORA DO PIN, ILEGÍVEL, SELF-MANAGED, SEM-BUILD (motor sem build para esta plataforma), ERRO. Nunca lança.
+ * Estados: OK, AUSENTE, DESATUALIZADO, FIXADO, FORA DO PIN, ILEGÍVEL, SELF-MANAGED, SEM-BUILD (motor sem build para esta plataforma), SEM-RELEASE (entrada `pending-release`), ERRO. Nunca lança.
  * @param {{only?:string, local?:boolean, verify?:boolean, registryUrl?:string, manifest?:object}=} opts `local` usa o manifest em vez do publicado;
  *        `verify` confere os hashes dos arquivos instalados (estado ADULTERADO); `manifest` default = o embarcado no pacote.
  * @returns {Promise<{ok:true, rows:object[]} | {ok:false, reason:string}>}
@@ -159,6 +159,8 @@ export async function diagnoseEngines({ only = null, local = false, verify = fal
       state = "SELF-MANAGED"; detail = `v${engine.version} no registry — atualiza pelo próprio updater`;
     } else if ((semBuild = platformReason(engine))) {
       state = "SEM-BUILD"; detail = semBuild;
+    } else if (engine.status === "pending-release") {
+      state = "SEM-RELEASE"; detail = `v${engine.version} ainda sem release publicada`;
     } else if (pin && inst === pin) {
       state = "FIXADO"; detail = `v${pin} fixado (registry v${latest}) → engine-kit unpin ${name} volta a atualizar`;
     } else if (!present) {
@@ -169,11 +171,13 @@ export async function diagnoseEngines({ only = null, local = false, verify = fal
       state = "FORA DO PIN"; detail = `v${inst} → v${pin} fixada`;
     } else if (satisfiesPin(inst, engine.version)) {
       state = "OK"; detail = `v${inst} satisfaz o pin v${engine.version} → reusar`;
+    } else if (engine.runtime?.updatePath) {
+      state = "OK"; detail = `v${inst} (registry v${engine.version}) → o motor atualiza pelo próprio updater`;
     } else {
       state = "DESATUALIZADO"; detail = `v${inst} → v${engine.version}`;
     }
     let integrity;
-    if (verify && inst && engine.status !== "self-managed") {
+    if (verify && inst && engine.status !== "self-managed" && !engine.runtime?.updatePath) {
       integrity = verifyInstall(engine);
       if (integrity.state === "ADULTERADO") { state = "ADULTERADO"; detail = `v${inst} em disco difere do que foi extraído (${integrity.detail}) → doctor --fix reinstala`; }
     }

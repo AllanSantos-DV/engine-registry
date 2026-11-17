@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Resposta de rerank, contrato aberto v1 (forma de Cohere e Jina)",
+  "description": "Cada index aparece no máximo uma vez e fica entre 0 e len(documents)-1. O relevance_score é opaco: só a ordem vale.",
+  "type": "object",
+  "required": ["results"],
+  "properties": {
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["index", "relevance_score"],
+        "properties": {
+          "index": {"type": "integer", "minimum": 0},
+          "relevance_score": {"type": "number"}
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

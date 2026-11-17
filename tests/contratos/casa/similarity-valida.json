@@ -1,0 +1,2 @@
+{"pedido": {"inputs": {"source_sentence": "capital da França", "sentences": ["Paris é a capital da França", "bananas são amarelas", "capital da França"]}},
+ "resposta": [0.78, 0.12, 1.0]}

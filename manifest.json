@@ -304,6 +304,76 @@
         "shutdownTokenField": "shutdownToken",
         "shutdownTokenHeader": "x-shutdown-token"
       }
+    },
+    {
+      "name": "casa-de-embeddings",
+      "version": "0.2.0",
+      "status": "pending-release",
+      "kind": "cli",
+      "summary": "Casa local de embeddings: um daemon por máquina que serve /embed, /similarity e /rerank, dono do modelo e da identidade do espaço vetorial (space_id). Nenhum produto carrega o próprio modelo.",
+      "pagesPendente": "a release assinada ainda não foi publicada; a página do produto nasce do repositório da casa quando ela sair",
+      "home": "~/.casa-de-embeddings",
+      "install": {
+        "type": "github-release",
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "casa-de-embeddings-v{version}",
+        "asset": "casa-de-embeddings.tgz",
+        "checksum": "{asset}.sha256",
+        "extractTo": "bin",
+        "entry": "bin/casa-de-embeddings.exe",
+        "publicKey": "1642fd48b1bfc6f812e76e23f612abdf94d4ade52536dab4f24867cc6785e3ac",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true
+      },
+      "platforms": [
+        "win32-x64"
+      ],
+      "notes": "kind=cli: o kit entrega o executável e desliga a casa antes de trocar a instalação; quem a sobe é o cliente compartilhado (kit/client.mjs, ensureCasa), que espera o anúncio run/daemon.json. O anúncio traz url, port, pid, version e shutdownToken.",
+      "runtime": {
+        "transport": "http",
+        "runtimeFile": "run/daemon.json",
+        "healthPath": "/health",
+        "shutdownPath": "/admin/shutdown",
+        "shutdownTokenField": "shutdownToken",
+        "shutdownTokenHeader": "x-casa-token",
+        "heartbeatMs": 30000,
+        "defaultPort": 8189
+      }
+    },
+    {
+      "name": "motor-de-grafo",
+      "version": "0.1.0",
+      "status": "pending-release",
+      "kind": "cli",
+      "summary": "Motor do grafo de código: indexa uma pasta e serve símbolos, busca, chamadores e referências por REST, sem a memória do mcp-memory em volta. Atualiza pelo próprio updater.",
+      "pagesPendente": "a release assinada ainda não foi publicada; a página do produto nasce do repositório do motor quando ele sair",
+      "home": "~/.motor-de-grafo",
+      "install": {
+        "type": "github-release",
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "motor-de-grafo-v{version}",
+        "asset": "motor-de-grafo.tgz",
+        "checksum": "{asset}.sha256",
+        "extractTo": "bin",
+        "entry": "bin/motor-de-grafo.exe",
+        "publicKey": "3ccde5f5f0f46f3f63c3a7d6c4196f3de1db1af6d61c1a4c9b7a99c2e9e86bac",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true
+      },
+      "platforms": [
+        "win32-x64"
+      ],
+      "notes": "kind=cli: o kit instala só o que está ausente; o motor atualiza por POST /api/v1/server/update (runtime.updatePath) e o kit não troca uma instalação presente. O anúncio run/daemon.json traz url, port, pid, version e shutdownToken (cabeçalho x-shutdown-token no desligamento).",
+      "runtime": {
+        "transport": "http",
+        "runtimeFile": "run/daemon.json",
+        "healthPath": "/health",
+        "shutdownPath": "/api/v1/server/shutdown",
+        "updatePath": "/api/v1/server/update",
+        "shutdownTokenField": "shutdownToken",
+        "shutdownTokenHeader": "x-shutdown-token",
+        "heartbeatMs": 30000
+      }
     }
   ]
 }

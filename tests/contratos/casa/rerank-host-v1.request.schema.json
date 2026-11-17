@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Pedido de rerank, contrato aberto v1 (forma de Cohere e Jina)",
+  "type": "object",
+  "required": ["query", "documents"],
+  "properties": {
+    "model": {"type": "string", "description": "Opcional; o host pode ignorar."},
+    "query": {"type": "string"},
+    "documents": {"type": "array", "items": {"type": "string"}},
+    "top_n": {"type": "integer", "minimum": 1, "description": "Opcional; sem ele o host devolve todos os documentos."}
+  },
+  "additionalProperties": true
+}

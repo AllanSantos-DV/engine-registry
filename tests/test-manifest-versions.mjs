@@ -27,7 +27,7 @@ const compareSemver = (a, b) => {
 /** Produtos do manifest com o repositório e o molde de tag da release de cada um. */
 const products = (manifest) => [...(manifest.engines ?? []), ...(manifest.apps ?? [])].map((p) => {
   const source = p.install ?? p.release;
-  return { name: p.name, version: p.version, repo: source.repo, tag: source.tag };
+  return { name: p.name, version: p.version, repo: source.repo, tag: source.tag, pending: p.status === "pending-release" };
 });
 
 const tagPattern = (template) =>
@@ -49,6 +49,10 @@ export function versionProblems(manifest, releasesByRepo) {
       if (m) { claimed.add(`${p.repo}#${t}`); }
       return m ? [m[1]] : [];
     });
+    if (p.pending) {
+      if (versions.length) { problems.push(`${p.name}: já existe release publicada, mas a entrada segue pending-release`); }
+      continue;
+    }
     if (!versions.length) { problems.push(`${p.name}: nenhuma release publicada casa ${p.tag} em ${p.repo}`); continue; }
     const latest = versions.sort(compareSemver).at(-1);
     if (latest !== p.version) { problems.push(`${p.name}: manifest lista ${p.version}, última release é ${latest}`); }
@@ -94,6 +98,10 @@ check("produto sem nenhuma release reprova",
   versionProblems(fixture, { "o/r": ["app-b-v0.3.0"] }).some((p) => p.startsWith("motor-a: nenhuma release")));
 check("release de produto sem entrada no manifest reprova",
   versionProblems(fixture, releases(["motor-c-v0.1.0"])).some((p) => p.includes("motor-c-v0.1.0") && p.includes("sem entrada")));
+const pendente = { engines: [...fixture.engines, { name: "motor-novo", version: "0.1.0", status: "pending-release", install: { repo: "o/r", tag: "motor-novo-v{version}" } }], apps: fixture.apps };
+check("motor pending-release sem release não reprova", versionProblems(pendente, releases()).length === 0, versionProblems(pendente, releases()).join("; "));
+check("motor pending-release com a release já publicada reprova: falta tirar o status",
+  versionProblems(pendente, releases(["motor-novo-v0.1.0"])).some((p) => p.startsWith("motor-novo:") && p.includes("pending-release")));
 check("tag do próprio engine-kit e canal sem versão não contam como produto",
   !versionProblems(fixture, releases()).some((p) => p.includes("engine-kit") || p.includes("latest")));
 

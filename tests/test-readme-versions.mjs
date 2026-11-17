@@ -1,4 +1,4 @@
-// test-readme-versions.mjs — as tabelas de motores e de aplicativos do README mostram a versão que o manifest.json publica.
+// test-readme-versions.mjs — as tabelas de motores e de aplicativos do README mostram a versão que o manifest.json publica (motor pending-release ainda não é anunciado).
 // Evita a deriva em que o manifest sobe a cada release e a vitrine do README fica para trás.
 //
 //   node tests/test-readme-versions.mjs
@@ -13,7 +13,7 @@ const check = (name, cond, detail = "") => {
 
 const manifest = JSON.parse(readFileSync(join(import.meta.dirname, "..", "manifest.json"), "utf8"));
 const readme = readFileSync(join(import.meta.dirname, "..", "README.md"), "utf8");
-for (const { name, version } of [...manifest.engines, ...(manifest.apps ?? [])]) {
+for (const { name, version } of [...manifest.engines.filter((e) => e.status !== "pending-release"), ...(manifest.apps ?? [])]) {
   const linha = readme.match(new RegExp("^\\| `" + name + "` \\| ([^ |]+) \\|", "m"));
   check(`README lista ${name} na versão do manifest`, linha?.[1] === version, `README ${linha?.[1] ?? "(sem linha)"}, manifest ${version}`);
 }

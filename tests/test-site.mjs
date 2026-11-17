@@ -30,7 +30,7 @@ console.log("== site: vitrine dos motores ==\n");
 const html = read(join(SITE, "index.html"));
 const js = read(join(SITE, "assets", "site.js"));
 const manifest = JSON.parse(read(join(REPO, "manifest.json")));
-const engines = manifest.engines.map((e) => e.name);
+const engines = manifest.engines.filter((e) => e.status !== "pending-release").map((e) => e.name);
 
 // ---- 1) referências locais existem; âncoras apontam para ids reais -----------------------------------------------------
 const MIDIA = new Set(["media/apresentacao.mp4", "media/apresentacao-poster.jpg", "media/apresentacao.vtt"]);
@@ -109,7 +109,7 @@ const embed = manifest.engines.find((e) => e.name === "embed-house");
 check("métrica de 147 MB vem do resumo do embed-house no manifest", /147 MB/.test(embed?.summary ?? "") && txtMetricas.includes("147 MB"));
 const budget = read(join(REPO, "kit", "budget.mjs"));
 const limite = Number(budget.match(/runtime: \{ codeBytes: (\d+)/)?.[1]);
-check("métrica '< 37 KB' acompanha o limite do kill-switch do kit", limite === 36700 && txtMetricas.includes("< 37 KB"), `limite no budget.mjs: ${limite}`);
+check("métrica '< 37 KB' acompanha o limite do kill-switch do kit", Math.ceil(limite / 1000) === 37 && txtMetricas.includes("< 37 KB"), `limite no budget.mjs: ${limite}`);
 const sistemas = new Set(manifest.engines.flatMap((e) => e.platforms).map((p) => p.split("-")[0]).filter((p) => p !== "any"));
 check("métrica de sistemas (Windows, Linux, macOS) bate com as plataformas do manifest", sistemas.size === 3 && txtMetricas.includes("3"), [...sistemas].join(", "));
 

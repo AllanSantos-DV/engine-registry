@@ -83,7 +83,7 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
 
   const engine = r.engine;
   const previous = installedOf(engine);
-  if (!autoUpdate && !version && !pin && previous && !satisfiesPin(previous, engine.version)) {
+  if ((!autoUpdate || engine.runtime?.updatePath) && !version && !pin && previous && !satisfiesPin(previous, engine.version)) {
     return {
       ok: true, entryPath: join(engine.homeDir, engine.install.entry), version: previous, kind: engine.kind, reused: true, available: engine.version,
       ...(engine.staleCache ? { staleCache: true } : {}),
