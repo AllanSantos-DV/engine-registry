@@ -43,3 +43,12 @@ Instalação do candidato (`npm pack` do commit 21618fd, `npm install -g`, cópi
 
 Código e docs deste repositório (`tools/backup-keys.mjs`, `kit/keystore.mjs`, `kit/doctor.mjs`, `kit/publish-base.ps1`, README,
 seção de chaves). Não houve pesquisa web: nenhuma afirmação volátil de terceiros.
+
+## Lente de saída (antes da tag)
+
+Revisor haiku, esforço alto, só código e docs, sem o pedido. Quatro candidatos:
+
+1. `engine-kit probe <motor>`: muda o uso; ganho alto, esforço pequeno; reusa `discover`, `casaClient`, `grafoClient` e o padrão de verbo do `kit/cli.mjs`. Decisão do Jarvis (backlog).
+2. Gate de contrato vivo da casa (`test:casa-live`): não muda o uso; ganho alto, esforço pequeno; reusa `tests/contratos/casa`, `validate` de `tools/schema-check.mjs` e `casaClient`. Depende do projeto da casa publicar o esquema do `/embed` e de instalar a build com `/similarity`; entra no passo da primeira release assinada da casa.
+3. Registro de hashes do `doctor --verify` em `~/.engine-kit` em vez da pasta instalada: rejeitado. As duas pastas são do mesmo usuário, então quem altera uma altera a outra; o verify serve para corrupção acidental, que o registro atual já pega.
+4. Esquemas de contrato publicados no pacote: muda o que o pacote entrega e compromete a versão do contrato. Decisão do Jarvis (backlog); recomendação: não construir.
