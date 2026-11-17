@@ -22,10 +22,13 @@ Cada item muda o uso do produto. O candidato (k) traz ganho, esforço (pequeno, 
   `updateEntry` e a chave de cache por `registryUrl` que já existe em `kit/resolve.mjs`. Recomendação: construir por registry e nome, com
   migração; é decisão do esquema de confiança, então fica atrás da pendência 3a178e.
 
-- **Lente de feature irmã do engine-kit 0.2.15: nove candidatos.** Servidor MCP só de leitura, `engine-kit path`, registro do mcp-gateway
-  nos clientes, `export`/`import`, varredura com selo na vitrine, hook de início de sessão, lembrete de backup das chaves antes de publicar,
-  reparo no logon e `engine-kit install <app>`, cada um com ganho, esforço e reuso. Recomendação: o lembrete de backup primeiro, depois
-  `path` e o MCP só de leitura. Fonte: `docs/research/2026-11-16-lente-feature-irma-engine-kit-0.2.15.md`.
+- **Lente de feature irmã do engine-kit 0.2.15: nove candidatos, decisão de produto antes da release 0.2.15.** Todos mudam o uso,
+  menos o lembrete de backup (só o publicador). Candidatos: lembrete de backup das chaves antes de publicar (pequeno), `engine-kit path`
+  sem rede (pequeno), servidor MCP só de leitura (pequeno a médio), `export`/`import` (pequeno a médio), varredura com selo datado na
+  vitrine (pequeno a médio), hook de início de sessão com `doctor --local --json` (pequeno), registro do mcp-gateway nos clientes (médio,
+  depende do token fora do cofre), reparo no logon (pequeno, é o monitor da lente 0.2.4) e `engine-kit install <app>` (médio, mesma
+  política do `run`). Recomendação: construir o lembrete de backup já; `path` e o MCP só de leitura no próximo ciclo; os outros seis
+  ficam para quando alguém pedir. Fonte: `docs/research/2026-11-16-lente-feature-irma-engine-kit-0.2.15.md`.
 
 ## Decidido
 
