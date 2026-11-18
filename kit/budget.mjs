@@ -124,9 +124,11 @@ const ROOT = resolvePath(KIT, "..");
 //   `engine-kit history`, `check <manifesto>` (faixas de versão), `url <motor>` e `doctor --report` (kit/inspect.mjs e os verbos no cli.mjs); as linhas de detalhe de cada motor passaram
 //   do doctor.mjs para `detailLines` (diagnose.mjs), que o doctor e o relatório compartilham. Rodado na mão de quem instala ou diagnostica; o fecho de imports de `index.mjs` não mudou
 //   e nenhum código funcional foi cortado.
+//   2026-11-18 client 9800 → 10000: o `discover` passou a montar `http://127.0.0.1:<port>` quando o anúncio traz só `port` (mcp-gateway e embed-house) e a recusar porta fora de 1..65535 com erro explícito, +0.3 KB.
+//   Nenhum código funcional foi cortado.
 const BUDGETS = {
   runtime: { codeBytes: 37500, baseline: 24519, loc: 900 },
-  client: { codeBytes: 9800, baseline: 8500, loc: 230 },
+  client: { codeBytes: 10000, baseline: 8500, loc: 230 },
   tooling: { codeBytes: 69800, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };

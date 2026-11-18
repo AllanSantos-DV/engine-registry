@@ -28,7 +28,7 @@ async function alive(url, path = "/health", timeoutMs = 2000) {
 }
 
 /**
- * Lê o anúncio do motor (`runtime.runtimeFile` do descritor) e confere a saúde.
+ * Lê o anúncio do motor (`runtime.runtimeFile` do descritor) e confere a saúde. Sem `url` no anúncio, usa `port` (`http://127.0.0.1:<port>`); porta fora de 1..65535 é erro.
  * @param {string} name motor do manifest (`CASA` ou `GRAFO`).
  * @param {{manifest?:object}} [opts] descritor a usar (default: o manifest embarcado, sem rede).
  * @returns {Promise<{ok:true, url:string, shutdownToken?:string, version?:string, pid?:number, engine:object} | {ok:false, reason:string}>}
@@ -38,9 +38,12 @@ export async function discover(name, { manifest = bundledManifest() } = {}) {
   if (!r.ok) { return { ok: false, reason: r.reason }; }
   const rt = readRuntime(r.engine);
   const file = join(r.engine.homeDir, r.engine.runtime?.runtimeFile ?? "runtime.json");
-  if (!rt?.url) { return { ok: false, reason: `${name} sem anúncio em ${file}: não está instalado ou não subiu → ${fix(name)}` }; }
-  if (!(await alive(rt.url, r.engine.runtime?.healthPath))) { return { ok: false, reason: `${name}: o anúncio em ${file} aponta ${rt.url}, que não responde${rt.pid ? ` (pid ${rt.pid})` : ""} → ${fix(name)}` }; }
-  return { ok: true, url: rt.url, shutdownToken: rt[r.engine.runtime?.shutdownTokenField], version: rt.version, pid: rt.pid, engine: r.engine };
+  const port = rt?.port;
+  const url = rt?.url ?? (port === undefined ? null : `http://127.0.0.1:${port}`);
+  if (!url) { return { ok: false, reason: `${name} sem anúncio em ${file}: não está instalado ou não subiu → ${fix(name)}` }; }
+  if (!rt.url && !(port > 0 && port < 65536 && Number.isInteger(port))) { return { ok: false, reason: `${name}: porta inválida ${JSON.stringify(port)} em ${file} (1..65535) → ${fix(name)}` }; }
+  if (!(await alive(url, r.engine.runtime?.healthPath))) { return { ok: false, reason: `${name}: o anúncio em ${file} aponta ${url}, que não responde${rt.pid ? ` (pid ${rt.pid})` : ""} → ${fix(name)}` }; }
+  return { ok: true, url, shutdownToken: rt[r.engine.runtime?.shutdownTokenField], version: rt.version, pid: rt.pid, engine: r.engine };
 }
 
 /** Sobe o executável instalado, sem janela, e o solta do processo do chamador. */

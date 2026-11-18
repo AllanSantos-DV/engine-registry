@@ -59,6 +59,36 @@ anunciar();
   check("--json não traz token nem o campo dele", semToken(j) && !("shutdownToken" in o) && !("token" in o) && !("engine" in o), j.out);
 }
 
+console.log("== anúncio só com port (mcp-gateway, embed-house) ==");
+{
+  const porta = motor.address().port;
+  const sobAnuncio = (nome) => {
+    const e = bundled.engines.find((x) => x.name === nome);
+    return join(e.home.replace(/^~[/\\]?/, `${RUN}/`), e.runtime.runtimeFile);
+  };
+  for (const nome of ["mcp-gateway", "embed-house"]) {
+    const arq = sobAnuncio(nome);
+    mkdirSync(join(arq, ".."), { recursive: true });
+    writeFileSync(arq, JSON.stringify({ port: porta, pid: process.pid, version: "9.9.9", shutdownToken: TOKEN }));
+    const t = await cli("url", nome);
+    check(`${nome}: anúncio só com port vira http://127.0.0.1:<port>, exit 0`, t.code === 0 && t.out.includes(url) && /9\.9\.9/.test(t.out), `exit ${t.code} ${t.out}${t.err}`);
+    check(`${nome}: o token não aparece`, semToken(t), t.out + t.err);
+    const j = json(await cli("url", nome, "--json")) ?? {};
+    check(`${nome}: --json traz a url montada`, j.ok === true && j.url === url && j.name === nome, JSON.stringify(j));
+    for (const ruim of [0, 65536, 70000, -1, 1.5, "7337", null, true]) {
+      writeFileSync(arq, JSON.stringify({ port: ruim, pid: process.pid }));
+      const r = await cli("url", nome);
+      check(`${nome}: port ${JSON.stringify(ruim)} inválida é erro explícito, exit 1`, r.code === 1 && /porta inválida/.test(r.err) && r.err.includes(JSON.stringify(ruim)) && !/sem anúncio/.test(r.err), `exit ${r.code} ${r.err}`);
+    }
+    writeFileSync(arq, JSON.stringify({ port: 1, pid: process.pid }));
+    const morta = await cli("url", nome);
+    check(`${nome}: port válida sem servidor: diz que não responde e o endereço montado`, morta.code === 1 && /não responde/.test(morta.err) && morta.err.includes("http://127.0.0.1:1"), morta.err);
+    writeFileSync(arq, JSON.stringify({ url, port: 70000, pid: process.pid }));
+    const comUrl = await cli("url", nome);
+    check(`${nome}: com url no anúncio a url vale, a port não é lida`, comUrl.code === 0 && comUrl.out.includes(url), `exit ${comUrl.code} ${comUrl.err}`);
+  }
+}
+
 motor.close();
 motor.closeAllConnections?.();
 await new Promise((r) => setTimeout(r, 200));

@@ -5,6 +5,7 @@
  *
  *   node tools/ponte-marketplace.mjs [--owner <login>] [--exclude <repo>]... [--json]
  *
+ * A documentação do próprio repositório apontado pela URL (README* na raiz, docs/) não conta como consumidor; o relatório diz quantos arquivos ignorou assim.
  * Exit 0 = nenhuma ocorrência (a ponte pode sair); 1 = ainda falta migrar; 2 = não deu para consultar ou concluir (gh ausente, limite de uso, busca incompleta ou
  * truncada): nunca é lido como "vazio". O `gh` roda com GH_TOKEN e GITHUB_TOKEN vazios, para valer a conta do keyring; nenhum token é lido nem impresso.
  * Limite da fonte: a busca do GitHub cobre só a branch padrão, ignora arquivos grandes e indexa com atraso; o exit 0 prova a ausência no índice, não nos clones.
@@ -15,6 +16,7 @@ import { ghApi, scrub } from './actions-minutes.mjs';
 /** Trechos das URLs antigas, depois de `<dono>/`: a release do marketplace (o catálogo de plugins do mesmo repositório não é a ponte) e o repositório do neural-link. */
 export const OLD_URLS = ['copilot-marketplace/releases', 'neural-link-runtime'];
 const DOCUMENTA_A_PONTE = ['engine-registry'];
+const DOCUMENTACAO = /^(README[^/]*|docs\/.+)$/i;
 const PER_PAGE = 100;
 const MAX_PAGES = 10;
 const TEXT_MATCH = 'Accept: application/vnd.github.text-match+json';
@@ -37,8 +39,9 @@ async function searchAll(api, owner, needle) {
 
 /**
  * Procura as URLs antigas nos repositórios do dono. A busca é por palavras, então cada resultado só vale se o trecho devolvido traz a URL literal.
+ * Auto-referência (README* na raiz ou arquivo sob docs/ do próprio repositório que a URL aponta) não é consumidor: fica fora da lista e entra em `ignoredSelf`.
  * @param {{owner?: string, exclude?: string[], api?: Function}} opts `owner` ausente = login do `gh`; `api(path, {headers})` é injetável (testes).
- * @returns {Promise<{owner: string, excluded: string[], needles: string[], found: {repo: string, path: string, url: string, needle: string}[], pending: number}>}
+ * @returns {Promise<{owner: string, excluded: string[], needles: string[], found: {repo: string, path: string, url: string, needle: string}[], pending: number, ignoredSelf: number}>}
  */
 export async function collect({ owner, exclude = [], api = ghApi }) {
   owner ??= (await api('user')).login;
@@ -46,15 +49,19 @@ export async function collect({ owner, exclude = [], api = ghApi }) {
   const excluded = [...DOCUMENTA_A_PONTE, ...exclude];
   const needles = OLD_URLS.map((u) => `${owner}/${u}`);
   const found = new Map();
+  const ignored = new Set();
   for (const needle of needles) {
+    const self = needle.split('/')[1].toLowerCase();
     for (const item of await searchAll(api, owner, needle)) {
       const repo = item.repository.full_name.split('/').pop();
       const confirmed = !item.text_matches?.length || item.text_matches.some((m) => String(m.fragment).toLowerCase().includes(needle.toLowerCase()));
       if (!confirmed || excluded.includes(repo) || excluded.includes(item.repository.full_name)) continue;
-      found.set(`${repo}|${item.path}|${needle}`, { repo, path: item.path, url: item.html_url, needle });
+      const key = `${repo}|${item.path}|${needle}`;
+      if (repo.toLowerCase() === self && DOCUMENTACAO.test(item.path)) ignored.add(key);
+      else found.set(key, { repo, path: item.path, url: item.html_url, needle });
     }
   }
-  return { owner, excluded, needles, found: [...found.values()], pending: found.size };
+  return { owner, excluded, needles, found: [...found.values()], pending: found.size, ignoredSelf: ignored.size };
 }
 
 /** Lê `--json`, `--owner <login>` e `--exclude <repo>` (repetível); lança em opção desconhecida ou sem valor. */
@@ -74,7 +81,8 @@ function parseArgs(argv) {
 
 /** Texto para o terminal. */
 export function render(r) {
-  const lines = [`Ponte do marketplace — dono ${r.owner}; URLs antigas: ${r.needles.join(', ')}; fora da busca: ${r.excluded.join(', ')}`];
+  const lines = [`Ponte do marketplace — dono ${r.owner}; URLs antigas: ${r.needles.join(', ')}; fora da busca: ${r.excluded.join(', ')}`,
+    `${r.ignoredSelf} arquivo(s) ignorado(s) como auto-referência (README* na raiz ou docs/ do próprio repositório da URL antiga).`];
   if (!r.pending) {
     lines.push('nada falta migrar: nenhuma ocorrência da URL antiga no índice de busca do GitHub (só a branch padrão; a indexação pode atrasar).');
     return lines.join('\n');

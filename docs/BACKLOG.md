@@ -4,9 +4,7 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
 
 ## Técnico
 
-- **`tests/real-grafo-tipos.mjs` usa `tmpdir` sem importar `./_tmp.mjs`, e o `tests/test-temp-limpo.mjs` reprova o `npm test` por isso.** Veio no commit 1cafb8b (anterior às seis funções irmãs). Correção óbvia: `import "./_tmp.mjs";` no topo do arquivo. Achado em 2026-11-18, fora do escopo.
-- **`engine-kit url` só atende motor cujo anúncio traz `url`.** O `mcp-gateway` e o `embed-house` anunciam `port` no `runtime.json`, e o `discover` de `kit/client.mjs` os trata como "sem anúncio", o que engana quem os consulta. Melhoria óbvia: montar `http://127.0.0.1:<port>` quando só há `port`. Fora do escopo das seis funções irmãs (o pedido era reusar `discover` sem alterar o `client.mjs`). Achado em 2026-11-18.
-- **`tools/ponte-marketplace.mjs` lista as auto-referências dos repositórios do canal antigo.** A primeira consulta real (2026-11-18) achou 7 arquivos, 3 deles dentro de `copilot-marketplace` e `neural-link-runtime`. Decidir se esses dois repositórios entram na exclusão padrão (hoje só o `engine-registry` entra) ou se a ponte só sai quando eles também migram. Registrado em `docs/research/2026-11-18-seis-funcoes-irmas.md`.
+Nenhum item aberto.
 
 ## Aguardando decisão do dono
 
@@ -34,6 +32,10 @@ Seis funções irmãs: **decididas e construídas** (decisão do dono, 2026-11-1
 - **Decidida e construída (2026-11-18): `engine-kit url <motor> [--json]`.** Endereço do daemon vivo (url, versão, pid) por `discover` de `kit/client.mjs`, sem tocar o `client.mjs`; nunca imprime o token; motor parado ou sem anúncio é erro com a causa e o comando. Teste: `tests/test-url.mjs`.
 - **Decidida e construída (2026-11-18): `engine-kit doctor --report`.** Texto colável para suporte (kit, Node, plataforma, `ENGINE_KIT_NO_AUTO_UPDATE`, `ENGINE_KIT_HOME`, motores, sobras e hooks) sem token, chave privada nem caminho de chave. Teste, com token e chave fictícios plantados: `tests/test-doctor-report.mjs`.
 - **Decidida e construída (2026-11-18): `tools/ponte-marketplace.mjs`.** Automatiza o critério de remoção da ponte (CONTRATO-MOTOR §7) pela busca de código do `gh`: lista onde a URL antiga ainda aparece nos repositórios do dono; exit 0 só quando vazio, 1 se falta migrar, 2 se não deu para consultar. Teste, com o `gh` injetado: `tests/test-ponte-marketplace.mjs`. A primeira consulta real achou 7 arquivos em 4 repositórios (`copilot-marketplace`, `copilot-voice`, `neural-link-runtime`, `neural-link`); parte é auto-referência dos repositórios do canal antigo, que o script lista de propósito em vez de esconder.
+
+- **Resolvido (2026-11-18): `tests/real-grafo-tipos.mjs` usava `tmpdir` sem importar `./_tmp.mjs`.** O `import "./_tmp.mjs"` já entrou no commit e002409; conferido por `tests/test-temp-limpo.mjs`, que fecha verde.
+- **Resolvido (2026-11-18): `engine-kit url` e o `discover` atendem anúncio só com `port`.** `mcp-gateway` e `embed-house` anunciam apenas `port`: o `discover` (`kit/client.mjs`) monta `http://127.0.0.1:<port>`; `url` no anúncio continua valendo, e porta que não é inteiro de 1 a 65535 é erro explícito (`porta inválida`), não "sem anúncio". Teto do cliente 9800 → 10000, com entrada datada em `kit/budget.mjs`. Teste: `tests/test-url.mjs`.
+- **Resolvido (2026-11-18): `tools/ponte-marketplace.mjs` não lista mais a auto-referência.** Fica fora o README* da raiz e o que está sob `docs/` do próprio repositório apontado pela URL buscada (`copilot-marketplace` para `<dono>/copilot-marketplace/releases`, `neural-link-runtime` para `<dono>/neural-link-runtime`); o relatório diz quantos ignorou (`ignoredSelf` no `--json`). Código desses repositórios (ex.: `plugins/voice-chat/voice-update.mjs`) segue listado, e os demais repositórios não mudam. Teste: `tests/test-ponte-marketplace.mjs`.
 
 - **Decidido (Jarvis, 16/11): lente de saída do engine-kit 0.2.15 segue as recomendações.** (1) `engine-kit probe <motor>` vai para o
   próximo ciclo, junto de `path` e do MCP só de leitura, quando a casa e o grafo tiverem release. (4) Os esquemas de contrato não entram

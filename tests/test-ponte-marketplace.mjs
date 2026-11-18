@@ -81,6 +81,50 @@ console.log("== ponte do marketplace ==");
 }
 
 {
+  const api = fakeApi({
+    [NEEDLE_MKT]: [
+      hit("copilot-marketplace", "docs/build.mjs", NEEDLE_MKT), hit("copilot-marketplace", "README.legacy.md", NEEDLE_MKT),
+      hit("copilot-marketplace", "plugins/voice-chat/voice-update.mjs", NEEDLE_MKT), hit("copilot-marketplace", "src/x.js", NEEDLE_MKT),
+      hit("copilot-marketplace", "plugins/voice-chat/README.md", NEEDLE_MKT),
+      hit("neural-link-runtime", "docs/cruzada.md", NEEDLE_MKT),
+      hit("outro", "docs/x.md", NEEDLE_MKT), hit("outro", "README.md", NEEDLE_MKT),
+    ],
+    [NEEDLE_NL]: [
+      hit("neural-link-runtime", "README.md", NEEDLE_NL), hit("neural-link-runtime", "docs/design/a.md", NEEDLE_NL), hit("neural-link-runtime", "src/install.js", NEEDLE_NL),
+      hit("copilot-marketplace", "docs/cruzada.md", NEEDLE_NL),
+      hit("outro", "docs/x.md", NEEDLE_NL),
+    ],
+  });
+  const r = await exec(["--json"], api);
+  const o = JSON.parse(r.out);
+  const lista = o.found.map((f) => `${f.repo}/${f.path}|${f.needle === NEEDLE_MKT ? "mkt" : "nl"}`).sort();
+  check("documentação do próprio repositório da URL buscada fica fora (docs/build.mjs, README.legacy.md, README.md e docs/ do neural-link-runtime)",
+    !lista.some((x) => /^copilot-marketplace\/(docs\/build\.mjs|README\.legacy\.md)\|mkt$/.test(x)) && !lista.some((x) => /^neural-link-runtime\/(README\.md|docs\/design\/a\.md)\|nl$/.test(x)), lista.join(" "));
+  check("código do próprio repositório continua listado (voice-update.mjs é consumidor real, src/x.js, src/install.js)",
+    lista.includes("copilot-marketplace/plugins/voice-chat/voice-update.mjs|mkt") && lista.includes("copilot-marketplace/src/x.js|mkt") && lista.includes("neural-link-runtime/src/install.js|nl"), lista.join(" "));
+  check("README fora da raiz não é documentação do repositório: continua listado", lista.includes("copilot-marketplace/plugins/voice-chat/README.md|mkt"), lista.join(" "));
+  check("a auto-referência vale só para a URL do próprio repositório: um repositório do canal antigo que cita a URL do outro continua listado",
+    lista.includes("neural-link-runtime/docs/cruzada.md|mkt") && lista.includes("copilot-marketplace/docs/cruzada.md|nl"), lista.join(" "));
+  check("outros repositórios ficam inalterados (docs/ e README deles seguem listados)", ["outro/docs/x.md|mkt", "outro/README.md|mkt", "outro/docs/x.md|nl"].every((x) => lista.includes(x)), lista.join(" "));
+  check("o total pendente é só o que ficou na lista", o.pending === 9 && o.found.length === 9, `${o.pending}/${o.found.length}`);
+  check("--json diz quantos foram ignorados como auto-referência", o.ignoredSelf === 4, JSON.stringify(o.ignoredSelf));
+  const t = await exec([], api);
+  check("o texto diz quantos foram ignorados como auto-referência", t.code === 1 && /4 arquivo\(s\) ignorado\(s\) como auto-referência/.test(t.out) && /9 arquivo\(s\) em 3 repositório\(s\)/.test(t.out), t.out);
+  check("o texto não lista o arquivo ignorado", !/docs\/build\.mjs/.test(t.out) && !/README\.legacy\.md/.test(t.out), t.out);
+}
+
+{
+  const api = fakeApi({
+    [NEEDLE_MKT]: [hit("copilot-marketplace", "docs/build.mjs", NEEDLE_MKT), hit("copilot-marketplace", "README.md", NEEDLE_MKT)],
+    [NEEDLE_NL]: [hit("neural-link-runtime", "docs/a.md", NEEDLE_NL)],
+  });
+  const r = await exec([], api);
+  check("só auto-referência de documentação: exit 0, nada falta migrar, e o relatório diz quantas foram ignoradas", r.code === 0 && /nada falta migrar/i.test(r.out) && /3 arquivo\(s\) ignorado\(s\) como auto-referência/.test(r.out), `exit ${r.code} ${r.out}`);
+  const vazio = await exec(["--json"], fakeApi({}));
+  check("sem nenhuma ocorrência: ignoredSelf 0", JSON.parse(vazio.out).ignoredSelf === 0, vazio.out);
+}
+
+{
   const ruido = { repository: { full_name: `${OWNER}/ruido` }, path: "x.md", html_url: "https://github.com/x", text_matches: [{ fragment: "fala do marketplace e de releases, mas sem a URL" }] };
   const r = await exec(["--json"], fakeApi({ [NEEDLE_MKT]: [ruido] }));
   check("resultado da busca cujo trecho não traz a URL literal é descartado (a busca é por palavras, não por texto exato)", r.code === 0 && JSON.parse(r.out).found.length === 0, r.out);
