@@ -343,10 +343,9 @@
     {
       "name": "motor-de-grafo",
       "version": "0.1.1",
-      "status": "pending-release",
       "kind": "cli",
-      "summary": "Motor do grafo de código: indexa uma pasta e serve símbolos, busca, chamadores e referências por REST, sem a memória do mcp-memory em volta. Atualiza pelo próprio updater.",
-      "pagesPendente": "a release assinada ainda não foi publicada; a página do produto nasce do repositório do motor quando ele sair",
+      "summary": "Motor de grafos: indexa uma pasta e responde o grafo de código (símbolos, busca, chamadores, chamados, referências e o índice SCIP) e, no mesmo banco, o grafo de documentos e qualquer tipo de nó que um produto registrar, com busca por nome, texto, vetor e propriedade. Os vetores vêm da casa de embeddings anunciada. Atualiza pelo próprio updater.",
+      "pagesPendente": "o motor ainda não tem página de produto própria; a página nasce do repositório do motor, e a release assinada já está publicada",
       "home": "~/.motor-de-grafo",
       "install": {
         "type": "github-release",
