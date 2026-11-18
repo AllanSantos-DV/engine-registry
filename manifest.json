@@ -342,7 +342,7 @@
     },
     {
       "name": "motor-de-grafo",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "status": "pending-release",
       "kind": "cli",
       "summary": "Motor do grafo de código: indexa uma pasta e serve símbolos, busca, chamadores e referências por REST, sem a memória do mcp-memory em volta. Atualiza pelo próprio updater.",
