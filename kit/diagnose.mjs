@@ -1,5 +1,5 @@
 // engine-kit/diagnose.mjs — diagnóstico SOMENTE LEITURA de vida e de ponteiro, usado pelo doctor.
-// Não sobe, não derruba e não fala com o motor: lê o runtime que o motor anuncia e o `cli.json`
+// Não sobe nem derruba o motor: lê o runtime que ele anuncia, pergunta o `/health` ao daemon vivo e lê o `cli.json`
 // que ele publica (CONTRATO-MOTOR §4). Nunca lança.
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
@@ -14,26 +14,49 @@ const alive = (pid) => {
 };
 
 /**
- * Vida do motor segundo o arquivo de runtime que ele declara: pid vivo, porta e idade do heartbeat.
- * Estados: SEM-DECLARAÇÃO (o registry não declara arquivo de runtime), PARADO (sem runtime),
- * VIVO (pid existe), ÓRFÃO (runtime aponta para pid que não existe mais).
- * @returns {{state:string, detail:string}}
+ * GET no `healthPath` do motor: 200 e 503 (degradado) são vivo, como no `discover` do cliente.
+ * @returns {Promise<{ok:true} | {ok:false, reason:string}>} `reason` = status HTTP, código de rede ou o prazo estourado.
  */
-export function lifeOf(engine, now = Date.now()) {
-  const rt = engine.runtime;
-  if (!rt?.runtimeFile) { return { state: "SEM-DECLARAÇÃO", detail: rt?.transport ? `transporte ${rt.transport}, sem arquivo de runtime` : "motor sem bloco runtime" }; }
+export async function probeHealth(url, path = "/health", timeoutMs = 2000) {
+  try {
+    const r = await fetch(url + path, { signal: AbortSignal.timeout(timeoutMs) });
+    return r.status === 200 || r.status === 503 ? { ok: true } : { ok: false, reason: `HTTP ${r.status}` };
+  } catch (e) { return { ok: false, reason: e.name === "TimeoutError" ? `sem resposta em ${timeoutMs}ms` : e.cause?.code ?? e.message }; }
+}
+
+/**
+ * Vida do motor: o arquivo de runtime que ele declara (pid, porta, idade do heartbeat) conferido com o `/health` do daemon e com a versão instalada.
+ * Estados: SEM-DECLARAÇÃO (o registry não declara arquivo de runtime), PARADO (sem runtime), ÓRFÃO (o pid não existe mais),
+ * TRAVADO (pid existe, mas o `/health` não responde), PID-VIVO (pid existe, mas o anúncio não traz porta válida: `/health` não conferido),
+ * VIVO (pid existe e o `/health` responde). `warns` (idade do heartbeat, versão anunciada ≠ instalada) nunca mudam o estado.
+ * @param {object} engine
+ * @param {{now?:number, timeoutMs?:number}=} opts `timeoutMs` é o prazo do `/health`.
+ * @returns {Promise<{state:string, detail:string, warns:string[]}>}
+ */
+export async function lifeOf(engine, { now = Date.now(), timeoutMs } = {}) {
+  const rt = engine.runtime, warns = [];
+  if (!rt?.runtimeFile) { return { state: "SEM-DECLARAÇÃO", detail: rt?.transport ? `transporte ${rt.transport}, sem arquivo de runtime` : "motor sem bloco runtime", warns }; }
   const data = readRuntime(engine);
-  if (!data) { return { state: "PARADO", detail: `sem ${rt.runtimeFile}` }; }
+  if (!data) { return { state: "PARADO", detail: `sem ${rt.runtimeFile}`, warns }; }
+  // O mcp-gateway escreve o runtime só no boot: a idade do arquivo não diz nada sobre a saúde dele.
+  const limitMs = engine.name === "mcp-gateway" || !rt.heartbeatMs ? 0 : rt.heartbeatMs * 3;
   let age = "";
   try {
-    const ms = now - statSync(join(engine.homeDir, rt.runtimeFile)).mtimeMs;
-    const limit = rt.heartbeatMs ? ` (limite ${Math.round((rt.heartbeatMs * 3) / 1000)}s)` : "";
+    const ms = now - statSync(join(engine.homeDir, rt.runtimeFile)).mtimeMs, limit = limitMs ? ` (limite ${Math.round(limitMs / 1000)}s)` : "";
     age = `, runtime atualizado há ${Math.round(ms / 1000)}s${limit}`;
+    if (limitMs && ms > limitMs) { warns.push(`heartbeat atrasado: runtime atualizado há ${Math.round(ms / 1000)}s${limit}`); }
   } catch { /* o arquivo sumiu entre a leitura e o stat */ }
   const where = `pid ${data.pid ?? "?"}${data.port ? `, porta ${data.port}` : ""}${age}`;
-  return data.pid && alive(data.pid)
-    ? { state: "VIVO", detail: where }
-    : { state: "ÓRFÃO", detail: `${where}; o pid não existe mais` };
+  if (!(data.pid && alive(data.pid))) { return { state: "ÓRFÃO", detail: `${where}; o pid não existe mais`, warns }; }
+
+  const installed = installedVersion(join(engine.homeDir, engine.install?.extractTo ?? "bin")), announced = String(data.version ?? "").replace(/^v/, "");
+  if (announced && installed && announced !== installed) { warns.push(`versão anunciada ${announced} ≠ instalada ${installed}: o daemon roda outra versão que a do disco → engine-kit stop ${engine.name} e suba de novo`); }
+
+  const { port } = data, url = data.url ?? `http://127.0.0.1:${port}`;
+  const semUrl = data.url || (port > 0 && port < 65536 && Number.isInteger(port)) ? null : port === undefined ? "o anúncio não traz porta nem url" : `porta inválida ${JSON.stringify(port)} no anúncio`;
+  if (semUrl) { return { state: "PID-VIVO", detail: `${where}; /health não conferido: ${semUrl}`, warns }; }
+  const path = rt.healthPath ?? "/health", h = await probeHealth(url, path, timeoutMs);
+  return h.ok ? { state: "VIVO", detail: where, warns } : { state: "TRAVADO", detail: `${where}; o pid existe, mas ${path} em ${url} não responde (${h.reason})`, warns };
 }
 
 /**
@@ -195,21 +218,21 @@ export async function diagnoseEngines({ only = null, local = false, verify = fal
 }
 
 /** Linhas de detalhe de uma linha de `diagnoseEngines` (avisos, vida, ponteiro, stop, integridade, hooks), como o doctor e o `doctor --report` as mostram. */
-export function detailLines(row) {
-  const v = engineView(row);
+export async function detailLines(row) {
+  const v = await engineView(row);
   return [
     ...v.warns.map((w) => `aviso: ${w}`),
-    ...(v.life ? [`vida: ${v.life.state} (${v.life.detail})`, `ponteiro cli.json: ${v.pointer.state} (${v.pointer.detail})`, `stop: ${v.stoppable ? `suportado (engine-kit stop ${row.name})` : "não declarado no registry"}`] : []),
+    ...(v.life ? [`vida: ${v.life.state} (${v.life.detail})`, ...v.life.warns.map((w) => `aviso: ${w}`), `ponteiro cli.json: ${v.pointer.state} (${v.pointer.detail})`, `stop: ${v.stoppable ? `suportado (engine-kit stop ${row.name})` : "não declarado no registry"}`] : []),
     ...(v.integrity ? [`integridade: ${v.integrity.state} (${v.integrity.detail})`] : []),
     ...(v.hooks ? [`hooks: ${v.hooks.registered ? `registrados (${v.hooks.events.join(", ")})` : "não registrados → engine-kit ensure neural-link --register"}`] : []),
   ];
 }
 
 /** Linha de `diagnoseEngines` no formato do `engine-kit doctor --json`. */
-export function engineView({ name, state, detail, warns, pin, engine, hooks, integrity }) {
+export async function engineView({ name, state, detail, warns, pin, engine, hooks, integrity }) {
   return {
     name, state, detail, warns: warns ?? [], pin: pin || null,
-    ...(engine && engine.status !== "self-managed" ? { life: lifeOf(engine), pointer: pointerOf(engine), stoppable: Boolean(engine.runtime?.shutdownPath) } : {}),
+    ...(engine && engine.status !== "self-managed" ? { life: await lifeOf(engine), pointer: pointerOf(engine), stoppable: Boolean(engine.runtime?.shutdownPath) } : {}),
     ...(hooks ? { hooks } : {}),
     ...(integrity ? { integrity: { state: integrity.state, detail: integrity.detail } } : {}),
   };

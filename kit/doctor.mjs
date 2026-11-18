@@ -40,13 +40,13 @@ const diag = await diagnoseEngines({ only, local: useLocal, verify: args.include
 if (!diag.ok) { console.error(`FALHOU: ${diag.reason}`); process.exit(1); }
 const { rows } = diag;
 
-if (asJson) { console.log(JSON.stringify(rows.map(engineView), null, 2)); }
+if (asJson) { console.log(JSON.stringify(await Promise.all(rows.map(engineView)), null, 2)); }
 const pad = (s, n) => String(s).padEnd(n);
 const w0 = Math.max(12, ...rows.map((r) => r.name.length));
 for (const r of rows) {
   const mark = SEM_ACAO.includes(r.state) ? "  OK  " : r.state === "ERRO" ? " ERRO " : "  !!  ";
   say(`${mark} ${pad(r.name, w0)}  ${pad(r.state, 14)} ${r.detail}`);
-  for (const l of detailLines(r)) say(`       ${pad("", w0)}  ${l}`);
+  for (const l of await detailLines(r)) say(`       ${pad("", w0)}  ${l}`);
 }
 
 // Só quem publica tem pasta de chaves; no --json o stdout segue sendo o JSON das linhas.

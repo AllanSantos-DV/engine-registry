@@ -80,8 +80,8 @@ export async function urlCommand(name) {
 }
 
 /**
- * `engine-kit doctor --report`: texto colável para suporte (kit, Node, plataforma, variáveis ENGINE_KIT_*, estado de cada motor, sobras e hooks).
- * Só o que o diagnóstico já calcula: o anúncio (runtime) entra só como pid e porta; token, chave privada, caminho de chave e `--registry-url` (pode levar credencial) ficam de fora.
+ * `engine-kit doctor --report`: texto colável para suporte (kit, Node, plataforma, variáveis ENGINE_KIT_*, estado de cada motor, a última troca de versão dele, sobras e hooks).
+ * Só o que o diagnóstico e o histórico já calculam: o anúncio (runtime) entra só como pid e porta; token, chave privada, caminho de chave e `--registry-url` (pode levar credencial) ficam de fora.
  * @param {{only?:string, local?:boolean, verify?:boolean, registryUrl?:string}=} opts as mesmas do `diagnoseEngines`.
  * @returns {Promise<{ok:true, text:string} | {ok:false, reason:string}>}
  */
@@ -89,6 +89,12 @@ export async function reportCommand({ only, local, verify, registryUrl } = {}) {
   const diag = await diagnoseEngines({ only, local, verify, registryUrl });
   if (!diag.ok) { return { ok: false, reason: diag.reason }; }
   const env = (n) => process.env[n] ?? "(não definido)";
+  const hist = historyCommand();
+  const lastSwap = (name) => {
+    if (!hist.ok) { return `indisponível (${hist.reason})`; }
+    const e = hist.entries.findLast((x) => x.engine === name);
+    return e ? `${e.from ?? "(nenhuma)"} → ${e.to} (${e.via}) em ${e.ts}` : "nenhuma registrada";
+  };
   const w = Math.max(...diag.rows.map((r) => r.name.length));
   const lines = [
     `engine-kit v${ownVersion()}`, `node: ${process.version}`, `plataforma: ${process.platform} ${process.arch}`,
@@ -96,7 +102,7 @@ export async function reportCommand({ only, local, verify, registryUrl } = {}) {
     `registry: ${local ? "manifest LOCAL" : registryUrl ? "próprio (--registry-url)" : "publicado"}`, "", "motores:",
   ];
   for (const r of diag.rows) {
-    lines.push(`  ${r.name.padEnd(w)}  ${r.state}  ${r.detail}`, ...detailLines(r).map((l) => `      ${l}`));
+    lines.push(`  ${r.name.padEnd(w)}  ${r.state}  ${r.detail}`, ...(await detailLines(r)).map((l) => `      ${l}`), `      última troca: ${lastSwap(r.name)}`);
     if (r.left?.length) { lines.push(`      sobras: ${r.left.length} (${r.left.map((p) => basename(p)).join(", ")})`); }
   }
   return { ok: true, text: lines.join("\n") };

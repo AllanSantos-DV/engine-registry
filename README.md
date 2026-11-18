@@ -131,6 +131,12 @@ npx engine-kit ensure|pin|fetch|stop <motor> --json   # um objeto JSON por chama
 O `--fix` também remove as sobras do `provision` (`stage-<versão>`, o artefato `.tgz`/`.part` e `<bin>.old-<pid>` no home do motor),
 nunca com instalação em curso (`provision.lock` recente ou com o processo dono ainda vivo); o diagnóstico sem `--fix` só as avisa.
 
+**Vida do daemon.** A linha `vida:` confere o anúncio do motor (`runtime.json`) com o motor de verdade. `VIVO` só quando o pid existe **e** o `healthPath` do registry responde (200 ou 503, como o `discover`
+de `kit/client.mjs`). Pid que existe com o `/health` mudo é `TRAVADO`, com a causa (status HTTP, `ECONNREFUSED` ou o prazo de 2 s). `PID-VIVO`: o anúncio não traz porta válida e o `/health` não pôde ser conferido.
+`ÓRFÃO` (o pid não existe; a porta nem é consultada), `PARADO` e `SEM-DECLARAÇÃO` completam os estados. Dois avisos acompanham a linha e nunca mudam o estado: versão anunciada diferente da instalada (o daemon
+roda outra versão que a do disco) e heartbeat atrasado (runtime mais velho que 3 × `heartbeatMs`; o mcp-gateway só escreve o runtime no boot e fica fora dessa conta). Nenhum estado de vida muda o exit code do doctor.
+No `--json` a vida é `life: { state, detail, warns }`.
+
 Para cada motor o diagnóstico diz se o `stop` se aplica (`stoppable` no `--json`, quando o registry declara `shutdownPath`) e, no neural-link, se os hooks estão registrados (`hooks: { registered, events }`, lidos dos `_dispatcher-*.json` no config global; só lê arquivos).
 
 O diagnóstico avisa, sem alterar nada, quando o registry não respondeu (o descritor veio do cache) e quando a chave
@@ -139,7 +145,7 @@ publicada pelo registry difere da gravada em `trust.json` (o próximo `ensure` a
 No clone do repositório, `node kit/doctor.mjs` faz o mesmo (o `--report` só existe pelo bin).
 
 **Relatório para suporte.** `doctor --report` imprime um texto para colar num chamado: versão do kit, Node, plataforma, `ENGINE_KIT_NO_AUTO_UPDATE` e `ENGINE_KIT_HOME`,
-e, por motor, o estado, os avisos, a vida (pid e porta), o ponteiro `cli.json`, as sobras de instalação (só o nome) e os hooks do neural-link. Não traz token, chave privada, caminho
+e, por motor, o estado, os avisos, a vida (pid e porta, conferidos no `/health`), o ponteiro `cli.json`, a última troca de versão (de → para, origem e data, lidas do `history.jsonl`; histórico ilegível sai como `indisponível` com a causa), as sobras de instalação (só o nome) e os hooks do neural-link. Não traz token, chave privada, caminho
 de chave nem o `--registry-url`; o anúncio do motor (`runtime.json`) entra só como pid e porta. Aceita `--engine`, `--local` e `--verify`; não combina com `--json` nem com `--fix`.
 
 **Histórico de trocas.** Cada troca de versão grava uma linha JSON em `history.jsonl`, ao lado do `trust.json` (`ENGINE_KIT_HOME` ou `~/.engine-kit`): `ts` ISO, `engine`, `from` (null na primeira
@@ -165,7 +171,7 @@ O mesmo diagnóstico é uma API, sem subprocesso e sem lançar:
 ```js
 import { diagnoseEngines, engineView } from "engine-kit/kit/diagnose.mjs";
 const r = await diagnoseEngines({ local: true, verify: true });   // { ok: true, rows } ou { ok: false, reason }
-const json = r.rows.map(engineView);                              // igual ao `doctor --json`
+const json = await Promise.all(r.rows.map(engineView));          // igual ao `doctor --json`
 ```
 
 `engine-kit list` lê só o manifest embarcado. `ensure` recusa antes de resolver ou baixar o motor cujo `platforms` não inclui esta máquina (`any` serve a todas).
@@ -341,7 +347,7 @@ kit/
 consumers/
   mcp-gateway.mjs  # adaptador pronto: handshake + token + shutdown do agregador MCP
 site/               # vitrine de produto dos motores (estática); processo em docs/PAGES.md
-tools/              # pages-branch.mjs: publica site/ na gh-pages; publish-manifest.mjs: manifest e README na main
+tools/              # pages-branch.mjs: publica site/ na gh-pages; publish-manifest.mjs: manifest e README na main; checar-publicacao.mjs: o checklist do CONTRATO-MOTOR §6 executado
 tests/
   smoke.mjs          # contratos do kit: node tests/smoke.mjs
   test-*.mjs         # contratos hermeticos (assinatura, trust, tar, apps, cache, doctor, gateway)
@@ -393,6 +399,10 @@ atualiza o `manifest.json` **parseado** e a linha do README num worktree da `mai
 release publicada e valida `sha256` + assinatura pelo caminho de um consumidor) e só então envia o commit
 para a `main` e mescla na `develop`, sem passo manual. Se a mescla conflitar só no `manifest.json` ou no
 README (linhas vizinhas mudadas nos dois ramos), o arquivo da `develop` recebe a mesma mudança que a `main` recebeu.
+
+Antes de publicar, `node tools/checar-publicacao.mjs <motor> [--rede] [--json]` executa o checklist do [§6 do contrato](./CONTRATO-MOTOR.md): confere a chave de assinatura local, a entrada no manifest (schema), a
+página de produto (o gate de `tests/test-pages-gate.mjs`) e a assinatura declarada, e lista os itens manuais pendentes. Com `--rede` confere também a release publicada (`kit/verify-release.mjs`), a página no ar e a
+ponte. Exit 0 = nenhum item automático falhou; 1 = algum falhou ou não pôde ser checado (`NAO-CHECADO`, nunca contado como OK); 2 = uso errado ou contrato ilegível. Sem `--rede`, os itens de rede aparecem como `NAO-RODADO`.
 
 O artefato deve ser **self-contained** (traz o próprio `node_modules` trimado): o motor precisa
 subir numa máquina limpa, sem depender do consumidor.

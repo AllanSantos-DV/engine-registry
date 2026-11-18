@@ -14,6 +14,7 @@ import { resolve } from "./resolve.mjs";
 import { readRuntime } from "./lifecycle.mjs";
 import { bundledManifest } from "./ensure.mjs";
 import { ensureEngine } from "./index.mjs";
+import { probeHealth } from "./diagnose.mjs";
 
 export const CASA = "casa-de-embeddings";
 export const GRAFO = "motor-de-grafo";
@@ -21,11 +22,6 @@ export const GRAFO = "motor-de-grafo";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const fix = (name) => `engine-kit ensure ${name}`;
 const message = (e) => e?.cause?.code ?? e?.message ?? String(e);
-
-/** 200 e 503 (degradado) são vivo: o motor atende, ainda que com um componente fora. */
-async function alive(url, path = "/health", timeoutMs = 2000) {
-  try { const r = await fetch(url + path, { signal: AbortSignal.timeout(timeoutMs) }); return r.status === 200 || r.status === 503; } catch { return false; }
-}
 
 /**
  * Lê o anúncio do motor (`runtime.runtimeFile` do descritor) e confere a saúde. Sem `url` no anúncio, usa `port` (`http://127.0.0.1:<port>`); porta fora de 1..65535 é erro.
@@ -42,7 +38,7 @@ export async function discover(name, { manifest = bundledManifest() } = {}) {
   const url = rt?.url ?? (port === undefined ? null : `http://127.0.0.1:${port}`);
   if (!url) { return { ok: false, reason: `${name} sem anúncio em ${file}: não está instalado ou não subiu → ${fix(name)}` }; }
   if (!rt.url && !(port > 0 && port < 65536 && Number.isInteger(port))) { return { ok: false, reason: `${name}: porta inválida ${JSON.stringify(port)} em ${file} (1..65535) → ${fix(name)}` }; }
-  if (!(await alive(url, r.engine.runtime?.healthPath))) { return { ok: false, reason: `${name}: o anúncio em ${file} aponta ${url}, que não responde${rt.pid ? ` (pid ${rt.pid})` : ""} → ${fix(name)}` }; }
+  if (!(await probeHealth(url, r.engine.runtime?.healthPath)).ok) { return { ok: false, reason: `${name}: o anúncio em ${file} aponta ${url}, que não responde${rt.pid ? ` (pid ${rt.pid})` : ""} → ${fix(name)}` }; }
   return { ok: true, url, shutdownToken: rt[r.engine.runtime?.shutdownTokenField], version: rt.version, pid: rt.pid, engine: r.engine };
 }
 
@@ -56,7 +52,7 @@ const launchDetached = (entryPath) => spawn(entryPath, [], { detached: true, std
  * @returns {Promise<{ok:true, url:string, shutdownToken?:string, version?:string, installed?:string, updateAvailable?:string} | {ok:false, reason:string}>}
  */
 export async function ensureHome(name, { launch = launchDetached, bootTimeoutMs = 60000, ...opts } = {}) {
-  const e = await ensureEngine(name, { healthCheck: async (rt) => ((await alive(rt.url)) ? rt : null), ...opts });
+  const e = await ensureEngine(name, { healthCheck: async (rt) => ((await probeHealth(rt.url)).ok ? rt : null), ...opts });
   if (!e.available) { return { ok: false, reason: e.reason }; }
   const manifest = { engines: [e.engine] };
   let d = await discover(name, { manifest });

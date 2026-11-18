@@ -18,7 +18,7 @@ const api = await diagnoseEngines({ local: true });
 check("o diagnóstico responde ok com uma linha por motor do manifest", api.ok && api.rows.length > 0, JSON.stringify(api).slice(0, 200));
 
 const cli = spawnSync(process.execPath, [join(import.meta.dirname, "..", "kit", "doctor.mjs"), "--local", "--json"], { env, encoding: "utf8", windowsHide: true });
-check("a visão da API é igual ao `doctor --local --json`", JSON.stringify(api.rows.map(engineView)) === JSON.stringify(JSON.parse(cli.stdout)), cli.stderr);
+check("a visão da API é igual ao `doctor --local --json`", JSON.stringify(await Promise.all(api.rows.map(engineView))) === JSON.stringify(JSON.parse(cli.stdout)), cli.stderr);
 
 const um = await diagnoseEngines({ local: true, only: api.rows[0].name });
 check("`only` limita a um motor", um.ok && um.rows.length === 1 && um.rows[0].name === api.rows[0].name);

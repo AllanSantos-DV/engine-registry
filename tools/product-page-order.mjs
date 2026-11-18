@@ -16,6 +16,29 @@ const palavras = (t) => (t.match(/[\p{L}\p{N}]+/gu) ?? []).length;
 const controles = (h) => [...semRuido(h).matchAll(/<(a|button)\b([^>]*)>([\s\S]*?)<\/\1>/gi)]
   .map(([, , attrs, inner]) => `${attrs.match(/aria-label="([^"]*)"/i)?.[1] ?? ""} ${texto(inner)}`.replace(/\s+/g, " ").trim());
 
+/** Problemas da declaração de página de um motor no manifest (`pagesUrl` https ou `pagesPendente` com motivo); lista vazia = declarada. */
+export function problemasDeDeclaracao({ pagesUrl: url, pagesPendente: motivo }) {
+  const problemas = [];
+  if (typeof url !== "string" && !(typeof motivo === "string" && motivo.length >= 10)) { problemas.push("sem pagesUrl nem pagesPendente com motivo (mínimo 10 caracteres)"); }
+  if (url !== undefined && !/^https:\/\/[^\s]+$/.test(url)) { problemas.push(`pagesUrl não é https: ${url}`); }
+  return problemas;
+}
+
+/**
+ * Baixa a página de produto e devolve o que a reprova (HTTP, sem `<video>`, fora de ordem); lista vazia = no ar, com vídeo e na ordem.
+ * Falha de rede é problema, nunca lista vazia.
+ * @param {string} url
+ * @param {{buscar?:typeof fetch, timeoutMs?:number}=} opts `buscar` troca o `fetch` (testes).
+ */
+export async function problemasDaPaginaNoAr(url, { buscar = fetch, timeoutMs = 30000 } = {}) {
+  try {
+    const r = await buscar(url, { redirect: "follow", signal: AbortSignal.timeout(timeoutMs) });
+    if (!r.ok) { return [`HTTP ${r.status}`]; }
+    const html = await r.text(), achados = problemasDeOrdem(html);
+    return /<video\b/i.test(html) ? achados : ["a página não contém elemento <video>", ...achados.filter((a) => !a.includes("<video>"))];
+  } catch (err) { return [`não foi possível baixar: ${err.message}`]; }
+}
+
 /** Problemas da ordem da página de produto; lista vazia = a ordem vale. */
 export function problemasDeOrdem(html) {
   const problemas = [];

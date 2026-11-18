@@ -243,7 +243,7 @@ const serveJson = async (obj) => {
 {
   console.log("\n-- doctor --fix respeita ENGINE_KIT_NO_AUTO_UPDATE --");
   const stub = join(RUN, "offline-fix.mjs");
-  writeFileSync(stub, `globalThis.fetch = async () => { throw new Error("o doctor tentou baixar com a atualização desligada"); };\n`);
+  writeFileSync(stub, `const real = globalThis.fetch;\nglobalThis.fetch = async (url, ...a) => { if (/^http:\\/\\/127\\.0\\.0\\.1[:/]/.test(String(url))) { return real(url, ...a); } throw new Error("o doctor tentou baixar com a atualização desligada"); };\n`);
   const bin = join(RUN, ".client-harness", "runtimes", "client-harness");
   mkdirSync(join(bin, "src"), { recursive: true });
   writeFileSync(join(bin, "src", "cli.mjs"), "\n");

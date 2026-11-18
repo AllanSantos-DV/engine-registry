@@ -9,7 +9,7 @@
 // impresso aqui. Sem pagesPendente, página ausente, sem <video> ou fora de ordem reprova.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { problemasDeOrdem } from "../tools/product-page-order.mjs";
+import { problemasDeOrdem, problemasDeDeclaracao, problemasDaPaginaNoAr } from "../tools/product-page-order.mjs";
 
 const REPO = join(import.meta.dirname, "..");
 const live = process.argv.includes("--live");
@@ -46,22 +46,15 @@ check("a vitrine deste registro (site/index.html) segue a ordem", problemasDeOrd
 // ---- 2) o manifest: cada motor aponta para a página dele ou declara por que ainda não ------------------------------------------
 const manifest = JSON.parse(readFileSync(join(REPO, "manifest.json"), "utf8"));
 for (const e of manifest.engines) {
-  const url = e.pagesUrl, motivo = e.pagesPendente;
-  check(`${e.name}: tem pagesUrl ou pagesPendente com motivo`, typeof url === "string" || (typeof motivo === "string" && motivo.length >= 10));
-  if (url !== undefined) { check(`${e.name}: pagesUrl é https`, /^https:\/\/[^\s]+$/.test(url), String(url)); }
-  if (motivo !== undefined) { console.log(`  (pendente) ${e.name}: ${motivo}`); }
+  const problemas = problemasDeDeclaracao(e);
+  check(`${e.name}: tem pagesUrl https ou pagesPendente com motivo`, problemas.length === 0, problemas.join("; "));
+  if (e.pagesPendente !== undefined) { console.log(`  (pendente) ${e.name}: ${e.pagesPendente}`); }
 }
 
 // ---- 3) ao vivo (CI): a página existe, tem vídeo e segue a ordem ----------------------------------------------------------------
 if (live) {
   for (const e of manifest.engines.filter((x) => x.pagesUrl)) {
-    let achados;
-    try {
-      const r = await fetch(e.pagesUrl, { redirect: "follow", signal: AbortSignal.timeout(30000) });
-      const html = await r.text();
-      achados = r.ok ? problemasDeOrdem(html) : [`HTTP ${r.status}`];
-      if (r.ok && !/<video\b/i.test(html)) { achados = ["a página não contém elemento <video>", ...achados.filter((a) => !a.includes("<video>"))]; }
-    } catch (err) { achados = [`não foi possível baixar: ${err.message}`]; }
+    const achados = await problemasDaPaginaNoAr(e.pagesUrl);
     if (achados.length === 0) {
       check(`${e.name}: página no ar com vídeo na ordem (${e.pagesUrl})`, true);
       if (e.pagesPendente) { console.log(`  (obsoleto) ${e.name}: a página já passa — remova pagesPendente do manifest`); }

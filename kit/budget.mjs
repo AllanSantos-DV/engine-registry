@@ -126,10 +126,14 @@ const ROOT = resolvePath(KIT, "..");
 //   e nenhum código funcional foi cortado.
 //   2026-11-18 client 9800 → 10000: o `discover` passou a montar `http://127.0.0.1:<port>` quando o anúncio traz só `port` (mcp-gateway e embed-house) e a recusar porta fora de 1..65535 com erro explícito, +0.3 KB.
 //   Nenhum código funcional foi cortado.
+//   2026-11-18 tooling 69800 → 72000: vida real do daemon no doctor (`probeHealth` e `lifeOf` em diagnose.mjs: o `/health` pelo `healthPath` do registry, os estados TRAVADO e PID-VIVO e os
+//   avisos de versão anunciada ≠ instalada e de heartbeat atrasado) e a última troca de versão de cada motor no `doctor --report` (inspect.mjs), +2.1 KB. A sondagem do `/health` saiu do
+//   client.mjs (-0.2 KB, que passou a importá-la do diagnose): a mesma checagem serve ao cliente e ao doctor, sem cópia. Só leitura, rodado na mão de quem diagnostica; o fecho de imports
+//   de `index.mjs` não mudou e nenhum código funcional foi cortado.
 const BUDGETS = {
   runtime: { codeBytes: 37500, baseline: 24519, loc: 900 },
   client: { codeBytes: 10000, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 69800, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 72000, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

@@ -160,6 +160,11 @@ polui o histórico e obriga todo consumidor a decidir se atualiza — para desco
 
 ## 6. Checklist por motor
 
+`node tools/checar-publicacao.mjs <motor> [--rede] [--json]` executa as linhas automatizáveis e lista as manuais pendentes. Cobre a chave de assinatura (existe e deriva a `publicKey` do manifest), a
+entrada no manifest (schema e `install.entry`), `pagesUrl`/`pagesPendente` (o gate de `tests/test-pages-gate.mjs`) e a assinatura declarada (`publicKey`, `signatureAlgorithm`, `signatureRequired:true`,
+`repo` engine-registry). Com `--rede` cobre também a release publicada e conferida (`kit/verify-release.mjs`), a página no ar e a ponte. Item que não conseguiu checar é `NAO-CHECADO` e reprova (exit 1);
+sem `--rede` os itens de rede ficam `NAO-RODADO`, visíveis. A lista vem das linhas abaixo: linha que o script cobre e que sair daqui quebra o script (`tests/test-checar-publicacao.mjs` trava isso).
+
 ```
 [ ] chave gerada em ~/.engine-signing/<motor>_ed25519_private.key
 [ ] entrada do motor existe no manifest.json (kind, home, install.entry, platforms)
