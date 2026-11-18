@@ -4,7 +4,7 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
 
 ## Técnico
 
-Nenhum item aberto.
+- **Aberto (2026-11-18): a cópia da mídia da tela `index` no Smart Design está velha.** O projeto `engine-registry-vitrine-no-ar-evid-ncia-cb25e0` guarda em `screens/index/media/` o vídeo e o pôster de 13/11 (oito motores); `site/media/` já tem os de 18/11 (nove motores). A validação e as capturas usam a cópia velha. Para refrescar, reenviar a tela com `media_dir` apontando para `site/media`, e refazer a comparação de `docs/research/2026-11-18-vitrine-tokens/` contra a nova linha de base.
 
 ## Aguardando decisão do dono
 

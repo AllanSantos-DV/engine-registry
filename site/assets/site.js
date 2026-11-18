@@ -7,15 +7,15 @@
 
   // ---- cenas: cada "parte" é uma frase narrada e revela um passo do visual -------------------------------------------
   const FICHAS = [
-    ["Vox Engine", "voz: ditado, transcrição, tradução e fala", "#ff8a5c"],
-    ["Cerne", "vídeo: quadros-chave, transcrição e memória", "#7cc4ff"],
-    ["VXK", "explicação visual animada e narrada", "#ffd166"],
-    ["mcp-gateway", "um endereço para todos os servidores MCP", "#6ef2b5"],
-    ["embed-house", "vetores de busca sem repetir o modelo", "#b79cff"],
-    ["neural-link", "uma decisão para cada evento de hook", "#b8e86b"],
-    ["skill-engine", "skills de terceiros conferidas antes de ativar", "#ff8a5c"],
-    ["client-harness", "o agente respeita os padrões de cada cliente", "#eaf4ef"],
-    ["motor-de-grafo", "grafo de código, de documentos e de qualquer tipo de nó", "#ffd166"],
+    ["Vox Engine", "voz: ditado, transcrição, tradução e fala", "var(--color-coral)"],
+    ["Cerne", "vídeo: quadros-chave, transcrição e memória", "var(--color-sky)"],
+    ["VXK", "explicação visual animada e narrada", "var(--color-amber)"],
+    ["mcp-gateway", "um endereço para todos os servidores MCP", "var(--color-accent)"],
+    ["embed-house", "vetores de busca sem repetir o modelo", "var(--color-violet)"],
+    ["neural-link", "uma decisão para cada evento de hook", "var(--color-lime)"],
+    ["skill-engine", "skills de terceiros conferidas antes de ativar", "var(--color-coral)"],
+    ["client-harness", "o agente respeita os padrões de cada cliente", "var(--color-text)"],
+    ["motor-de-grafo", "grafo de código, de documentos e de qualquer tipo de nó", "var(--color-amber)"],
   ];
   const CENAS = [
     { t: "engine-registry", vis: "hero", partes: [

@@ -9,12 +9,17 @@ projeto, revisões, testes internos, backlog, veredito ou PR (`tests/test-site.m
 ```
 site/                         # tudo que vai ao ar; estático, sem build, sem rede
   index.html                  # primeira tela com o vídeo, nove cards, tabela e mapa de correlação, como usar, números
-  assets/styles.css           # identidade do índice de produtos (verde-tinta, menta como sinal)
+  tokens.css                  # tokens do Smart Design (cores, fontes, espaços, raios, sombra, tempos): único lugar com cor literal
+  assets/styles.css           # identidade do índice de produtos (verde-tinta, menta como sinal); só var(--...) dos tokens
   assets/site.js              # modo Apresentar (cenas, narração, mapa revelado em passos) e aviso de vídeo ausente
-  assets/mark.svg
+  assets/mark.svg             # favicon, gerado de tokens.css por tools/gerar-favicon.mjs
   media/                      # apresentacao.mp4, -poster.jpg, .vtt e .voz.json (entrega do VXK Motion); narracao/ (áudio do Apresentar)
 tools/pages-branch.mjs        # publish e verify da branch gh-pages (mesmo publicador do pages-index)
+tools/gerar-favicon.mjs       # refaz assets/mark.svg a partir de site/tokens.css
+tools/comparar-capturas.mjs   # compara pixel a pixel duas pastas de capturas PNG (tolerância de canal e de fração declaradas)
 tests/test-site.mjs           # links, âncoras, CSP, cards x manifest, números x fonte, texto só de produto, roteiro
+tests/test-site-tokens.mjs    # nenhuma cor literal fora de tokens.css; tokens com os valores publicados; favicon e theme-color em sincronia
+tests/test-comparar-capturas.mjs  # o comparador de capturas (PNG sintéticos, tolerância, falha alta)
 tests/test-pages-branch.mjs   # publicador e workflow (remoto bare e servidor local; nada é publicado)
 docs/ROTEIRO-APRESENTACAO.md  # cenas e falas, e o que o vídeo deve mostrar
 .github/workflows/pages.yml   # publicação, só por disparo manual
@@ -23,6 +28,25 @@ docs/ROTEIRO-APRESENTACAO.md  # cenas e falas, e o que o vídeo deve mostrar
 O site abre direto do disco (`site/index.html`); não há servidor, bundler nem dependência. A CSP da página só aceita
 recursos do próprio site, então não há fonte, script ou imagem externos; as cores dos motores vêm de classes (`c-coral`,
 `c-ceu`…), nunca de `style=`.
+
+## Tokens do Smart Design
+
+`site/tokens.css` é a cópia byte a byte de `build/css/variables.css` do projeto `engine-registry-vitrine-no-ar-evid-ncia-cb25e0`
+(tela `index`, superfície `pages`), e `index.html` o liga antes do `styles.css`. `styles.css`, `site.js` e o SVG inline do
+`index.html` só usam `var(--color-*)`, `--font-*`, `--font-size-*`, `--space-*`, `--radius-*`, `--size-*`, `--elevation-*` e
+`--motion-*`; o SVG inline pinta por classe (`f-accent`, `s-border`…), e o `site.js` passa `var(--color-…)` para `--cor`.
+Os valores são os da vitrine publicada em 18/11 (`tests/test-site-tokens.mjs` confere cada um). O `sd_validate` da tela
+fecha com `ok: true` em todos os checks, inclusive `system-tokens-only`.
+
+Duas exceções declaradas no teste, porque nenhuma das duas lê variáveis da página: `assets/mark.svg` (favicon avulso) leva o
+próprio bloco `:root` com os quatro tokens de que precisa, gerado de `tokens.css` por `tools/gerar-favicon.mjs`, e o
+`<meta name="theme-color">` repete o valor de `--color-bg`. O validador do Smart Design aceita as duas por serem definições
+iguais às registradas.
+
+Mudar um valor: `sd_set_tokens` e `sd_build` no projeto, copiar `build/css/variables.css` para `site/tokens.css`, rodar
+`node tools/gerar-favicon.mjs`, atualizar o `theme-color`, reenviar a tela (`sd_save_screen`) e rodar
+`sd_validate`. O antes e o depois dos pixels de 18/11 estão em `docs/research/2026-11-18-vitrine-tokens/`
+(`node tools/comparar-capturas.mjs <antes> <depois>`).
 
 ## Conteúdo
 

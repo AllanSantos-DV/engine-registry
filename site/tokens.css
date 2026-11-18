@@ -1,0 +1,104 @@
+/**
+ * Do not edit directly, this file was auto-generated.
+ */
+
+:root {
+  --color-bg: #07110e; /** Fundo da página */
+  --color-surface: #0c1a15; /** Cartões, caixas e blocos */
+  --color-surface-alt: #12261e; /** Hover, cabeçalhos de tabela e botões */
+  --color-border: #2a4a3e; /** Divisórias e contornos */
+  --color-text: #eaf4ef; /** Texto principal */
+  --color-text-muted: #a8c2b5; /** Texto secundário */
+  --color-text-faint: #7fa092; /** Texto de apoio */
+  --color-accent: #6ef2b5; /** Menta: ação, link e sinal */
+  --color-accent-hover: #a8ffd8; /** Menta no hover */
+  --color-on-accent: #04110c; /** Texto sobre a menta */
+  --color-coral: #ff8a5c; /** Cor de motor */
+  --color-sky: #7cc4ff; /** Cor de motor */
+  --color-violet: #b79cff; /** Cor de motor */
+  --color-amber: #ffd166; /** Cor de motor */
+  --color-lime: #b8e86b; /** Cor de motor */
+  --color-focus: #ffd166; /** Anel de foco do teclado */
+  --color-video-bg: #000000; /** Fundo atrás do vídeo */
+  --color-topbar: rgba(7, 17, 14, 0.92); /** Fundo do cabeçalho fixo (bg a 92%) */
+  --color-glow-accent: rgba(110, 242, 181, 0.1); /** Brilho menta do fundo (10%) */
+  --color-glow-accent-strong: rgba(110, 242, 181, 0.12); /** Brilho menta do modo Apresentar (12%) */
+  --color-glow-sky: rgba(124, 196, 255, 0.07); /** Brilho azul do fundo (7%) */
+  --color-grid-line: rgba(110, 242, 181, 0.035); /** Linhas da grade do fundo (3,5%) */
+  --font-heading: Bahnschrift, 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Cascadia Mono', 'Cascadia Code', Consolas, 'SF Mono', monospace;
+  --font-size-11: 11px;
+  --font-size-12: 12px;
+  --font-size-13: 13px;
+  --font-size-14: 14px;
+  --font-size-15: 15px;
+  --font-size-16: 16px;
+  --font-size-17: 17px;
+  --font-size-18: 18px;
+  --font-size-20: 20px;
+  --font-size-22: 22px;
+  --font-size-24: 24px;
+  --font-size-28: 28px;
+  --font-size-32: 32px;
+  --font-size-40: 40px;
+  --font-size-46: 46px;
+  --font-size-50: 50px;
+  --font-size-11-5: 11.5px;
+  --font-size-12-5: 12.5px;
+  --font-size-13-5: 13.5px;
+  --font-size-14-5: 14.5px;
+  --space-3: 3px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-9: 9px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-14: 14px;
+  --space-16: 16px;
+  --space-18: 18px;
+  --space-20: 20px;
+  --space-22: 22px;
+  --space-24: 24px;
+  --space-28: 28px;
+  --space-30: 30px;
+  --space-32: 32px;
+  --space-36: 36px;
+  --space-40: 40px;
+  --space-44: 44px;
+  --space-46: 46px;
+  --space-72: 72px;
+  --radius-4: 4px;
+  --radius-6: 6px;
+  --radius-8: 8px;
+  --radius-9: 9px;
+  --radius-10: 10px;
+  --radius-12: 12px;
+  --radius-14: 14px;
+  --radius-18: 18px;
+  --radius-pill: 999px;
+  --size-topo: 64px; /** Altura mínima do cabeçalho fixo */
+  --elevation-video: 0px 24px 60px 0px #00000059;
+  --motion-duration-fast: 0.12s;
+  --motion-duration-base: 0.2s;
+  --motion-duration-slow: 0.4s;
+  --motion-duration-slower: 0.5s;
+  --color-danger: var(--color-coral); /** Exigido pelo gerador; a vitrine usa o coral */
+  --color-success: var(--color-accent); /** Exigido pelo gerador; a vitrine usa a menta */
+  --color-warning: var(--color-amber); /** Exigido pelo gerador; a vitrine usa o âmbar */
+  --font-size-sm: var(--font-size-12);
+  --font-size-md: var(--font-size-14);
+  --font-size-lg: var(--font-size-17);
+  --font-size-xl: var(--font-size-22);
+  --font-size-xxl: var(--font-size-28);
+  --space-xs: var(--space-4);
+  --space-sm: var(--space-8);
+  --space-md: var(--space-12);
+  --space-lg: var(--space-16);
+  --space-xl: var(--space-20);
+  --space-xxl: var(--space-28);
+  --radius-sm: var(--radius-4);
+  --radius-md: var(--radius-8);
+  --radius-lg: var(--radius-12);
+}
