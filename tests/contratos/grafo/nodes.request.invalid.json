@@ -1,0 +1,7 @@
+[
+  {"nome":"campo_desconhecido","motivo":"campo fora do contrato é recusado, nunca ignorado","http":400,"corpo":{"graph":"${PROJECT_ID}","nodes":[{"id":"conformidade:a","kind":"conformidade","name":"Nota A","props":{"origem":"conformidade"},"content":"texto da nota a para a busca por palavras"}],"bogus":1}},
+  {"nome":"tipo_errado_nodes","motivo":"nodes deve ser uma lista","http":400,"corpo":{"graph":"${PROJECT_ID}","nodes":"x"}},
+  {"nome":"nodes_vazio","motivo":"nodes não pode ser vazio","http":400,"corpo":{"graph":"${PROJECT_ID}","nodes":[]}},
+  {"nome":"sem_graph","motivo":"graph é obrigatório","http":400,"corpo":{"nodes":[{"id":"conformidade:a","kind":"conformidade","name":"Nota A","props":{"origem":"conformidade"},"content":"texto da nota a para a busca por palavras"}]}},
+  {"nome":"no_sem_name","motivo":"cada nó leva id, kind e name","http":400,"corpo":{"graph":"${PROJECT_ID}","nodes":[{"id":"conformidade:d","kind":"conformidade"}]}}
+]

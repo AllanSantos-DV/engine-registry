@@ -8,10 +8,10 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-const VALIDATING = new Set(['$ref', 'type', 'const', 'enum', 'pattern', 'format', 'minLength', 'minimum', 'maximum', 'minItems', 'items',
+const VALIDATING = new Set(['$ref', 'type', 'const', 'enum', 'pattern', 'format', 'minLength', 'maxLength', 'minimum', 'maximum', 'minItems', 'maxItems', 'items',
   'required', 'properties', 'additionalProperties', 'allOf', 'anyOf', 'if', 'then', 'not']);
 const FORMATS = { uri: (v) => URL.canParse(v) };
-const ANNOTATIONS = new Set(['$schema', '$id', '$comment', 'title', 'description', 'definitions', 'default', 'examples']);
+const ANNOTATIONS = new Set(['$schema', '$id', '$comment', 'title', 'description', 'definitions', '$defs', 'default', 'examples']);
 
 /** Lê o schema.json do repositório (ou de `file`). */
 export const loadSchema = (file = path.join(ROOT, 'schema.json')) => JSON.parse(readFileSync(file, 'utf8'));
@@ -40,10 +40,12 @@ export function validate(schema, node, value, at = '$') {
     if (!FORMATS[node.format](value)) errs.push(`${at}: não é ${node.format}`);
   }
   if (node.minLength !== undefined && typeof value === 'string' && value.length < node.minLength) errs.push(`${at}: menos de ${node.minLength} caracteres`);
+  if (node.maxLength !== undefined && typeof value === 'string' && value.length > node.maxLength) errs.push(`${at}: mais de ${node.maxLength} caracteres`);
   if (node.minimum !== undefined && typeof value === 'number' && value < node.minimum) errs.push(`${at}: < ${node.minimum}`);
   if (node.maximum !== undefined && typeof value === 'number' && value > node.maximum) errs.push(`${at}: > ${node.maximum}`);
   if (Array.isArray(value)) {
     if (node.minItems !== undefined && value.length < node.minItems) errs.push(`${at}: menos de ${node.minItems} itens`);
+    if (node.maxItems !== undefined && value.length > node.maxItems) errs.push(`${at}: mais de ${node.maxItems} itens`);
     if (node.items) value.forEach((v, i) => errs.push(...validate(schema, node.items, v, `${at}[${i}]`)));
   }
   if (typeOf(value) === 'object') {
@@ -51,6 +53,7 @@ export function validate(schema, node, value, at = '$') {
     for (const [k, v] of Object.entries(value)) {
       if (node.properties?.[k]) errs.push(...validate(schema, node.properties[k], v, `${at}.${k}`));
       else if (node.additionalProperties === false) errs.push(`${at}: campo desconhecido "${k}"`);
+      else if (node.additionalProperties && typeof node.additionalProperties === 'object') errs.push(...validate(schema, node.additionalProperties, v, `${at}.${k}`));
     }
   }
   for (const sub of node.allOf ?? []) errs.push(...validate(schema, sub, value, at));

@@ -1,0 +1,10 @@
+[
+  {"nome":"so_query","corpo":{"path":"${RAIZ}","query":"main"}},
+  {"nome":"com_topk_e_hops","corpo":{"path":"${RAIZ}","query":"main","topK":3,"hops":2}},
+  {"nome":"sem_expansao","corpo":{"path":"${RAIZ}","query":"main","hops":0}},
+  {"nome":"grafo_dos_tipos","corpo":{"graph":"${PROJECT_ID}","kinds":["conformidade"],"query":"Nota A","hops":1}},
+  {"nome":"codigo_e_notas","corpo":{"path":"${RAIZ}","kinds":["code","conformidade"],"query":"Nota A"}},
+  {"nome":"so_agente","corpo":{"path":"${RAIZ}","query":"main","agent":"conformidade"}},
+  {"nome":"grafo_dos_tipos_completo","corpo":{"graph":"${PROJECT_ID}","kinds":["conformidade"],"query":"Nota A","full":["conformidade"],"agent":"conformidade"}},
+  {"nome":"modo_texto","corpo":{"path":"${RAIZ}","query":"palavras do comentario","mode":"text"}}
+]

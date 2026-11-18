@@ -1,0 +1,6 @@
+[
+  {"nome":"campo_desconhecido","motivo":"campo fora do contrato é recusado, nunca ignorado","http":400,"corpo":{"graph":"${PROJECT_ID}","id":"conformidade:a","bogus":1}},
+  {"nome":"tipo_errado_hops","motivo":"hops é inteiro de 1 a 5","http":400,"corpo":{"graph":"${PROJECT_ID}","id":"conformidade:a","hops":"abc"}},
+  {"nome":"direcao_desconhecida","motivo":"direction é in, out ou both","http":400,"corpo":{"graph":"${PROJECT_ID}","id":"conformidade:a","direction":"sideways"}},
+  {"nome":"sem_id","motivo":"id é obrigatório","http":400,"corpo":{"graph":"${PROJECT_ID}"}}
+]

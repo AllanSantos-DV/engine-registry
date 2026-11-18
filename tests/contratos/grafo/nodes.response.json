@@ -1,0 +1,33 @@
+[
+  {
+    "nome": "gravados",
+    "http": 200,
+    "corpo": {
+      "graph": "/home/dev/meu-projeto",
+      "upserted": 2,
+      "to_embed": 0
+    }
+  },
+  {
+    "nome": "erro_tipo_desconhecido",
+    "http": 400,
+    "corpo": {
+      "error": "Kind 'livro' is not registered. Register it with POST /api/v1/graph/kinds",
+      "code": "UNKNOWN_KIND",
+      "status": 400,
+      "type": "contrato/grafo-rest-v1/grafo-rest-v1.md",
+      "title": "UNKNOWN_KIND",
+      "detail": "Kind 'livro' is not registered. Register it with POST /api/v1/graph/kinds",
+      "hint": "Veja contrato/grafo-rest-v1/grafo-rest-v1.md para os campos de cada rota, os estados do grafo e os erros."
+    }
+  },
+  {
+    "nome": "gravado_grafo_proprio",
+    "http": 200,
+    "corpo": {
+      "graph": "memoria-contrato",
+      "upserted": 1,
+      "to_embed": 0
+    }
+  }
+]

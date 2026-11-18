@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Pedido de POST /api/v1/graph/backup, contrato aberto grafo-rest-v1",
+  "type": "object",
+  "required": [
+    "graph"
+  ],
+  "properties": {
+    "graph": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S",
+      "description": "Grafo a copiar: o project_id de um projeto (o que status devolve) ou o nome de um grafo próprio. Obrigatório; não há campo de caminho, o servidor escolhe a pasta."
+    }
+  },
+  "additionalProperties": false
+}

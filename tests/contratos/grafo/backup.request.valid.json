@@ -1,0 +1,4 @@
+[
+  {"nome":"grafo_do_projeto","corpo":{"graph":"${PROJECT_ID}"}},
+  {"nome":"grafo_proprio_vazio","corpo":{"graph":"conformidade-sem-linhas"}}
+]

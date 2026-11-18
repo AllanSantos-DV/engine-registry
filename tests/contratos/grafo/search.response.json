@@ -1,0 +1,584 @@
+[
+  {
+    "nome": "nao_indexado",
+    "http": 200,
+    "corpo": {
+      "project_id": "/home/dev/meu-projeto",
+      "root": "/home/dev/meu-projeto",
+      "state": "not_indexed",
+      "hint": "grafo não indexado — chame POST /api/v1/graph/ingest com este 'path'"
+    }
+  },
+  {
+    "nome": "erro_sem_query",
+    "http": 400,
+    "corpo": {
+      "error": "Field 'query' is required",
+      "code": "VALIDATION_ERROR",
+      "status": 400,
+      "type": "contrato/grafo-rest-v1/grafo-rest-v1.md",
+      "title": "VALIDATION_ERROR",
+      "detail": "Field 'query' is required",
+      "hint": "Veja contrato/grafo-rest-v1/grafo-rest-v1.md para os campos de cada rota, os estados do grafo e os erros."
+    }
+  },
+  {
+    "nome": "pronto",
+    "http": 200,
+    "corpo": {
+      "project_id": "/home/dev/meu-projeto",
+      "root": "/home/dev/meu-projeto",
+      "state": "ready",
+      "freshness": {
+        "last_ingest_at": "2026-11-18T12:17:01.239Z",
+        "age_hours": 0.0,
+        "retention_days": 30,
+        "removal_from": "2026-12-18T12:17:01.239Z"
+      },
+      "query": "checkout",
+      "mode": "auto",
+      "seed": [
+        {
+          "id": "src/Service.java::Service.checkout",
+          "name": "checkout",
+          "type": "METHOD",
+          "file": "src/Service.java",
+          "startLine": 2,
+          "endLine": 2,
+          "pagerank": 0.1748289738168046,
+          "signature": "void checkout()"
+        }
+      ],
+      "expanded": [
+        {
+          "id": "src/Service.java::Service.pay",
+          "name": "pay",
+          "type": "METHOD",
+          "file": "src/Service.java",
+          "startLine": 5,
+          "endLine": 5,
+          "pagerank": 0.2491314330524845,
+          "signature": "void pay()",
+          "doc": "Cobra o valor do pedido no cartão."
+        },
+        {
+          "id": "src/Service.java::Service",
+          "name": "Service",
+          "type": "CLASS",
+          "file": "src/Service.java",
+          "startLine": 1,
+          "endLine": 6,
+          "pagerank": 0.21220345179086367
+        },
+        {
+          "id": "src/Service.java::Service.validate",
+          "name": "validate",
+          "type": "METHOD",
+          "file": "src/Service.java",
+          "startLine": 3,
+          "endLine": 3,
+          "pagerank": 0.2491314330524845,
+          "signature": "void validate()"
+        }
+      ]
+    }
+  },
+  {
+    "nome": "pronto_modo_texto",
+    "http": 200,
+    "corpo": {
+      "project_id": "/home/dev/meu-projeto",
+      "root": "/home/dev/meu-projeto",
+      "state": "ready",
+      "freshness": {
+        "last_ingest_at": "2026-11-18T12:17:01.239Z",
+        "age_hours": 0.0,
+        "retention_days": 30,
+        "removal_from": "2026-12-18T12:17:01.239Z"
+      },
+      "query": "cartão",
+      "mode": "text",
+      "seed": [
+        {
+          "id": "src/Service.java::Service.pay",
+          "name": "pay",
+          "type": "METHOD",
+          "file": "src/Service.java",
+          "startLine": 5,
+          "endLine": 5,
+          "pagerank": 0.2491314330524845,
+          "signature": "void pay()",
+          "doc": "Cobra o valor do pedido no cartão."
+        }
+      ],
+      "expanded": [
+        {
+          "id": "src/Service.java::Service",
+          "name": "Service",
+          "type": "CLASS",
+          "file": "src/Service.java",
+          "startLine": 1,
+          "endLine": 6,
+          "pagerank": 0.21220345179086367
+        },
+        {
+          "id": "src/Service.java::Service.checkout",
+          "name": "checkout",
+          "type": "METHOD",
+          "file": "src/Service.java",
+          "startLine": 2,
+          "endLine": 2,
+          "pagerank": 0.1748289738168046,
+          "signature": "void checkout()"
+        }
+      ]
+    }
+  },
+  {
+    "nome": "erro_modo",
+    "http": 400,
+    "corpo": {
+      "error": "Field 'mode' must be one of: auto, text",
+      "code": "VALIDATION_ERROR",
+      "status": 400,
+      "type": "contrato/grafo-rest-v1/grafo-rest-v1.md",
+      "title": "VALIDATION_ERROR",
+      "detail": "Field 'mode' must be one of: auto, text",
+      "hint": "Veja contrato/grafo-rest-v1/grafo-rest-v1.md para os campos de cada rota, os estados do grafo e os erros."
+    }
+  },
+  {
+    "nome": "pronto_grafo_dos_tipos",
+    "http": 200,
+    "corpo": {
+      "graph": "/home/dev/meu-projeto",
+      "state": "ready",
+      "query": "Nota A",
+      "mode": "auto",
+      "seed": [
+        {
+          "id": "nota:a",
+          "name": "Nota A",
+          "type": "nota",
+          "kind": "nota",
+          "props": {
+            "origem": "contrato"
+          },
+          "content": "texto da nota a para a busca por palavras"
+        }
+      ],
+      "expanded": [
+        {
+          "id": "nota:b",
+          "name": "Nota B",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da nota b"
+        }
+      ]
+    }
+  },
+  {
+    "nome": "pronto_estouro_dos_tipos",
+    "http": 200,
+    "corpo": {
+      "graph": "politica-contrato",
+      "state": "ready",
+      "query": "politica",
+      "mode": "auto",
+      "seed": [
+        {
+          "id": "nota:p00",
+          "name": "Nota P00",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 00"
+        },
+        {
+          "id": "nota:p01",
+          "name": "Nota P01",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 01"
+        },
+        {
+          "id": "nota:p02",
+          "name": "Nota P02",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 02"
+        },
+        {
+          "id": "nota:p03",
+          "name": "Nota P03",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 03"
+        },
+        {
+          "id": "nota:p04",
+          "name": "Nota P04",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 04"
+        },
+        {
+          "id": "nota:p05",
+          "name": "Nota P05",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 05"
+        },
+        {
+          "id": "nota:p06",
+          "name": "Nota P06",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 06"
+        },
+        {
+          "id": "nota:p07",
+          "name": "Nota P07",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 07"
+        },
+        {
+          "id": "nota:p08",
+          "name": "Nota P08",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 08"
+        },
+        {
+          "id": "nota:p09",
+          "name": "Nota P09",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 09"
+        },
+        {
+          "id": "nota:p10",
+          "name": "Nota P10",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 10"
+        },
+        {
+          "id": "nota:p11",
+          "name": "Nota P11",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 11"
+        },
+        {
+          "id": "nota:p12",
+          "name": "Nota P12",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 12"
+        },
+        {
+          "id": "nota:p13",
+          "name": "Nota P13",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 13"
+        },
+        {
+          "id": "nota:p14",
+          "name": "Nota P14",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 14"
+        },
+        {
+          "id": "nota:p15",
+          "name": "Nota P15",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 15"
+        },
+        {
+          "id": "nota:p16",
+          "name": "Nota P16",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 16"
+        },
+        {
+          "id": "nota:p17",
+          "name": "Nota P17",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 17"
+        },
+        {
+          "id": "nota:p18",
+          "name": "Nota P18",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 18"
+        },
+        {
+          "id": "nota:p19",
+          "name": "Nota P19",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 19"
+        }
+      ],
+      "expanded": [ ],
+      "overflow": [
+        "nota"
+      ]
+    }
+  },
+  {
+    "nome": "pronto_conteudo_completo",
+    "http": 200,
+    "corpo": {
+      "graph": "politica-contrato",
+      "state": "ready",
+      "query": "politica",
+      "mode": "auto",
+      "seed": [
+        {
+          "id": "nota:p00",
+          "name": "Nota P00",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 00"
+        },
+        {
+          "id": "nota:p01",
+          "name": "Nota P01",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 01"
+        },
+        {
+          "id": "nota:p02",
+          "name": "Nota P02",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 02"
+        },
+        {
+          "id": "nota:p03",
+          "name": "Nota P03",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 03"
+        },
+        {
+          "id": "nota:p04",
+          "name": "Nota P04",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 04"
+        },
+        {
+          "id": "nota:p05",
+          "name": "Nota P05",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 05"
+        },
+        {
+          "id": "nota:p06",
+          "name": "Nota P06",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 06"
+        },
+        {
+          "id": "nota:p07",
+          "name": "Nota P07",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 07"
+        },
+        {
+          "id": "nota:p08",
+          "name": "Nota P08",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 08"
+        },
+        {
+          "id": "nota:p09",
+          "name": "Nota P09",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 09"
+        },
+        {
+          "id": "nota:p10",
+          "name": "Nota P10",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 10"
+        },
+        {
+          "id": "nota:p11",
+          "name": "Nota P11",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 11"
+        },
+        {
+          "id": "nota:p12",
+          "name": "Nota P12",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 12"
+        },
+        {
+          "id": "nota:p13",
+          "name": "Nota P13",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 13"
+        },
+        {
+          "id": "nota:p14",
+          "name": "Nota P14",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 14"
+        },
+        {
+          "id": "nota:p15",
+          "name": "Nota P15",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 15"
+        },
+        {
+          "id": "nota:p16",
+          "name": "Nota P16",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 16"
+        },
+        {
+          "id": "nota:p17",
+          "name": "Nota P17",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 17"
+        },
+        {
+          "id": "nota:p18",
+          "name": "Nota P18",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 18"
+        },
+        {
+          "id": "nota:p19",
+          "name": "Nota P19",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 19"
+        },
+        {
+          "id": "nota:p20",
+          "name": "Nota P20",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 20"
+        },
+        {
+          "id": "nota:p21",
+          "name": "Nota P21",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 21"
+        },
+        {
+          "id": "nota:p22",
+          "name": "Nota P22",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 22"
+        },
+        {
+          "id": "nota:p23",
+          "name": "Nota P23",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 23"
+        },
+        {
+          "id": "nota:p24",
+          "name": "Nota P24",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da politica 24"
+        }
+      ],
+      "expanded": [ ]
+    }
+  },
+  {
+    "nome": "erro_agent_longo",
+    "http": 400,
+    "corpo": {
+      "error": "Field 'agent' must be a non-empty string of at most 64 characters",
+      "code": "VALIDATION_ERROR",
+      "status": 400,
+      "type": "contrato/grafo-rest-v1/grafo-rest-v1.md",
+      "title": "VALIDATION_ERROR",
+      "detail": "Field 'agent' must be a non-empty string of at most 64 characters",
+      "hint": "Veja contrato/grafo-rest-v1/grafo-rest-v1.md para os campos de cada rota, os estados do grafo e os erros."
+    }
+  }
+]

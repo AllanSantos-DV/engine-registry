@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Resposta de POST /api/v1/graph/neighbors, contrato aberto grafo-rest-v1 (vizinhança pelas arestas dos tipos registrados)",
+  "type": "object",
+  "required": [
+    "graph",
+    "node",
+    "neighbors",
+    "truncated"
+  ],
+  "properties": {
+    "graph": {
+      "type": "string"
+    },
+    "node": {
+      "$ref": "#/$defs/kindNode"
+    },
+    "neighbors": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/kindNode"
+      }
+    },
+    "truncated": {
+      "type": "boolean",
+      "description": "true quando o teto de 500 vizinhos cortou a travessia."
+    }
+  },
+  "$defs": {
+    "kindNode": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "type",
+        "kind"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "description": "Para um nó de tipo registrado, o nome do tipo; para código, o tipo do símbolo."
+        },
+        "kind": {
+          "type": "string",
+          "description": "Tipo do nó: code ou um tipo registrado."
+        },
+        "file": {
+          "type": "string",
+          "description": "Só nos nós de código."
+        },
+        "props": {
+          "type": "object",
+          "description": "Propriedades gravadas com o nó."
+        },
+        "content": {
+          "type": "string",
+          "description": "Conteúdo gravado com o nó, quando existe."
+        },
+        "depth": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Em neighbors: a distância em arestas até o nó pedido."
+        },
+        "edge": {
+          "type": "object",
+          "required": [
+            "source",
+            "target",
+            "type"
+          ],
+          "properties": {
+            "source": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            }
+          },
+          "description": "Em neighbors: a aresta pela qual o nó foi alcançado."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,5 @@
+[
+  {"nome":"listar","corpo":{}},
+  {"nome":"registrar","corpo":{"name":"conformidade","owner":"conformidade","required":[],"fulltext":["content","name"],"edge_types":["CONFORMIDADE_LIGA"]}},
+  {"nome":"registrar_com_vetor_e_prazo","corpo":{"name":"conformidade","owner":"conformidade","fulltext":["content","name"],"embed":"content","edge_types":["CONFORMIDADE_LIGA"],"retention_days":null}}
+]

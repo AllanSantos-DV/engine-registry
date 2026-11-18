@@ -1,0 +1,289 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Resposta de POST /api/v1/graph/search, contrato aberto grafo-rest-v1 (sementes e expansão de N saltos)",
+  "type": "object",
+  "required": [
+    "state"
+  ],
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Id do projeto, derivado de path."
+    },
+    "graph": {
+      "type": "string",
+      "description": "Com graph no pedido: o grafo dos tipos lido; no lugar de project_id e root."
+    },
+    "root": {
+      "type": "string",
+      "description": "Raiz canônica do projeto."
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "not_indexed",
+        "indexing",
+        "ready",
+        "failed"
+      ]
+    },
+    "freshness": {
+      "$ref": "#/$defs/freshness"
+    },
+    "hint": {
+      "type": "string",
+      "description": "Presente quando o grafo não está ready: diz qual chamada fazer."
+    },
+    "error": {
+      "type": "string",
+      "description": "Presente quando state=failed."
+    },
+    "recall_degraded": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Razões de degradação do orçamento da busca; ausente sem degradação."
+    },
+    "recall_warning": {
+      "type": "string"
+    },
+    "query": {
+      "type": "string"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "text"
+      ],
+      "description": "O mode aplicado às sementes."
+    },
+    "seed": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/node"
+          },
+          {
+            "$ref": "#/$defs/kindNode"
+          }
+        ]
+      }
+    },
+    "expanded": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/node"
+          },
+          {
+            "$ref": "#/$defs/kindNode"
+          }
+        ]
+      }
+    },
+    "overflow": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Tipos que tinham mais sementes do que o tamanho de retorno devolvido (o padrão do tipo, ou 500 em full), na ordem de retorno aprendida. Ausente quando nenhum tipo passou do tamanho e sempre ausente com topK explícito sem full. Quem precisa do resto pede o tipo em full."
+    }
+  },
+  "if": {
+    "properties": {
+      "state": {
+        "const": "ready"
+      }
+    },
+    "required": [
+      "state"
+    ]
+  },
+  "then": {
+    "required": [
+      "query",
+      "seed",
+      "expanded"
+    ]
+  },
+  "else": {
+    "required": [
+      "hint"
+    ]
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "type",
+        "file",
+        "startLine",
+        "endLine",
+        "pagerank"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "FILE",
+            "CLASS",
+            "INTERFACE",
+            "ENUM",
+            "FUNCTION",
+            "METHOD"
+          ]
+        },
+        "file": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "startLine": {
+          "type": "integer"
+        },
+        "endLine": {
+          "type": "integer"
+        },
+        "pagerank": {
+          "type": "number"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "doc": {
+          "type": "string",
+          "description": "Documentação do símbolo (comentário de documentação ou docstring), quando existe; ausente sem documentação."
+        },
+        "depth": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Distância em chamadas até o nó pedido. Só aparece em callers, callees e references quando o pedido leva hops."
+        }
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "required": [
+        "last_ingest_at",
+        "age_hours",
+        "retention_days",
+        "removal_from"
+      ],
+      "properties": {
+        "last_ingest_at": {
+          "type": "string",
+          "description": "Instante da última ingestão, ISO 8601."
+        },
+        "age_hours": {
+          "type": "number",
+          "description": "Idade do grafo em horas, com uma casa."
+        },
+        "retention_days": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Dias de retenção; null quando a retenção não está disponível."
+        },
+        "removal_from": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "A partir de quando a retenção pode remover o grafo; null sem prazo."
+        },
+        "retention_error": {
+          "type": "string"
+        }
+      }
+    },
+    "kindNode": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "type",
+        "kind"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "description": "Para um nó de tipo registrado, o nome do tipo; para código, o tipo do símbolo."
+        },
+        "kind": {
+          "type": "string",
+          "description": "Tipo do nó: code ou um tipo registrado."
+        },
+        "file": {
+          "type": "string",
+          "description": "Só nos nós de código."
+        },
+        "props": {
+          "type": "object",
+          "description": "Propriedades gravadas com o nó."
+        },
+        "content": {
+          "type": "string",
+          "description": "Conteúdo gravado com o nó, quando existe."
+        },
+        "depth": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Em neighbors: a distância em arestas até o nó pedido."
+        },
+        "edge": {
+          "type": "object",
+          "required": [
+            "source",
+            "target",
+            "type"
+          ],
+          "properties": {
+            "source": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            }
+          },
+          "description": "Em neighbors: a aresta pela qual o nó foi alcançado."
+        }
+      }
+    }
+  },
+  "anyOf": [
+    {
+      "required": [
+        "project_id",
+        "root"
+      ]
+    },
+    {
+      "required": [
+        "graph"
+      ]
+    }
+  ]
+}

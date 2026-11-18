@@ -1,0 +1,3 @@
+[
+  {"nome":"uma_aresta","corpo":{"graph":"${PROJECT_ID}","edges":[{"source":"conformidade:a","target":"conformidade:b","type":"CONFORMIDADE_LIGA"}]}}
+]

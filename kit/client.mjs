@@ -80,7 +80,7 @@ async function call(name, url, method, path, { body, headers = {}, token, timeou
   const json = await res.json().catch(() => null);
   if (res.status === 200 || res.status === 202) { return { ok: true, status: res.status, json }; }
   const detail = json?.detail ?? json;
-  const code = typeof detail === "object" ? detail?.code ?? detail?.error : null;
+  const code = (typeof detail === "object" ? detail?.code ?? detail?.error : null) ?? json?.code;
   const text = typeof detail === "string" ? detail : detail?.message ?? JSON.stringify(detail ?? "");
   const retry = Number(res.headers.get("retry-after"));
   return { ok: false, status: res.status, reason: `${name} respondeu HTTP ${res.status}${code ? ` ${code}` : ""}: ${text}`, body: json, ...(retry ? { retryAfter: retry } : {}) };
@@ -134,14 +134,28 @@ export function casaClient({ url }, { timeoutMs = 30000 } = {}) {
  * @param {{timeoutMs?:number}} [opts]
  */
 export function grafoClient({ url, token }, { timeoutMs = 15000 } = {}) {
-  const post = (sub, path, extra = {}) => call(GRAFO, url, "POST", `/api/v1/graph/${sub}`, { body: { path, ...extra }, token, timeoutMs });
-  const leitura = (sub) => async (path, extra) => { const r = await post(sub, path, extra); return r.ok ? { ok: true, result: r.json } : r; };
+  const enviar = (sub, body) => call(GRAFO, url, "POST", `/api/v1/graph/${sub}`, { body, token, timeoutMs });
+  const post = (sub, path, extra = {}) => enviar(sub, { path, ...extra });
+  const lido = (r) => (r.ok ? { ok: true, result: r.json } : r);
+  const leitura = (sub) => async (path, extra) => lido(await post(sub, path, extra));
   const exige = (campo, verbo, extra) => (extra?.[campo] ? null : { ok: false, reason: `${GRAFO}: ${verbo} exige '${campo}'` });
+  const lista = (verbo, v) => (Array.isArray(v) && v.length ? null : { ok: false, reason: `${GRAFO}: ${verbo} exige uma lista com pelo menos um item` });
+  const noGrafo = (sub, verbo, campo) => async (graph, valor) => exige("graph", verbo, { graph }) ?? lista(verbo, valor) ?? lido(await enviar(sub, { graph, [campo]: valor }));
+  const doGrafo = (sub) => async (graph, extra) => exige("graph", sub, { graph }) ?? lido(await enviar(sub, { graph, ...extra }));
   const g = {
     status: async (path) => { const r = await post("status", path); return r.ok ? { ok: true, status: r.json } : r; },
     ingest: async (path) => { const r = await post("ingest", path); return r.ok ? { ok: true, accepted: r.status === 202 } : r; },
     symbols: leitura("symbols"),
     search: async (path, extra) => exige("query", "search", extra) ?? leitura("search")(path, extra),
+    symbolsOf: doGrafo("symbols"),
+    searchOf: async (graph, extra) => exige("query", "search", extra) ?? doGrafo("search")(graph, extra),
+    kinds: async (definicao = {}) => lido(await enviar("kinds", definicao)),
+    nodes: noGrafo("nodes", "nodes", "nodes"),
+    edges: noGrafo("edges", "edges", "edges"),
+    deleteNodes: noGrafo("nodes/delete", "deleteNodes", "ids"),
+    deleteEdges: noGrafo("edges/delete", "deleteEdges", "edges"),
+    neighbors: async (graph, id, extra) => exige("id", "neighbors", { id }) ?? doGrafo("neighbors")(graph, { id, ...extra }),
+    backup: doGrafo("backup"),
     callers: async (path, extra) => exige("id", "callers", extra) ?? leitura("callers")(path, extra),
     callees: async (path, extra) => exige("id", "callees", extra) ?? leitura("callees")(path, extra),
     references: async (path, extra) => exige("id", "references", extra) ?? leitura("references")(path, extra),

@@ -1,0 +1,18 @@
+[
+  {"nome":"campo_desconhecido","motivo":"campo fora do contrato é recusado, nunca ignorado","http":400,"corpo":{"path":"${RAIZ}","bogus":1}},
+  {"nome":"sem_path","motivo":"path é obrigatório","http":400,"corpo":{"query":"main"}},
+  {"nome":"tipo_errado_limit","motivo":"limit deve ser inteiro; hoje o servidor cai no padrão","http":null,"corpo":{"path":"${RAIZ}","limit":"abc"}},
+  {"nome":"tipo_errado_path_lista","motivo":"path deve ser texto","http":400,"corpo":{"path":["x"]}},
+  {"nome":"modo_desconhecido","motivo":"mode só aceita exact, auto e semantic","http":400,"corpo":{"path":"${RAIZ}","mode":"bogus"}},
+  {"nome":"tipo_errado_mode","motivo":"mode deve ser texto","http":400,"corpo":{"path":"${RAIZ}","mode":3}},
+  {"nome":"tipo_errado_kinds","motivo":"kinds deve ser uma lista de nomes de tipo","http":400,"corpo":{"path":"${RAIZ}","kinds":"code"}},
+  {"nome":"tipo_errado_where","motivo":"where deve ser um objeto de propriedade para valor escalar","http":400,"corpo":{"graph":"${PROJECT_ID}","kinds":["conformidade"],"where":{"origem":[1]}}},
+  {"nome":"tipo_errado_full","motivo":"full deve ser uma lista de nomes de tipo","http":400,"corpo":{"graph":"${PROJECT_ID}","kinds":["conformidade"],"full":"conformidade"}},
+  {"nome":"tipo_errado_full_item","motivo":"cada item de full é o nome de um tipo","http":400,"corpo":{"graph":"${PROJECT_ID}","kinds":["conformidade"],"full":[1]}},
+  {"nome":"full_com_nome_em_branco","motivo":"full leva nomes de tipo, não texto vazio","http":400,"corpo":{"graph":"${PROJECT_ID}","kinds":["conformidade"],"full":[""]}},
+  {"nome":"tipo_errado_agent","motivo":"agent deve ser texto","http":400,"corpo":{"path":"${RAIZ}","agent":7}},
+  {"nome":"agent_vazio","motivo":"agent tem de 1 a 64 caracteres","http":400,"corpo":{"path":"${RAIZ}","agent":""}},
+  {"nome":"agent_acima_do_maximo","motivo":"agent tem de 1 a 64 caracteres","http":400,"corpo":{"path":"${RAIZ}","agent":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}},
+  {"nome":"tipo_errado_types","motivo":"types deve ser uma lista de tipos de símbolo","http":400,"corpo":{"path":"${RAIZ}","types":"CLASS"}},
+  {"nome":"types_vazio","motivo":"types lista ao menos um tipo","http":400,"corpo":{"path":"${RAIZ}","types":[]}}
+]

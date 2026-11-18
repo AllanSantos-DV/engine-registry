@@ -1,0 +1,49 @@
+[
+  {
+    "nome": "pronto",
+    "http": 200,
+    "corpo": {
+      "graph": "/home/dev/meu-projeto",
+      "node": {
+        "id": "nota:a",
+        "name": "Nota A",
+        "type": "nota",
+        "kind": "nota",
+        "props": {
+          "origem": "contrato"
+        },
+        "content": "texto da nota a para a busca por palavras"
+      },
+      "neighbors": [
+        {
+          "id": "nota:b",
+          "name": "Nota B",
+          "type": "nota",
+          "kind": "nota",
+          "props": { },
+          "content": "texto da nota b",
+          "depth": 1,
+          "edge": {
+            "source": "nota:a",
+            "target": "nota:b",
+            "type": "NOTA_LIGA"
+          }
+        }
+      ],
+      "truncated": false
+    }
+  },
+  {
+    "nome": "erro_no_ausente",
+    "http": 404,
+    "corpo": {
+      "error": "Node 'nota:nao-existe' does not exist in graph '/home/dev/meu-projeto'",
+      "code": "NODE_NOT_FOUND",
+      "status": 404,
+      "type": "contrato/grafo-rest-v1/grafo-rest-v1.md",
+      "title": "NODE_NOT_FOUND",
+      "detail": "Node 'nota:nao-existe' does not exist in graph '/home/dev/meu-projeto'",
+      "hint": "Veja contrato/grafo-rest-v1/grafo-rest-v1.md para os campos de cada rota, os estados do grafo e os erros."
+    }
+  }
+]

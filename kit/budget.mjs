@@ -116,9 +116,11 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-11-16 tooling 60300 → 62100: lembrete de chave de assinatura sem backup conferido, decidido pelo Jarvis na lente do 0.2.15
 //   (kit/key-backup.mjs, a linha do doctor e o carimbo gravado pelo backup e pelo check de tools/backup-keys.mjs), +1.8 KB. Só leitura
 //   de arquivo, na mão de quem publica; o caminho do `import "engine-kit"` não mudou.
+//   2026-11-18 client 9000 → 9800: o `grafoClient` ganhou as rotas de tipos do motor-de-grafo (`kinds`, `nodes`, `edges`, `deleteNodes`, `deleteEdges`,
+//   `neighbors`, `backup`, `symbolsOf` e `searchOf`) e passou a mostrar o `code` do erro do motor (que vem no corpo, não em `detail`), +1.1 KB. Nenhum chamador existente muda.
 const BUDGETS = {
   runtime: { codeBytes: 36800, baseline: 24519, loc: 900 },
-  client: { codeBytes: 9000, baseline: 8500, loc: 200 },
+  client: { codeBytes: 9800, baseline: 8500, loc: 230 },
   tooling: { codeBytes: 62100, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };

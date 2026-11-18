@@ -1,0 +1,19 @@
+[
+  {"nome":"so_path","corpo":{"path":"${RAIZ}"}},
+  {"nome":"com_query","corpo":{"path":"${RAIZ}","query":"main"}},
+  {"nome":"com_limit","corpo":{"path":"${RAIZ}","limit":5}},
+  {"nome":"completo","corpo":{"path":"${RAIZ}","expected_project_id":"${PROJECT_ID}","query":"main","limit":10}},
+  {"nome":"modo_exato","corpo":{"path":"${RAIZ}","query":"main","mode":"exact"}},
+  {"nome":"modo_auto","corpo":{"path":"${RAIZ}","query":"main","mode":"auto"}},
+  {"nome":"so_codigo_explicito","corpo":{"path":"${RAIZ}","kinds":["code"]}},
+  {"nome":"codigo_e_notas","corpo":{"path":"${RAIZ}","kinds":["code","conformidade"],"limit":50}},
+  {"nome":"grafo_dos_tipos","corpo":{"graph":"${PROJECT_ID}","kinds":["conformidade"]}},
+  {"nome":"codigo_por_texto","corpo":{"path":"${RAIZ}","query":"palavras do comentario","mode":"text"}},
+  {"nome":"grafo_por_texto","corpo":{"graph":"${PROJECT_ID}","kinds":["conformidade"],"query":"palavras","mode":"text"}},
+  {"nome":"grafo_por_propriedade","corpo":{"graph":"${PROJECT_ID}","kinds":["conformidade"],"where":{"origem":"conformidade"}}},
+  {"nome":"so_agente","corpo":{"path":"${RAIZ}","agent":"conformidade"}},
+  {"nome":"codigo_completo","corpo":{"path":"${RAIZ}","full":["code"],"agent":"conformidade"}},
+  {"nome":"grafo_dos_tipos_completo","corpo":{"graph":"${PROJECT_ID}","kinds":["conformidade"],"full":["conformidade"],"agent":"conformidade"}},
+  {"nome":"completo_com_limit_nos_demais","corpo":{"graph":"${PROJECT_ID}","kinds":["conformidade"],"limit":5,"full":["conformidade"]}},
+  {"nome":"so_classes","corpo":{"path":"${RAIZ}","types":["CLASS","interface"]}}
+]

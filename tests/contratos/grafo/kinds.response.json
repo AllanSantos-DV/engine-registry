@@ -1,0 +1,69 @@
+[
+  {
+    "nome": "lista",
+    "http": 200,
+    "corpo": {
+      "kinds": [
+        {
+          "name": "code",
+          "owner": "motor-de-grafo",
+          "builtin": true,
+          "required": [ ],
+          "fulltext": [ ],
+          "embed": null,
+          "edge_types": [
+            "CONTAINS",
+            "IMPORTS",
+            "CALLS",
+            "REFERENCES",
+            "INHERITS"
+          ],
+          "node_types": [
+            "FILE",
+            "CLASS",
+            "INTERFACE",
+            "ENUM",
+            "FUNCTION",
+            "METHOD"
+          ],
+          "retention_days": 30
+        }
+      ]
+    }
+  },
+  {
+    "nome": "registrado",
+    "http": 200,
+    "corpo": {
+      "created": true,
+      "kind": {
+        "name": "nota",
+        "owner": "contrato",
+        "builtin": false,
+        "required": [ ],
+        "fulltext": [
+          "content",
+          "name"
+        ],
+        "embed": null,
+        "edge_types": [
+          "NOTA_LIGA"
+        ],
+        "retention_days": null
+      }
+    }
+  },
+  {
+    "nome": "erro_dono",
+    "http": 409,
+    "corpo": {
+      "error": "Kind 'nota' is owned by 'contrato'",
+      "code": "KIND_OWNED",
+      "status": 409,
+      "type": "contrato/grafo-rest-v1/grafo-rest-v1.md",
+      "title": "KIND_OWNED",
+      "detail": "Kind 'nota' is owned by 'contrato'",
+      "hint": "Veja contrato/grafo-rest-v1/grafo-rest-v1.md para os campos de cada rota, os estados do grafo e os erros."
+    }
+  }
+]

@@ -1,0 +1,7 @@
+[
+  {"nome":"campo_desconhecido","motivo":"campo fora do contrato é recusado, nunca ignorado","http":400,"corpo":{"bogus":1}},
+  {"nome":"tipo_errado_owner","motivo":"owner deve ser texto","http":400,"corpo":{"name":"conformidade","owner":3}},
+  {"nome":"nome_invalido","motivo":"name é minúsculo, com letras, dígitos e _","http":400,"corpo":{"name":"Maiusculo","owner":"conformidade"}},
+  {"nome":"sem_owner","motivo":"registrar exige name e owner","http":400,"corpo":{"name":"conformidade"}},
+  {"nome":"tipo_errado_prazo","motivo":"retention_days é inteiro de 1 em diante, ou null para nunca","http":400,"corpo":{"name":"conformidade","owner":"conformidade","retention_days":0}}
+]

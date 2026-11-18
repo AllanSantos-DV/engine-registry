@@ -1,0 +1,6 @@
+[
+  {"nome":"campo_desconhecido","motivo":"campo fora do contrato é recusado, nunca ignorado","http":400,"corpo":{"graph":"${PROJECT_ID}","edges":[{"source":"conformidade:a","target":"conformidade:b","type":"CONFORMIDADE_LIGA"}],"bogus":1}},
+  {"nome":"tipo_errado_edges","motivo":"edges deve ser uma lista","http":400,"corpo":{"graph":"${PROJECT_ID}","edges":"x"}},
+  {"nome":"edges_vazio","motivo":"edges não pode ser vazio","http":400,"corpo":{"graph":"${PROJECT_ID}","edges":[]}},
+  {"nome":"sem_graph","motivo":"graph é obrigatório","http":400,"corpo":{"edges":[{"source":"conformidade:a","target":"conformidade:b","type":"CONFORMIDADE_LIGA"}]}}
+]

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Resposta de POST /api/v1/graph/backup, contrato aberto grafo-rest-v1 (cópia manual conferida de um grafo)",
+  "type": "object",
+  "required": [
+    "graph",
+    "file",
+    "sha256",
+    "rows"
+  ],
+  "properties": {
+    "graph": {
+      "type": "string",
+      "description": "O grafo copiado, como veio no pedido."
+    },
+    "file": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Só o nome do arquivo, nunca o caminho; o nome contém -manual-, e por isso a poda automática dos backups nunca o apaga. null quando o grafo não tem linha nenhuma: nesse caso nenhum arquivo é gravado."
+    },
+    "sha256": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 do conteúdo do arquivo depois de descomprimido (as linhas em JSON), conferido na releitura antes de o arquivo ficar; 64 hexadecimais. null junto de file null."
+    },
+    "rows": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "description": "Linhas copiadas por tabela do banco."
+    }
+  }
+}

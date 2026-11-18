@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Resposta de POST /api/v1/graph/nodes, contrato aberto grafo-rest-v1 (gravação de nós de tipo registrado)",
+  "type": "object",
+  "required": [
+    "graph",
+    "upserted",
+    "to_embed"
+  ],
+  "properties": {
+    "graph": {
+      "type": "string"
+    },
+    "upserted": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "to_embed": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Quantos dos nós gravados têm texto a embutir; os vetores vêm da casa em segundo plano."
+    }
+  }
+}

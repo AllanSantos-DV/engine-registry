@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Resposta de POST /api/v1/graph/nodes/delete, contrato aberto grafo-rest-v1 (remoção de nós de tipo registrado)",
+  "type": "object",
+  "required": [
+    "graph",
+    "deleted"
+  ],
+  "properties": {
+    "graph": {
+      "type": "string"
+    },
+    "deleted": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "missing": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Ids pedidos que não existiam; só aparece quando há algum."
+    }
+  }
+}

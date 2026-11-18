@@ -1,0 +1,4 @@
+[
+  {"nome":"dois_nos","corpo":{"graph":"${PROJECT_ID}","nodes":[{"id":"conformidade:a","kind":"conformidade","name":"Nota A","props":{"origem":"conformidade"},"content":"texto da nota a para a busca por palavras"},{"id":"conformidade:b","kind":"conformidade","name":"Nota B","props":{"origem":"conformidade"},"content":"texto da nota b"}]}},
+  {"nome":"so_o_minimo","corpo":{"graph":"${PROJECT_ID}","nodes":[{"id":"conformidade:c","kind":"conformidade","name":"Nota C"}]}}
+]

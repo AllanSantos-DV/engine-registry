@@ -1,0 +1,14 @@
+[
+  {"nome":"campo_desconhecido","motivo":"campo fora do contrato é recusado, nunca ignorado","http":400,"corpo":{"path":"${RAIZ}","query":"main","bogus":1}},
+  {"nome":"sem_path","motivo":"path é obrigatório","http":400,"corpo":{"query":"main"}},
+  {"nome":"sem_query","motivo":"query é obrigatória","http":400,"corpo":{"path":"${RAIZ}"}},
+  {"nome":"tipo_errado_topk","motivo":"topK deve ser inteiro; hoje o servidor cai no padrão","http":null,"corpo":{"path":"${RAIZ}","query":"main","topK":"x"}},
+  {"nome":"hops_negativo","motivo":"hops não pode ser negativo; hoje o servidor trata como 0","http":null,"corpo":{"path":"${RAIZ}","query":"main","hops":-1}},
+  {"nome":"tipo_errado_kinds","motivo":"kinds deve ser uma lista de nomes de tipo","http":400,"corpo":{"path":"${RAIZ}","query":"x","kinds":3}},
+  {"nome":"tipo_errado_full","motivo":"full deve ser uma lista de nomes de tipo","http":400,"corpo":{"graph":"${PROJECT_ID}","kinds":["conformidade"],"query":"x","full":"conformidade"}},
+  {"nome":"full_com_nome_em_branco","motivo":"full leva nomes de tipo, não texto vazio","http":400,"corpo":{"graph":"${PROJECT_ID}","kinds":["conformidade"],"query":"x","full":[""]}},
+  {"nome":"tipo_errado_agent","motivo":"agent deve ser texto","http":400,"corpo":{"path":"${RAIZ}","query":"x","agent":7}},
+  {"nome":"agent_vazio","motivo":"agent tem de 1 a 64 caracteres","http":400,"corpo":{"path":"${RAIZ}","query":"x","agent":""}},
+  {"nome":"agent_acima_do_maximo","motivo":"agent tem de 1 a 64 caracteres","http":400,"corpo":{"path":"${RAIZ}","query":"x","agent":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}},
+  {"nome":"modo_fora_da_lista","motivo":"mode de search é auto ou text","http":400,"corpo":{"path":"${RAIZ}","query":"x","mode":"exact"}}
+]

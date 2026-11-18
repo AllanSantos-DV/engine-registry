@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Resposta de POST /api/v1/graph/kinds, contrato aberto grafo-rest-v1 (catálogo de tipos)",
+  "type": "object",
+  "properties": {
+    "kinds": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/kind"
+      },
+      "description": "Presente ao listar: o tipo code e os registrados."
+    },
+    "created": {
+      "type": "boolean",
+      "description": "Presente ao registrar: true se o tipo é novo, false se o mesmo dono o atualizou."
+    },
+    "kind": {
+      "$ref": "#/$defs/kind"
+    }
+  },
+  "anyOf": [
+    {
+      "required": [
+        "kinds"
+      ]
+    },
+    {
+      "required": [
+        "created",
+        "kind"
+      ]
+    }
+  ],
+  "$defs": {
+    "kind": {
+      "type": "object",
+      "required": [
+        "name",
+        "owner",
+        "builtin",
+        "required",
+        "fulltext",
+        "embed",
+        "edge_types",
+        "retention_days"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "builtin": {
+          "type": "boolean",
+          "description": "true só para code, que o motor traz."
+        },
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fulltext": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "embed": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "edge_types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "node_types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Só em code."
+        },
+        "retention_days": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Dias até o nó expirar; null para nunca."
+        }
+      }
+    }
+  }
+}

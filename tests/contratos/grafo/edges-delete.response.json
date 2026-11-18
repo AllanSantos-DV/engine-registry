@@ -1,0 +1,10 @@
+[
+  {
+    "nome": "removida",
+    "http": 200,
+    "corpo": {
+      "graph": "/home/dev/meu-projeto",
+      "deleted": 1
+    }
+  }
+]

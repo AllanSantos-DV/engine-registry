@@ -1,0 +1,3 @@
+[
+  {"nome":"tres_ids","corpo":{"graph":"${PROJECT_ID}","ids":["conformidade:a","conformidade:b","conformidade:c"]}}
+]

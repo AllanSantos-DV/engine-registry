@@ -1,0 +1,4 @@
+[
+  {"nome":"so_o_id","corpo":{"graph":"${PROJECT_ID}","id":"conformidade:a"}},
+  {"nome":"completo","corpo":{"graph":"${PROJECT_ID}","id":"conformidade:a","direction":"out","hops":2}}
+]

@@ -1,0 +1,7 @@
+[
+  {"nome":"campo_desconhecido","motivo":"campo fora do contrato é recusado, nunca ignorado","http":400,"corpo":{"graph":"${PROJECT_ID}","bogus":1}},
+  {"nome":"campo_path_recusado","motivo":"o backup não aceita caminho: o servidor escolhe a pasta","http":400,"corpo":{"graph":"${PROJECT_ID}","path":"/tmp/fora"}},
+  {"nome":"sem_graph","motivo":"graph é obrigatório","http":400,"corpo":{}},
+  {"nome":"graph_em_branco","motivo":"graph em branco vale como ausente","http":400,"corpo":{"graph":"  "}},
+  {"nome":"tipo_errado_graph_lista","motivo":"graph deve ser texto","http":400,"corpo":{"graph":["x"]}}
+]

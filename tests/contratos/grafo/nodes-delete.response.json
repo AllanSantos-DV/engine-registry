@@ -1,0 +1,13 @@
+[
+  {
+    "nome": "removidos",
+    "http": 200,
+    "corpo": {
+      "graph": "/home/dev/meu-projeto",
+      "deleted": 2,
+      "missing": [
+        "nota:nao-existe"
+      ]
+    }
+  }
+]

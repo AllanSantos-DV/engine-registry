@@ -1,0 +1,49 @@
+[
+  {
+    "nome": "erro_sem_graph",
+    "http": 400,
+    "corpo": {
+      "error": "Field 'graph' is required",
+      "code": "VALIDATION_ERROR",
+      "status": 400,
+      "type": "contrato/grafo-rest-v1/grafo-rest-v1.md",
+      "title": "VALIDATION_ERROR",
+      "detail": "Field 'graph' is required",
+      "hint": "Veja contrato/grafo-rest-v1/grafo-rest-v1.md para os campos de cada rota, os estados do grafo e os erros."
+    }
+  },
+  {
+    "nome": "pronto",
+    "http": 200,
+    "corpo": {
+      "graph": "memoria-contrato",
+      "file": "memoria-contrato-63e55b4d-manual-20261117-221259334.jsonl.zst",
+      "sha256": "6ad3e31b715bd0062df6065baa1be08129da8811e2f3e49c7baeb2dda77665f4",
+      "rows": {
+        "graph_nodes": 1,
+        "graph_edges": 0,
+        "graph_node_embeddings": 0,
+        "graph_node_tags": 0,
+        "graph_file_manifest": 0,
+        "graph_project_root": 0
+      }
+    }
+  },
+  {
+    "nome": "grafo_vazio",
+    "http": 200,
+    "corpo": {
+      "graph": "sem-linhas",
+      "file": null,
+      "sha256": null,
+      "rows": {
+        "graph_nodes": 0,
+        "graph_edges": 0,
+        "graph_node_embeddings": 0,
+        "graph_node_tags": 0,
+        "graph_file_manifest": 0,
+        "graph_project_root": 0
+      }
+    }
+  }
+]

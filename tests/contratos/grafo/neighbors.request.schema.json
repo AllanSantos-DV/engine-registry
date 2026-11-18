@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Pedido de POST /api/v1/graph/neighbors, contrato aberto grafo-rest-v1",
+  "type": "object",
+  "required": [
+    "graph",
+    "id"
+  ],
+  "properties": {
+    "hops": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "Níveis de arestas a percorrer. Padrão 1."
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S",
+      "description": "Id do nó, como devolvido por symbols, search, callers, callees e references. node_id é o apelido."
+    },
+    "graph": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S",
+      "description": "Grafo dos tipos registrados: o project_id de um projeto (o que status devolve) ou o nome de um grafo próprio. Em symbols e search, no lugar de path; não se combina com path nem com expected_project_id."
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "in",
+        "out",
+        "both"
+      ],
+      "description": "Sentido das arestas a seguir. Padrão both."
+    }
+  },
+  "additionalProperties": false
+}

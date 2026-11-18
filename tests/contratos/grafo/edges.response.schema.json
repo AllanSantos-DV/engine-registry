@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Resposta de POST /api/v1/graph/edges, contrato aberto grafo-rest-v1 (gravação de arestas de tipo registrado)",
+  "type": "object",
+  "required": [
+    "graph",
+    "upserted"
+  ],
+  "properties": {
+    "graph": {
+      "type": "string"
+    },
+    "upserted": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

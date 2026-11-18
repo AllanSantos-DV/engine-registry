@@ -1,0 +1,5 @@
+[
+  {"nome":"campo_desconhecido","motivo":"campo fora do contrato é recusado, nunca ignorado","http":400,"corpo":{"graph":"${PROJECT_ID}","ids":["conformidade:a"],"bogus":1}},
+  {"nome":"tipo_errado_ids","motivo":"ids deve ser uma lista de textos","http":400,"corpo":{"graph":"${PROJECT_ID}","ids":"x"}},
+  {"nome":"ids_vazio","motivo":"ids não pode ser vazio","http":400,"corpo":{"graph":"${PROJECT_ID}","ids":[]}}
+]

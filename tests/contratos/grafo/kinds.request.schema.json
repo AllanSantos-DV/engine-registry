@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Pedido de POST /api/v1/graph/kinds, contrato aberto grafo-rest-v1",
+  "type": "object",
+  "required": [ ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,31}$",
+      "description": "Nome do tipo; também o prefixo dos ids dos seus nós (nome:...). code é do motor e não se registra."
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "\\S",
+      "description": "Produto dono do tipo; só ele registra o mesmo nome de novo (409 KIND_OWNED para outro)."
+    },
+    "required": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_]{1,64}$"
+      },
+      "description": "Propriedades que todo nó do tipo precisa trazer."
+    },
+    "fulltext": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_]{1,64}$"
+      },
+      "description": "Campos indexados para a busca por texto: name, content ou o nome de uma propriedade."
+    },
+    "embed": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_]{1,64}$",
+      "description": "Campo que vira vetor pela casa de embeddings: name, content ou o nome de uma propriedade."
+    },
+    "edge_types": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Z0-9_]{0,39}$"
+      },
+      "description": "Tipos de aresta que o tipo define; um nome pertence a um tipo só (409 EDGE_TYPE_TAKEN) e a aresta sai de um nó do tipo que a define."
+    },
+    "retention_days": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "description": "Dias desde a última gravação do nó até ele ser removido, com backup conferido. Ausente ou null: nunca expira."
+    }
+  },
+  "additionalProperties": false,
+  "if": {
+    "anyOf": [
+      {
+        "required": [
+          "name"
+        ]
+      },
+      {
+        "required": [
+          "owner"
+        ]
+      }
+    ]
+  },
+  "then": {
+    "required": [
+      "name",
+      "owner"
+    ]
+  }
+}

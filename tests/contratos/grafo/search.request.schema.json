@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Pedido de POST /api/v1/graph/search, contrato aberto grafo-rest-v1",
+  "type": "object",
+  "required": [
+    "query"
+  ],
+  "properties": {
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S",
+      "description": "Raiz do projeto. O servidor deriva o project_id dela; o caminho é a autoridade."
+    },
+    "expected_project_id": {
+      "type": "string",
+      "description": "Asserção, nunca sobrescrita: se divergir do id derivado de path a rota responde 409 ID_MISMATCH. Em branco vale como ausente."
+    },
+    "query": {
+      "type": "string",
+      "description": "Termo de busca. Em symbols, vazio devolve o mapa por PageRank."
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "text"
+      ],
+      "description": "Como achar as sementes. auto (padrão): no código, nome exato, depois o comentário de documentação e só então o vetor; nos tipos registrados, nome e depois texto indexado. text: só as palavras do texto indexado (no código, o comentário de documentação); responde 400 KIND_NOT_TEXT_INDEXED se algum tipo registrado pedido não indexa texto."
+    },
+    "topK": {
+      "type": "integer",
+      "description": "Quantidade de nós-semente. Ausente, cada tipo devolve o seu próprio padrão (20 de início) e o que passa dele vem sinalizado em overflow; presente, vale um limite único para todos os tipos."
+    },
+    "hops": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Em search: saltos de expansão a partir das sementes. Padrão 1; valor negativo não tem sentido e o servidor o trata como 0."
+    },
+    "graph": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S",
+      "description": "Grafo dos tipos registrados: o project_id de um projeto (o que status devolve) ou o nome de um grafo próprio. Em symbols e search, no lugar de path; não se combina com path nem com expected_project_id."
+    },
+    "kinds": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      },
+      "description": "Tipos a ler. Ausente: só código, como sempre. Com path aceita code e os tipos registrados, e em symbols as duas listas se fundem pela posição de cada nó; com graph, só os registrados. Tipo desconhecido responde 400 UNKNOWN_KIND."
+    },
+    "where": {
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ]
+      },
+      "description": "Filtro por propriedade dos nós de tipo registrado: cada par exige igualdade. Não vale para o tipo code."
+    },
+    "full": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "\\S"
+      },
+      "description": "Tipos cujo conteúdo completo se quer (até 500 resultados cada), em vez do padrão do tipo. Cada nome é um tipo registrado ou code e precisa estar entre os tipos lidos (400 UNKNOWN_KIND se desconhecido, 400 VALIDATION_ERROR se fora da seleção). Cada pedido é registrado, por tipo e por agente, no banco local do motor e faz o padrão do tipo crescer."
+    },
+    "agent": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "\\S",
+      "description": "Quem está pedindo, para o registro dos pedidos de full. Padrão unknown."
+    }
+  },
+  "additionalProperties": false,
+  "anyOf": [
+    {
+      "required": [
+        "path"
+      ]
+    },
+    {
+      "required": [
+        "graph"
+      ]
+    }
+  ]
+}
