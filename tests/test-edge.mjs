@@ -22,6 +22,7 @@ const sha256 = (p) => createHash("sha256").update(readFileSync(p)).digest("hex")
 
 const ROOT = join(tmpdir(), `engine-kit-edge-${Date.now()}`);
 mkdirSync(ROOT, { recursive: true });
+process.env.ENGINE_KIT_HOME = join(ROOT, "trust-home");
 
 // --- artefato de teste real (.tgz com package.json + entry) ---
 const pkgDir = join(ROOT, "pkg");
