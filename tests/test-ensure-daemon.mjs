@@ -100,9 +100,12 @@ async function instalarComDaemonVivo(home, runtime, busyMs = 0) {
   if (!first.ok) { throw new Error(`instalação inicial falhou: ${first.reason}`); }
   const proc = spawn(process.execPath, [DAEMON], { cwd: join(home, "bin"), env: { ...process.env, FAKE_HOME: home, FAKE_BUSY_MS: String(busyMs) }, windowsHide: true, stdio: "ignore" });
   const dj = join(home, "run", "daemon.json");
-  for (let i = 0; i < 100 && !existsSync(dj); i++) { await sleep(100); }
-  if (!existsSync(dj)) { proc.kill(); throw new Error("o daemon fake não anunciou o daemon.json"); }
-  return { proc, pid: JSON.parse(readFileSync(dj, "utf8")).pid };
+  let pid;
+  for (let i = 0; i < 100 && pid === undefined; i++) {
+    try { pid = JSON.parse(readFileSync(dj, "utf8")).pid; } catch { await sleep(100); }
+  }
+  if (pid === undefined) { proc.kill(); throw new Error("o daemon fake não anunciou um daemon.json legível"); }
+  return { proc, pid };
 }
 
 async function atualizar(home, runtime) {
