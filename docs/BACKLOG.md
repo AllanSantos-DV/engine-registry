@@ -4,7 +4,7 @@ Melhorias encontradas durante outro trabalho e deixadas para depois.
 
 ## Técnico
 
-- **Aberto (2026-11-18): a cópia da mídia da tela `index` no Smart Design está velha.** O projeto `engine-registry-vitrine-no-ar-evid-ncia-cb25e0` guarda em `screens/index/media/` o vídeo e o pôster de 13/11 (oito motores); `site/media/` já tem os de 18/11 (nove motores). A validação e as capturas usam a cópia velha. Para refrescar, reenviar a tela com `media_dir` apontando para `site/media`, e refazer a comparação de `docs/research/2026-11-18-vitrine-tokens/` contra a nova linha de base.
+Nenhum item aberto.
 
 ## Aguardando decisão do dono
 
@@ -34,6 +34,7 @@ Seis funções irmãs: **decididas e construídas** (decisão do dono, 2026-11-1
 - **Decidida e construída (2026-11-18): `tools/ponte-marketplace.mjs`.** Automatiza o critério de remoção da ponte (CONTRATO-MOTOR §7) pela busca de código do `gh`: lista onde a URL antiga ainda aparece nos repositórios do dono; exit 0 só quando vazio, 1 se falta migrar, 2 se não deu para consultar. Teste, com o `gh` injetado: `tests/test-ponte-marketplace.mjs`. A primeira consulta real achou 7 arquivos em 4 repositórios (`copilot-marketplace`, `copilot-voice`, `neural-link-runtime`, `neural-link`); parte é auto-referência dos repositórios do canal antigo, que o script lista de propósito em vez de esconder.
 
 - **Resolvido (2026-11-18): `tests/real-grafo-tipos.mjs` usava `tmpdir` sem importar `./_tmp.mjs`.** O `import "./_tmp.mjs"` já entrou no commit e002409; conferido por `tests/test-temp-limpo.mjs`, que fecha verde.
+- **Resolvido (2026-11-18): mídia da tela `index` no Smart Design atualizada para a de `site/media/`.** Tela reenviada com `media_dir`, `sd_validate` com `ok: true` em todos os checks e comparação refeita contra a página anterior à migração com a mesma mídia: 0 a 0,0051% de pixels diferentes por viewport, dentro da tolerância (`docs/research/2026-11-18-vitrine-tokens/`).
 - **Resolvido (2026-11-18): `engine-kit url` e o `discover` atendem anúncio só com `port`.** `mcp-gateway` e `embed-house` anunciam apenas `port`: o `discover` (`kit/client.mjs`) monta `http://127.0.0.1:<port>`; `url` no anúncio continua valendo, e porta que não é inteiro de 1 a 65535 é erro explícito (`porta inválida`), não "sem anúncio". Teto do cliente 9800 → 10000, com entrada datada em `kit/budget.mjs`. Teste: `tests/test-url.mjs`.
 - **Resolvido (2026-11-18): `tools/ponte-marketplace.mjs` não lista mais a auto-referência.** Fica fora o README* da raiz e o que está sob `docs/` do próprio repositório apontado pela URL buscada (`copilot-marketplace` para `<dono>/copilot-marketplace/releases`, `neural-link-runtime` para `<dono>/neural-link-runtime`); o relatório diz quantos ignorou (`ignoredSelf` no `--json`). Código desses repositórios (ex.: `plugins/voice-chat/voice-update.mjs`) segue listado, e os demais repositórios não mudam. Teste: `tests/test-ponte-marketplace.mjs`.
 
