@@ -18,23 +18,47 @@ import { shutdown, stopEngine } from "./lifecycle.mjs";
 import { pinOf, setPin } from "./trust.mjs";
 export { firstContactKeys } from "./trust.mjs";
 import { pointerOf } from "./diagnose.mjs";
+import { checkCommand } from "./inspect.mjs";
 
 const BUNDLED_MANIFEST = new URL("../manifest.json", import.meta.url);
 const installedOf = (e) => existsSync(join(e.homeDir, e.install.entry)) ? installedVersion(join(e.homeDir, e.install.extractTo ?? "bin")) : null;
 
-/** Manifest que viaja dentro do pacote (lança se ilegível; `ensureCommand` transforma em reason). */
+/** Manifest que viaja dentro do pacote (lança se ilegível; `embarcado` transforma em reason). */
 export function bundledManifest() {
   return JSON.parse(readFileSync(BUNDLED_MANIFEST, "utf8"));
 }
+
+/** O manifest embarcado (ou o injetado por teste): `{ local }`, ou `{ reason }` quando ilegível. */
+export function embarcado(bundled) {
+  try { return { local: bundled ?? bundledManifest() }; }
+  catch (e) { return { reason: `manifest embarcado ilegível: ${e.message}` }; }
+}
+
+/**
+ * Pin do motor (`trust.json`), recusando uma `version` pedida que o contradiz.
+ * @returns {{pin?:string, reason?:string}}
+ */
+export function pinFor(name, version) {
+  let pin;
+  try { pin = pinOf(name); } catch (e) { return { reason: e.message }; }
+  return pin && version && version !== pin
+    ? { reason: `${name} está fixado em v${pin} → engine-kit pin ${name} --version ${version} troca a versão fixada; engine-kit unpin ${name} solta` }
+    : { pin };
+}
+
+/** `onBeforeReplace` do `provision`: derruba o daemon pelo `shutdownPath` que o registry declara, porque no Windows arquivo em uso não se sobrescreve. */
+export const derrubarAntes = (engine, log) => async () => {
+  const s = await shutdown(engine, { log });
+  if (!s.ok) { log(`aviso: ${s.reason} — o swap pode falhar com o motor vivo`); }
+};
 
 /**
  * `engine-kit list`: os motores do manifest embarcado, a plataforma que cada um atende e o que está instalado aqui. Não usa rede. Nunca lança.
  * @returns {{ok:true, platform:string, engines:{name:string, version:string, kind:string, platforms:string[], supported:boolean, installed:string|null, selfManaged:boolean}[]} | {ok:false, reason:string}}
  */
 export function listCommand({ bundled, platform = target() } = {}) {
-  let local;
-  try { local = bundled ?? bundledManifest(); }
-  catch (e) { return { ok: false, reason: `manifest embarcado ilegível: ${e.message}` }; }
+  const { local, reason } = embarcado(bundled);
+  if (!local) { return { ok: false, reason }; }
   const engines = (local.engines ?? []).map((e) => {
     let installed = null;
     try { installed = e.status !== "self-managed" && e.install.entry && e.home ? installedOf({ homeDir: expandHome(e.home), install: e.install }) : null; } catch { /* instalação ilegível = não instalado */ }
@@ -59,9 +83,8 @@ export function listCommand({ bundled, platform = target() } = {}) {
  *          substituída; `pinned` = versão em que o motor está fixado.
  */
 export async function ensureCommand(name, { version, registryUrl, bundled, manifest, fetcher, autoUpdate = true, log = () => {} } = {}) {
-  let local;
-  try { local = bundled ?? bundledManifest(); }
-  catch (e) { return { ok: false, reason: `manifest embarcado ilegível: ${e.message}` }; }
+  const { local, reason } = embarcado(bundled);
+  if (!local) { return { ok: false, reason }; }
 
   const pinned = (local.engines ?? []).find((e) => e.name === name);
   if (!pinned) { return { ok: false, reason: semMotor(local, name, "ensure") }; }
@@ -72,11 +95,8 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
     return { ok: false, reason: `${name}: o manifest embarcado não traz publicKey → sem chave do primeiro contato não instalo (ABORT)` };
   }
 
-  let pin;
-  try { pin = pinOf(name); } catch (e) { return { ok: false, reason: e.message }; }
-  if (pin && version && version !== pin) {
-    return { ok: false, reason: `${name} está fixado em v${pin} → engine-kit pin ${name} --version ${version} troca a versão fixada; engine-kit unpin ${name} solta` };
-  }
+  const { pin, reason: recusa } = pinFor(name, version);
+  if (recusa) { return { ok: false, reason: recusa }; }
   // refresh: instalar quer a verdade do registry, não um descritor de cache.
   const r = await resolve(name, { version: version ?? pin, registryUrl, refresh: true, ...(manifest ? { manifest } : {}) });
   if (!r.ok) { return { ok: false, reason: r.reason }; }
@@ -97,11 +117,7 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
     allowDowngrade: Boolean(version),
     exact: Boolean(pin || version),
     ...(fetcher ? { fetcher } : {}),
-    // Windows: arquivo em uso não se sobrescreve. Derruba o daemon pelo shutdownPath que o registry declara.
-    onBeforeReplace: async () => {
-      const s = await shutdown(r.engine, { log });
-      if (!s.ok) { log(`aviso: ${s.reason} — o swap pode falhar com o motor vivo`); }
-    },
+    onBeforeReplace: derrubarAntes(r.engine, log),
   });
   if (!p.ok && engine.status === "self-managed") {
     const { repo, tag } = engine.install;
@@ -120,6 +136,36 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
     ...(engine.staleCache ? { staleCache: true } : {}),
     ...(engine.kind === "cli" ? { pointer: pointerOf(engine) } : {}),
   };
+}
+
+/**
+ * `engine-kit ensure --de <manifesto>`: instala ou atualiza, pelo `ensureCommand`, cada motor que o `checkCommand` reprova por AUSENTE ou FORA-DA-FAIXA,
+ * e reconfere no fim pelo mesmo check. Quem já satisfaz não é tocado (`reusado`); self-managed fica `pulado`; DESCONHECIDO e ERRO ficam `recusado`.
+ * Faixa inválida aborta antes de instalar qualquer motor. Uma última versão que não satisfaz a faixa reprova como FORA-DA-FAIXA. Nunca lança.
+ * @param {string} file manifesto do plugin.
+ * @param {object=} opts as do `ensureCommand`, menos `version`.
+ * @returns {Promise<{ok:boolean, manifest:string, reason?:string, engines:object[]} | {ok:false, reason:string}>} cada motor traz as chaves do
+ *          `checkCommand` e `acao` (reusado, pulado, recusado, instalado, atualizado, mantido, falhou, abortado), `version`, `previous` e `available`.
+ */
+export async function ensureDeCommand(file, opts = {}) {
+  const antes = await checkCommand(file, { manifest: opts.manifest });
+  if (!antes.engines) { return antes; }
+  const ruins = antes.engines.filter((e) => e.state === "FAIXA-INVALIDA").map((e) => e.name);
+  if (ruins.length) {
+    return { ...antes, ok: false, reason: `faixa inválida em ${ruins.join(", ")}: nada foi instalado`, engines: antes.engines.map((e) => ({ ...e, acao: "abortado" })) };
+  }
+  const extra = {};
+  for (const e of antes.engines) {
+    if (!["AUSENTE", "FORA-DA-FAIXA"].includes(e.state)) { extra[e.name] = { acao: { OK: "reusado", "NAO-VERIFICAVEL": "pulado" }[e.state] ?? "recusado" }; continue; }
+    const r = await ensureCommand(e.name, opts);
+    extra[e.name] = r.ok
+      ? { acao: r.previous ? "atualizado" : r.reused ? "mantido" : "instalado", version: r.version, previous: r.previous, available: r.available }
+      : { acao: "falhou", detail: r.reason };
+  }
+  const depois = await checkCommand(file, { manifest: opts.manifest });
+  if (!depois.engines) { return depois; }
+  const engines = depois.engines.map((e) => ({ ...e, ...extra[e.name] }));
+  return { ok: engines.every((e) => e.satisfied), manifest: file, engines };
 }
 
 /** Motivo da recusa de um nome que não é motor: app aponta o `fetch`; o resto, o kit novo. */
@@ -169,9 +215,8 @@ export function unpinCommand(name) {
  * @returns {Promise<{ok:true, stopped:boolean} | {ok:false, reason:string}>} `stopped:false` = nada vivo para desligar.
  */
 export async function stopCommand(name, { registryUrl, bundled, manifest, log = () => {} } = {}) {
-  let local;
-  try { local = bundled ?? bundledManifest(); }
-  catch (e) { return { ok: false, reason: `manifest embarcado ilegível: ${e.message}` }; }
+  const { local, reason } = embarcado(bundled);
+  if (!local) { return { ok: false, reason }; }
   if (!(local.engines ?? []).some((e) => e.name === name)) { return { ok: false, reason: semMotor(local, name, "stop") }; }
   return stopEngine(name, { registryUrl, manifest, log });
 }

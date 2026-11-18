@@ -14,26 +14,16 @@
 // um manifest silenciosamente). Aqui o arquivo é parseado, validado e reescrito — e se o motor não
 // existir, falha alto em vez de criar uma entrada meia-boca.
 import { readFileSync, writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
 import { signBlob, publicKeyHexFromPrivateHex } from "./signature.mjs";
 import { rotationBlob } from "./trust.mjs";
-
-const die = (msg) => { console.error(`FALHOU: ${msg}`); process.exit(1); };
+import { publishArgs, die } from "./publish-args.mjs";
 
 const USAGE = "uso: node kit/update-manifest.mjs <motor> --version <x.y.z> [...]\n" +
               "     node kit/update-manifest.mjs --app <nome> [--version <x.y.z>] [--public-key <hex>] [--repo owner/name]\n" +
               "                                  [--tag <template>] [--asset <template>=<plataforma> ...] [--manifest <path>]";
-const args = process.argv.slice(2);
-const opt = (flag) => { const i = args.indexOf(flag); return i === -1 ? null : args[i + 1]; };
+const { args, opt, appName, engineName, manifestPath, manifest } = publishArgs(USAGE);
 const optAll = (flag) => args.flatMap((a, i) => (a === flag ? [args[i + 1]] : []));
 
-const appName = args.includes("--app") ? opt("--app") : null;
-if (args.includes("--app") && (!appName || appName.startsWith("--"))) { die(USAGE); }
-const engineName = appName ? null : args[0];
-if (!appName && (!engineName || engineName.startsWith("--"))) { die(USAGE); }
-
-const manifestPath = opt("--manifest") ?? join(dirname(dirname(fileURLToPath(import.meta.url))), "manifest.json");
 const version = opt("--version");
 const publicKey = opt("--public-key");
 const repo = opt("--repo");
@@ -44,9 +34,10 @@ if (version && !/^\d+\.\d+\.\d+$/.test(version)) { die(`versão inválida "${ver
 if (publicKey && !/^[0-9a-fA-F]{64}$/.test(publicKey)) { die(`publicKey inválida (esperado 64 chars hex, veio ${publicKey.length})`); }
 if (repo && !/^[^/]+\/[^/]+$/.test(repo)) { die(`repo inválido "${repo}" (esperado owner/name)`); }
 
-let manifest;
-try { manifest = JSON.parse(readFileSync(manifestPath, "utf8")); }
-catch (e) { die(`manifest ilegível em ${manifestPath}: ${e.message}`); }
+/** Falha alto quando a entrada não existe: este script ATUALIZA, não inventa descritor. */
+const semEntrada = (tipo, plural, nome, onde, lista) => die(
+  `${tipo} "${nome}" não existe em ${onde}.\n       ${plural} registrados: ${(lista ?? []).map((x) => x.name).join(", ") || "(nenhum)"}\n` +
+  "       Registre a entrada à mão primeiro — este script ATUALIZA, não inventa descritor.");
 
 const save = (label, entry) => {
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
@@ -57,11 +48,7 @@ const save = (label, entry) => {
 // Aplicativo: a entrada mora em manifest.apps, e o que muda numa release são versão, chave e assets.
 if (appName) {
   const app = (manifest.apps ?? []).find((a) => a.name === appName);
-  if (!app) {
-    die(`app "${appName}" não existe em manifest.apps de ${manifestPath}.\n` +
-        `       Apps registrados: ${(manifest.apps ?? []).map((a) => a.name).join(", ") || "(nenhum)"}\n` +
-        "       Registre a entrada à mão primeiro — este script ATUALIZA, não inventa descritor.");
-  }
+  if (!app) { semEntrada("app", "Apps", appName, `manifest.apps de ${manifestPath}`, manifest.apps); }
   if (version) { app.version = version; }
   if (publicKey) {
     if (app.release.publicKey && app.release.publicKey.toLowerCase() !== publicKey.toLowerCase()) {
@@ -87,11 +74,7 @@ if (appName) {
 }
 
 const engine = (manifest.engines ?? []).find((e) => e.name === engineName);
-if (!engine) {
-  die(`motor "${engineName}" não existe em ${manifestPath}.\n` +
-      `       Motores registrados: ${(manifest.engines ?? []).map((e) => e.name).join(", ") || "(nenhum)"}\n` +
-      "       Registre a entrada à mão primeiro — este script ATUALIZA, não inventa descritor.");
-}
+if (!engine) { semEntrada("motor", "Motores", engineName, manifestPath, manifest.engines); }
 
 if (version) { engine.version = version; }
 if (publicKey) {

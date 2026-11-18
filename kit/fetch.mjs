@@ -10,8 +10,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { verifyAppRelease, findApp } from "./app-release.mjs";
-import { bundledManifest } from "./ensure.mjs";
-import { pinOf } from "./trust.mjs";
+import { embarcado, pinFor } from "./ensure.mjs";
 import { verifyRoot } from "./diagnose.mjs";
 export { verifyRoot };
 
@@ -51,19 +50,15 @@ export function versaoDivergente(arquivo, engine) {
  * @returns {Promise<{ok:true, kind:"engine"|"app", version:string, files:{path:string, signed:boolean}[]} | {ok:false, reason:string}>}
  */
 export async function fetchCommand(name, { version, registryUrl, destDir = process.cwd(), bundled, manifest, fetcher, appGet, log = () => {} } = {}) {
-  let local;
-  try { local = bundled ?? bundledManifest(); }
-  catch (e) { return { ok: false, reason: `manifest embarcado ilegível: ${e.message}` }; }
+  const { local, reason } = embarcado(bundled);
+  if (!local) { return { ok: false, reason }; }
 
   const pinned = (local.engines ?? []).find((e) => e.name === name);
   if (pinned) {
     const publicKey = pinned.install?.publicKey;
     if (!publicKey) { return { ok: false, reason: `${name}: o manifest embarcado não traz publicKey → sem chave do primeiro contato não baixo (ABORT)` }; }
-    let pin;
-    try { pin = pinOf(name); } catch (e) { return { ok: false, reason: e.message }; }
-    if (pin && version && version !== pin) {
-      return { ok: false, reason: `${name} está fixado em v${pin} → engine-kit pin ${name} --version ${version} troca a versão fixada; engine-kit unpin ${name} solta` };
-    }
+    const { pin, reason: recusa } = pinFor(name, version);
+    if (recusa) { return { ok: false, reason: recusa }; }
     const r = await resolve(name, { version: version ?? pin, registryUrl, refresh: true, ...(manifest ? { manifest } : {}) });
     if (r.ok && r.engine.status === "pending-release") { return { ok: false, reason: `${name} ainda não publicou release (status: pending-release)` }; }
     if (!r.ok) { return { ok: false, reason: r.reason }; }

@@ -13,11 +13,12 @@
 //   npx engine-kit history [motor] [--json]           # trocas de versão gravadas nesta máquina
 //   npx engine-kit check <manifesto.json> [--json]    # o bloco `engines` do plugin contra o instalado
 //   npx engine-kit url <motor> [--json]               # endereço do daemon vivo, nunca o token
+//   npx engine-kit ensure --de <manifesto.json> [--json]  # instala/atualiza o que o `check` do manifesto reprova
 //
 // Por padrão o kit se atualiza (roda de novo como a última versão do npm) e atualiza o motor instalado.
 // ENGINE_KIT_NO_AUTO_UPDATE=1 desliga os dois e deixa só o aviso de versão nova (ver update.mjs).
 // Exit code: 0 = motor instalado (ou reusado). 1 = recusou/falhou, com o motivo na saída de erro.
-import { ensureCommand, pinCommand, unpinCommand, stopCommand, listCommand } from "./ensure.mjs";
+import { ensureCommand, ensureDeCommand, pinCommand, unpinCommand, stopCommand, listCommand } from "./ensure.mjs";
 import { registerNeuralLink, unregisterNeuralLink } from "./register.mjs";
 import { fetchCommand } from "./fetch.mjs";
 import { historyCommand, checkCommand, urlCommand, reportCommand } from "./inspect.mjs";
@@ -34,6 +35,7 @@ const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-ur
   "     engine-kit list [--json]                     motores do pacote, a plataforma de cada um e a versão instalada (sem rede)\n" +
   "     engine-kit history [motor] [--json]          trocas de versão gravadas nesta máquina (de → para e a origem: ensure, auto-update, version, rollback)\n" +
   "     engine-kit check <manifesto-do-plugin.json> [--json]   confere o bloco engines do manifesto (faixas >=, >, <=, <, =, ^x.y.z) contra o instalado; exit 1 se algum não satisfaz\n" +
+  "     engine-kit ensure --de <manifesto-do-plugin.json> [--registry-url <url>] [--json]   instala ou atualiza cada motor que o check reprova (ausente, fora da faixa) e reconfere; self-managed é pulado; faixa inválida aborta antes de instalar; exit 1 se algum não satisfaz no fim\n" +
   "     engine-kit url <motor> [--json]              endereço do daemon vivo (url, versão e pid) lido do anúncio dele; nunca imprime o token\n" +
   "     engine-kit doctor [--fix|--json|--verify] [--engine <motor>] [--local] [--registry-url <url>]   diagnostica os motores instalados (--fix instala o que falta e atualiza o que está velho)\n" +
   "     engine-kit doctor --report [--engine <motor>] [--local] [--verify]   texto colável para suporte (kit, Node, plataforma, motores, sobras, hooks); sem token nem chave\n" +
@@ -45,9 +47,10 @@ const VERBS = ["ensure", "pin", "unpin", "fetch", "stop", "doctor", "list", "his
 const NOME_OPCIONAL = ["doctor", "list", "history"];
 const [cmd, name] = args;
 const nomeOpcional = name?.startsWith("-") ? undefined : name;
-const COM_VALOR = ["--version", "--registry-url", "--dest", "--engine"];
+const COM_VALOR = ["--version", "--registry-url", "--dest", "--engine", "--de"];
+const deManifesto = cmd === "ensure" && name === "--de";
 const FLAGS = {
-  ensure: ["--version", "--registry-url", "--register", "--unregister", "--json"],
+  ensure: ["--version", "--registry-url", "--register", "--unregister", "--json", "--de"],
   pin: ["--version", "--registry-url", "--json"],
   unpin: [],
   fetch: ["--version", "--registry-url", "--dest", "--json"],
@@ -61,7 +64,7 @@ const FLAGS = {
 /** Primeira flag que o verbo não aceita, ou argumento solto além do nome do motor. */
 const sobra = () => {
   const aceitas = FLAGS[cmd] ?? [];
-  for (let i = NOME_OPCIONAL.includes(cmd) && !(cmd === "history" && nomeOpcional) ? 1 : 2; i < args.length; i++) {
+  for (let i = deManifesto || (NOME_OPCIONAL.includes(cmd) && !(cmd === "history" && nomeOpcional)) ? 1 : 2; i < args.length; i++) {
     if (!args[i].startsWith("-")) { return `argumento inesperado: ${args[i]}`; }
     if (!aceitas.includes(args[i]) && /^--(un)?register$/.test(args[i])) { return "--register e --unregister só valem para `engine-kit ensure neural-link`"; }
     if (!aceitas.includes(args[i])) { return `${args[i]} não vale para \`${cmd}\``; }
@@ -95,11 +98,11 @@ const done = (verb, r, text) => {
   text();
 };
 const avisoCache = (r) => { if (r.staleCache) { console.log(`aviso: registry inacessível; ${name} usou o descritor em cache vencido`); } };
-const semValor = ["--dest", "--registry-url", "--engine"].find((f) => args.includes(f) && (flag(f) ?? "-").startsWith("-"));
+const semValor = ["--dest", "--registry-url", "--engine", "--de"].find((f) => args.includes(f) && (flag(f) ?? "-").startsWith("-"));
 
 if (cmd === "--help" || cmd === "-h") {
   console.log(USAGE);
-} else if (!VERBS.includes(cmd) || (!NOME_OPCIONAL.includes(cmd) && (!name || name.startsWith("-")))) {
+} else if (!VERBS.includes(cmd) || (!NOME_OPCIONAL.includes(cmd) && !deManifesto && (!name || name.startsWith("-")))) {
   console.error(cmd && !VERBS.includes(cmd) ? `comando desconhecido: ${cmd}\n${USAGE}` : USAGE);
   process.exitCode = 1;
 } else if (semValor) {
@@ -113,6 +116,9 @@ if (cmd === "--help" || cmd === "-h") {
   process.exitCode = 1;
 } else if (args.includes("--register") && args.includes("--unregister")) {
   console.error("--register e --unregister não combinam");
+  process.exitCode = 1;
+} else if (args.includes("--de") && (!deManifesto || ["--version", "--register", "--unregister"].some((f) => args.includes(f)))) {
+  console.error("--de substitui o nome do motor e não combina com --version, --register nem --unregister: engine-kit ensure --de <manifesto-do-plugin.json> [--registry-url <url>] [--json]");
   process.exitCode = 1;
 } else if (args.includes("--version") && !/^\d+\.\d+\.\d+$/.test(flag("--version") ?? "")) {
   console.error(`--version precisa de x.y.z (recebi: ${flag("--version") ?? "nada"})`);
@@ -141,13 +147,14 @@ if (cmd === "--help" || cmd === "-h") {
     else if (!r.ok) { console.error(`FALHOU url ${name}: ${r.reason}`); }
     else { console.log(`url: ${r.url}\nversão: ${r.version ?? "?"}\npid: ${r.pid ?? "?"}`); }
     if (!r.ok) { process.exitCode = 1; }
-  } else if (cmd === "check") {
-    const r = await checkCommand(name);
+  } else if (cmd === "check" || deManifesto) {
+    const r = deManifesto ? await ensureDeCommand(flag("--de"), { registryUrl: flag("--registry-url"), autoUpdate: autoUpdateEnabled(), log }) : await checkCommand(name);
     if (asJson) { console.log(JSON.stringify(r, null, 2)); }
-    else if (!r.engines) { console.error(`FALHOU check: ${r.reason}`); }
+    else if (!r.engines) { console.error(`FALHOU ${cmd}: ${r.reason}`); }
     else {
       const w = Math.max(0, ...r.engines.map((e) => e.name.length));
-      for (const e of r.engines) { console.log(`${e.satisfied ? "  OK  " : "  !!  "} ${e.name.padEnd(w)}  ${String(e.range).padEnd(10)} ${e.state === "OK" ? e.detail : `${e.state}: ${e.detail}`}`); }
+      for (const e of r.engines) { console.log(`${e.satisfied ? "  OK  " : "  !!  "} ${e.name.padEnd(w)}  ${String(e.range).padEnd(10)} ${e.acao ? `[${e.acao}] ` : ""}${e.state === "OK" ? e.detail : `${e.state}: ${e.detail}`}${e.available ? ` (v${e.available} disponível; ENGINE_KIT_NO_AUTO_UPDATE ligado)` : ""}`); }
+      if (r.reason) { console.error(r.reason); }
       console.log(r.engines.length ? (r.ok ? `\n== os ${r.engines.length} motor(es) satisfazem o manifesto ==` : `\n== ${r.engines.filter((e) => !e.satisfied).length} motor(es) não satisfazem o manifesto ==`) : "nenhum motor declarado no bloco engines");
     }
     if (!r.ok) { process.exitCode = 1; }

@@ -47,7 +47,8 @@ export function appAssetUrls(app) {
   };
 }
 
-async function anonymousGet(url) {
+/** GET anônimo de um asset, com o prazo de 5 min; usado pelo `verifyAppRelease` e pelo `verify-release`. */
+export async function anonymousGet(url) {
   // Sem Authorization de propósito: a promessa do registry é download SEM login.
   const res = await fetch(url, { signal: AbortSignal.timeout(300000) });
   if (!res.ok) { throw new Error(`HTTP ${res.status} em ${url}`); }

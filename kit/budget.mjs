@@ -130,10 +130,15 @@ const ROOT = resolvePath(KIT, "..");
 //   avisos de versão anunciada ≠ instalada e de heartbeat atrasado) e a última troca de versão de cada motor no `doctor --report` (inspect.mjs), +2.1 KB. A sondagem do `/health` saiu do
 //   client.mjs (-0.2 KB, que passou a importá-la do diagnose): a mesma checagem serve ao cliente e ao doctor, sem cópia. Só leitura, rodado na mão de quem diagnostica; o fecho de imports
 //   de `index.mjs` não mudou e nenhum código funcional foi cortado.
+//   2026-11-18 tooling 72000 → 73400: `engine-kit ensure --de <manifesto>` decidido pelo dono (pendência f13bcf) — `ensureDeCommand` (ensure.mjs), `checkCommand` aceitando o manifest
+//   dos motores e o verbo no cli.mjs, que passou a dividir com o `check` o mesmo bloco de saída, +2.4 KB. Antes de subir o teto saiu a duplicação, -1.1 KB: o pin e o manifest embarcado
+//   que `ensure` e `fetch` liam cada um por si (`pinFor`, `embarcado`), o `onBeforeReplace` copiado no doctor (`derrubarAntes`), o GET anônimo repetido no `verify-release`
+//   (`anonymousGet`), o preâmbulo de argumentos e manifest repetido em `update-manifest` e `verify-release` (`publish-args.mjs`) e a recusa de entrada inexistente do `update-manifest`.
+//   Rodado na mão de quem instala; o fecho de imports de `index.mjs` não mudou e nenhum código funcional foi cortado.
 const BUDGETS = {
   runtime: { codeBytes: 37500, baseline: 24519, loc: 900 },
   client: { codeBytes: 10000, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 72000, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 73400, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

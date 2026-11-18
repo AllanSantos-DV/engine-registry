@@ -11,30 +11,18 @@
 // Por que existe: "publiquei" não é prova. Asset faltando, .sig esquecido, tag errada e artefato
 // do build anterior só aparecem quando um consumidor tenta instalar — em produção. Este passo
 // puxa isso para dentro do publish. Também prova a metade negativa: adulterado é RECUSADO.
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { join } from "node:path";
 import { versaoDivergente, verifyRoot } from "./fetch.mjs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
 import { resolve } from "./resolve.mjs";
 import { verifyBlob, DEFAULT_ALGORITHM } from "./signature.mjs";
-import { findApp, appAssetUrls, verifyAppRelease } from "./app-release.mjs";
-
-const die = (msg) => { console.error(`FALHOU: ${msg}`); process.exit(1); };
+import { findApp, appAssetUrls, verifyAppRelease, anonymousGet as grab } from "./app-release.mjs";
+import { publishArgs, die } from "./publish-args.mjs";
 
 const USAGE = "uso: node kit/verify-release.mjs <motor> [--manifest <path>]\n" +
               "     node kit/verify-release.mjs --app <nome> [--manifest <path>]";
-const args = process.argv.slice(2);
-const opt = (flag) => { const k = args.indexOf(flag); return k === -1 ? null : args[k + 1]; };
-const appName = args.includes("--app") ? opt("--app") : null;
-if (args.includes("--app") && (!appName || appName.startsWith("--"))) { die(USAGE); }
-const engineName = appName ? null : args[0];
-if (!appName && (!engineName || engineName.startsWith("--"))) { die(USAGE); }
-const manifestPath = opt("--manifest") ?? join(dirname(dirname(fileURLToPath(import.meta.url))), "manifest.json");
-
-let manifest;
-try { manifest = JSON.parse(readFileSync(manifestPath, "utf8")); }
-catch (e) { die(`manifest ilegível em ${manifestPath}: ${e.message}`); }
+const { appName, engineName, manifest } = publishArgs(USAGE);
 
 // Aplicativo: não há asset único nem provision — baixa TODOS os assets da entrada, anônimo.
 if (appName) {
@@ -53,12 +41,6 @@ if (appName) {
 const r = await resolve(engineName, { manifest });
 if (!r.ok) { die(r.reason); }
 const engine = r.engine;
-
-async function grab(url) {
-  const res = await fetch(url, { signal: AbortSignal.timeout(180000) });
-  if (!res.ok) { throw new Error(`HTTP ${res.status} em ${url}`); }
-  return Buffer.from(await res.arrayBuffer());
-}
 
 console.log(`motor          : ${engine.name} v${engine.version}`);
 console.log(`origem         : ${engine.install.repo}`);

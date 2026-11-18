@@ -46,14 +46,15 @@ export function satisfiesRange(version, range) {
  * `engine-kit check <manifesto>`: confere o bloco `engines` do manifesto de um plugin (`{ "<motor>": "<faixa>" }`) contra o que está instalado, sem rede.
  * Estados por motor: OK, FORA-DA-FAIXA, AUSENTE, DESCONHECIDO (fora do manifest do kit), NAO-VERIFICAVEL (self-managed), FAIXA-INVALIDA, ERRO.
  * @param {string} file caminho do manifesto do plugin.
+ * @param {{manifest?:object}=} opts `manifest` = manifest dos motores no lugar do embarcado (testes).
  * @returns {Promise<{ok:boolean, manifest:string, engines:{name:string, range:*, installed:string|null, state:string, satisfied:boolean, detail:string}[]} | {ok:false, reason:string}>}
  */
-export async function checkCommand(file) {
+export async function checkCommand(file, { manifest } = {}) {
   let block;
   try { block = JSON.parse(readFileSync(file, "utf8"))?.engines; }
   catch (e) { return { ok: false, reason: `não consegui ler ${file}: ${e.message}` }; }
   if (!block || typeof block !== "object" || Array.isArray(block)) { return { ok: false, reason: `${file}: sem bloco "engines" (esperado { "<motor>": "<faixa>" }, ex.: { "embed-house": ">=1.0.0" })` }; }
-  const diag = await diagnoseEngines({ local: true });
+  const diag = await diagnoseEngines({ local: true, manifest });
   if (!diag.ok) { return { ok: false, reason: diag.reason }; }
   const engines = Object.entries(block).map(([name, range]) => {
     const row = diag.rows.find((r) => r.name === name);

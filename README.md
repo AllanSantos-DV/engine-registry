@@ -124,6 +124,7 @@ npx engine-kit doctor --report [--engine <motor>] # texto colável para suporte:
 npx engine-kit list [--json]                      # os motores do pacote, a plataforma de cada um e a versão instalada (sem rede)
 npx engine-kit history [motor] [--json]           # as trocas de versão gravadas nesta máquina: de → para e a origem
 npx engine-kit check meu-plugin/plugin.json [--json]   # confere o bloco `engines` do manifesto do plugin contra o instalado
+npx engine-kit ensure --de meu-plugin/plugin.json [--registry-url <url>] [--json]   # instala ou atualiza o que o check reprova e reconfere
 npx engine-kit url casa-de-embeddings [--json]    # endereço do daemon vivo (url, versão, pid); nunca imprime o token
 npx engine-kit ensure|pin|fetch|stop <motor> --json   # um objeto JSON por chamada, na forma das linhas do doctor (name, ok, state, detail, warns, pin), também na falha
 ```
@@ -157,6 +158,16 @@ Reusar a instalação não é troca. Se a linha não puder ser gravada, a instal
 instalada satisfaz a faixa: `>=`, `>`, `<=`, `<`, `=` (ou só `x.y.z`) e `^x.y.z` (mesma major; em 0.x a mesma minor; em 0.0.x exata). Faixa que não é uma dessas (`~`, `*`, `latest`, duas
 condições juntas) é erro explícito (`FAIXA-INVALIDA`), nunca ignorada. Motor ausente (`AUSENTE`), fora da faixa (`FORA-DA-FAIXA`), desconhecido do kit (`DESCONHECIDO`) e motor
 `self-managed`, cuja versão o kit não lê (`NAO-VERIFICAVEL`), contam como não satisfeitos: exit 1. Não usa rede.
+
+**Instalar pela faixa do plugin.** `engine-kit ensure --de <manifesto.json>` roda o mesmo `check` e instala ou atualiza, pelo `ensure` de sempre (sha256 e Ed25519, chave do pacote), cada motor
+reprovado por `AUSENTE` ou `FORA-DA-FAIXA`; depois reconfere pelo `check` e mostra o estado final de cada motor com a ação (`instalado`, `atualizado`, `reusado`, `pulado`, `mantido`, `recusado`, `falhou`).
+Estado atual:
+- Motor que já satisfaz a faixa não é tocado (`reusado`, nenhum download). `self-managed` nunca é instalado: aparece como `pulado` com o motivo e conta `NAO-VERIFICAVEL`, como no `check` (exit 1).
+- Faixa inválida (`FAIXA-INVALIDA`) é erro explícito, exit 1, e nada é instalado: todas as faixas são validadas antes do primeiro `ensure`. `DESCONHECIDO` e `ERRO` do `check` ficam `recusado`.
+- O `ensure` traz a última versão do registry (ou mantém a instalada com `ENGINE_KIT_NO_AUTO_UPDATE`, ação `mantido`). Se ela não satisfaz a faixa (`=`, `^`, `<`), o motor reprova como `FORA-DA-FAIXA` e o texto pede
+  `engine-kit ensure <motor> --version x.y.z`: o kit não escolhe versão sozinho nem finge sucesso.
+- Exit 0 só se todos os motores satisfazem no fim; exit 1 caso contrário. Falha de um motor não impede os outros. `--json` devolve `{ ok, manifest, reason?, engines }`, uma linha por motor com `acao`, `state`, `satisfied`, `installed`, `version` e `previous`.
+- `--de` substitui o nome do motor e não combina com `--version`, `--register` nem `--unregister`.
 
 **Endereço do daemon.** `engine-kit url <motor>` imprime a `url`, a `version` e o `pid` que o motor anuncia (`discover`, de `kit/client.mjs`), depois de conferir que ele responde.
 O `shutdownToken` do anúncio nunca sai. Motor parado, sem anúncio ou com o anúncio apontando para um endereço morto: erro com a causa e o comando (`engine-kit ensure <motor>`), exit 1.
@@ -204,7 +215,7 @@ if (!r.available) {
 }
 ```
 
-Declare a dependência no manifesto do seu plugin (`npx engine-kit check <manifesto>` confere a faixa contra o que está instalado):
+Declare a dependência no manifesto do seu plugin (`npx engine-kit check <manifesto>` confere a faixa contra o que está instalado; `npx engine-kit ensure --de <manifesto>` instala o que falta):
 
 ```jsonc
 {
@@ -332,7 +343,7 @@ kit/
   trust.mjs        # trust.json por motor: chave do 1º contato, maior versão vista (anti-rollback) e o pin
   cli.mjs          # comando `engine-kit` (bin do pacote): ensure, fetch, pin, unpin, stop, doctor, list, history, check e url
   inspect.mjs      # verbos de leitura: history, check (faixas de versão), url e o relatório do doctor --report
-  ensure.mjs       # ensure, pin, unpin e stop: resolve → provision com a chave do manifest embarcado no pacote
+  ensure.mjs       # ensure (inclusive `--de <manifesto>`), pin, unpin e stop: resolve → provision com a chave do manifest embarcado no pacote
   fetch.mjs        # fetch: baixa e confere motor ou app sem instalar
   doctor.mjs       # concilia a máquina inteira (OK, DESATUALIZADO, AUSENTE, FIXADO...); --fix aplica
   update.mjs       # o kit se atualiza (relança na última versão do npm); ENGINE_KIT_NO_AUTO_UPDATE=1 desliga
@@ -342,6 +353,7 @@ kit/
   sign.mjs         # assina um artefato e prova a assinatura na hora
   update-manifest.mjs # patch do manifest parseado (nunca regex em JSON); --app para apps
   verify-release.mjs  # baixa a release publicada e prova o caminho do consumidor; --app para apps
+  publish-args.mjs    # preâmbulo comum de update-manifest e verify-release: argumentos, alvo e manifest.json
   app-release.mjs     # URLs e verificação de TODOS os assets de um app (manifest.apps)
   publish-base.ps1    # publicação de motor: identidade do gh → assina → release → manifest → prova
 consumers/

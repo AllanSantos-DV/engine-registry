@@ -15,7 +15,7 @@
 // Exit code: 0 = tudo conciliado. 1 = há divergência (e `--fix` não foi passado) ou algo falhou.
 import { rmSync } from "node:fs";
 import { provision, autoUpdateEnabled } from "./provision.mjs";
-import { shutdown } from "./lifecycle.mjs";
+import { derrubarAntes } from "./ensure.mjs";
 import { diagnoseEngines, engineView, detailLines, staleVerify, SEM_ACAO } from "./diagnose.mjs";
 import { firstContactKeys } from "./trust.mjs";
 import { keysWithoutBackup, backupReminder } from "./key-backup.mjs";
@@ -74,6 +74,7 @@ if (pending.length === 0) {
 } else {
 console.log("\n-- aplicando (--fix) --");
 let failures = rows.filter((r) => r.state === "ERRO").length;
+const log = (m) => console.log(`    ${m}`);
 for (const r of pending) {
   console.log(`\n${r.name}: ${r.detail}`);
   if (r.state === "DESATUALIZADO" && !autoUpdateEnabled()) {
@@ -84,14 +85,8 @@ for (const r of pending) {
     exact: Boolean(r.pin),
     repair: r.state === "ADULTERADO",
     trustedKeys: firstContactKeys(r.name),
-    log: (m) => console.log(`    ${m}`),
-    // No Windows um arquivo EM USO não pode ser sobrescrito: sem derrubar o daemon antes, o
-    // update de um motor vivo falha com EPERM no meio do swap. O kit não adivinha como parar
-    // um motor — usa o `shutdownPath` que o próprio registry declara.
-    onBeforeReplace: async () => {
-      const s = await shutdown(r.engine, { log: (m) => console.log(`    ${m}`) });
-      if (!s.ok) { console.log(`    aviso: ${s.reason} — o swap pode falhar com o motor vivo`); }
-    },
+    log,
+    onBeforeReplace: derrubarAntes(r.engine, log),
   });
   if (p.ok) {
     console.log(`  OK   ${r.name} v${p.version}${p.signed === false ? " (SEM assinatura — motor ainda não migrado)" : ""}`);
