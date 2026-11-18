@@ -1,12 +1,42 @@
 {
   "origem": "vox-engine",
   "voz": "pt-BR-Chirp3-HD-Iapetus",
-  "motor": "0.33.2",
+  "motor": "0.33.7",
   "padraoDoMotor": "pt-BR-Chirp3-HD-Iapetus",
   "pedidaPeloDono": false,
-  "formato": "aac",
+  "formato": "opus",
+  "velocidade": 1,
+  "sincronia": {
+    "limiteMs": 120,
+    "maxMs": 30,
+    "cenas": [
+      {
+        "id": 4,
+        "derivasMs": [
+          -16,
+          -29,
+          -24,
+          -20
+        ],
+        "maxMs": 29,
+        "ok": true
+      },
+      {
+        "id": 5,
+        "derivasMs": [
+          30,
+          -20,
+          -20,
+          -20,
+          -20
+        ],
+        "maxMs": 30,
+        "ok": true
+      }
+    ]
+  },
   "falas": 7,
-  "audioSeg": 102.6,
-  "videoSeg": 102.6,
-  "geradoEm": "2026-11-11T23:56:54.000Z"
+  "audioSeg": 100.49,
+  "videoSeg": 111,
+  "geradoEm": "2026-11-18T13:56:30.899Z"
 }

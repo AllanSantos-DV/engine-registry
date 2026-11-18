@@ -15,6 +15,7 @@
     ["neural-link", "uma decisão para cada evento de hook", "#b8e86b"],
     ["skill-engine", "skills de terceiros conferidas antes de ativar", "#ff8a5c"],
     ["client-harness", "o agente respeita os padrões de cada cliente", "#eaf4ef"],
+    ["motor-de-grafo", "grafo de código, de documentos e de qualquer tipo de nó", "#ffd166"],
   ];
   const CENAS = [
     { t: "engine-registry", vis: "hero", partes: [
@@ -28,7 +29,7 @@
       "Um motor faz o trabalho pesado uma única vez, nesta máquina.",
       "O Claude Code, o Codex, o Copilot, o Cursor e os seus scripts pedem a ele o que precisam.",
     ] },
-    { t: "Os oito motores", vis: "fichas", partes: [
+    { t: "Os nove motores", vis: "fichas", partes: [
       "O Vox Engine dita, transcreve, traduz e fala.",
       "O Cerne lê um vídeo e guarda o que importa numa memória que dá para pesquisar.",
       "O VXK transforma o roteiro do agente numa explicação animada e narrada.",
@@ -36,7 +37,8 @@
       "O embed-house serve os vetores de busca sem repetir o modelo em cada sessão.",
       "O neural-link devolve uma decisão única para cada evento de hook do agente.",
       "O skill-engine confere as skills de terceiros e só ativa o que sai limpo.",
-      "E o client-harness faz o agente respeitar os padrões de cada cliente, recusando antes de gravar.",
+      "O client-harness faz o agente respeitar os padrões de cada cliente, recusando antes de gravar.",
+      "E o motor-de-grafo indexa uma pasta e responde o grafo de código e, no mesmo banco, o de documentos e de qualquer tipo de nó que um produto registrar.",
     ] },
     { t: "Como se conectam", vis: "mapa", partes: [
       "Tudo começa nos seus agentes e aplicativos.",

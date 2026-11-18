@@ -118,10 +118,16 @@ const ROOT = resolvePath(KIT, "..");
 //   de arquivo, na mão de quem publica; o caminho do `import "engine-kit"` não mudou.
 //   2026-11-18 client 9000 → 9800: o `grafoClient` ganhou as rotas de tipos do motor-de-grafo (`kinds`, `nodes`, `edges`, `deleteNodes`, `deleteEdges`,
 //   `neighbors`, `backup`, `symbolsOf` e `searchOf`) e passou a mostrar o `code` do erro do motor (que vem no corpo, não em `detail`), +1.1 KB. Nenhum chamador existente muda.
+//   2026-11-18 runtime 36800 → 37500 e tooling 62100 → 69800: as seis funções irmãs decididas pelo dono. Runtime, +0.7 KB: o histórico local de trocas de versão
+//   (`recordSwap` em trust.mjs, gravado pelo `provision` e pelo rollback do `ensureEngine`, com a falha de escrita avisada em stderr) e o `trust.json.bak` copiado antes do rename
+//   do `updateEntry`, com a mensagem que ensina a restaurar; pagos em parte por duas remoções de duplicata (a gravação do `checkTrust` e a espera do `lifecycle`). Ferramental, +7.7 KB:
+//   `engine-kit history`, `check <manifesto>` (faixas de versão), `url <motor>` e `doctor --report` (kit/inspect.mjs e os verbos no cli.mjs); as linhas de detalhe de cada motor passaram
+//   do doctor.mjs para `detailLines` (diagnose.mjs), que o doctor e o relatório compartilham. Rodado na mão de quem instala ou diagnostica; o fecho de imports de `index.mjs` não mudou
+//   e nenhum código funcional foi cortado.
 const BUDGETS = {
-  runtime: { codeBytes: 36800, baseline: 24519, loc: 900 },
+  runtime: { codeBytes: 37500, baseline: 24519, loc: 900 },
   client: { codeBytes: 9800, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 62100, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 69800, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

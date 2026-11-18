@@ -1,109 +1,117 @@
 WEBVTT
 
 1
-00:00:00.550 --> 00:00:03.319
+00:00:00.550 --> 00:00:03.238
 Esta é a casa dos motores locais: você
 
 2
-00:00:03.319 --> 00:00:06.107
+00:00:03.238 --> 00:00:05.944
 instala cada um uma vez e todos os seus
 
 3
-00:00:06.107 --> 00:00:08.936
+00:00:05.944 --> 00:00:08.697
 aplicativos e agentes passam a usar.
 
 4
-00:00:10.150 --> 00:00:13.446
+00:00:09.550 --> 00:00:12.679
 Hoje, cada ferramenta de inteligência artificial
 
 5
-00:00:13.446 --> 00:00:16.427
+00:00:12.679 --> 00:00:15.507
 costuma carregar o próprio modelo, o próprio
 
 6
-00:00:16.427 --> 00:00:19.606
+00:00:15.507 --> 00:00:18.523
 servidor e o próprio processo, e várias sessões
 
 7
-00:00:19.606 --> 00:00:22.720
+00:00:18.523 --> 00:00:21.476
 repetem o mesmo trabalho. Aqui, um motor faz o
 
 8
-00:00:22.720 --> 00:00:26.017
+00:00:21.476 --> 00:00:24.617
 trabalho pesado uma única vez, nesta máquina.
 
 9
-00:00:26.950 --> 00:00:30.614
-Aqui vivem oito motores locais que atendem o Claude
+00:00:25.750 --> 00:00:29.591
+Aqui vivem nove motores locais que atendem o Claude
 
 10
-00:00:30.614 --> 00:00:34.617
+00:00:29.591 --> 00:00:33.777
 Code, o Codex, o Copilot, o Cursor e os seus scripts.
 
 11
-00:00:35.950 --> 00:00:39.474
+00:00:34.750 --> 00:00:38.731
 O Vox Engine dita, transcreve, traduz e fala. O Cerne
 
 12
-00:00:39.474 --> 00:00:42.819
+00:00:38.731 --> 00:00:42.516
 lê um vídeo e guarda o que importa numa memória que
 
 13
-00:00:42.819 --> 00:00:45.972
+00:00:42.516 --> 00:00:46.083
 dá para pesquisar. O VXK transforma o roteiro do
 
 14
-00:00:45.972 --> 00:00:49.703
+00:00:46.083 --> 00:00:50.306
 agente numa explicação animada e narrada. E o mcp-gateway
 
 15
-00:00:49.703 --> 00:00:52.977
+00:00:50.306 --> 00:00:53.977
 reúne todos os servidores MCP num endereço só.
 
 16
-00:00:53.950 --> 00:00:56.764
-O embed-house serve os vetores de busca sem
+00:00:55.150 --> 00:00:58.580
+O embed-house serve os vetores de busca sem repetir
 
 17
-00:00:56.764 --> 00:00:59.717
-repetir o modelo em cada sessão. O neural-link
+00:00:58.580 --> 00:01:01.895
+o modelo em cada sessão. O neural-link devolve uma
 
 18
-00:00:59.717 --> 00:01:02.606
-devolve uma decisão única para cada evento de
+00:01:01.895 --> 00:01:05.471
+decisão única para cada evento de hook. O skill-engine
 
 19
-00:01:02.606 --> 00:01:05.308
-hook. O skill-engine só ativa as skills de
+00:01:05.471 --> 00:01:08.786
+só ativa as skills de terceiros que saem limpas. O
 
 20
-00:01:05.308 --> 00:01:08.197
-terceiros que saem limpas. E o client-harness
+00:01:08.786 --> 00:01:12.166
+client-harness faz o agente respeitar os padrões do
 
 21
-00:01:08.197 --> 00:01:11.337
-faz o agente respeitar os padrões do cliente.
+00:01:12.166 --> 00:01:15.807
+cliente. E o motor-de-grafo indexa uma pasta e responde
 
 22
-00:01:12.550 --> 00:01:17.342
-São oito motores. Antes de instalar, cada um passa
+00:01:15.807 --> 00:01:19.252
+o grafo de código e, no mesmo banco, o de documentos
 
 23
-00:01:17.342 --> 00:01:21.805
-por duas conferências, o SHA-256 e a assinatura
+00:01:19.252 --> 00:01:22.817
+e de qualquer tipo de nó que um produto registrar.
 
 24
-00:01:21.805 --> 00:01:26.361
-Ed25519, e se alguma falhar, nada é instalado. O
+00:01:23.950 --> 00:01:28.150
+São nove motores. Antes de instalar, cada um passa
 
 25
-00:01:26.361 --> 00:01:32.097
-instalador tem menos de vinte e sete quilobytes de código.
+00:01:28.150 --> 00:01:32.057
+por duas conferências, o SHA-256 e a assinatura
 
 26
-00:01:32.950 --> 00:01:36.555
-Para começar, escolha o motor e instale pelo kit.
+00:01:32.057 --> 00:01:36.044
+Ed25519, e se alguma falhar, nada é instalado. O
 
 27
-00:01:36.555 --> 00:01:40.857
+00:01:36.044 --> 00:01:41.177
+instalador tem menos de trinta e oito quilobytes de código.
+
+28
+00:01:41.950 --> 00:01:45.237
+Para começar, escolha o motor e instale pelo kit.
+
+29
+00:01:45.237 --> 00:01:49.177
 Engine-registry: instale uma vez, use em qualquer lugar.

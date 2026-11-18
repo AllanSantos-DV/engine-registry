@@ -12,7 +12,7 @@ import { join, dirname, resolve as resolvePath, relative, isAbsolute } from "nod
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { verifyBlob, DEFAULT_ALGORITHM } from "./signature.mjs";
-import { checkTrust, trustPath, cmpVer, rollbackReason, noteVersion, firstContactKeys } from "./trust.mjs";
+import { checkTrust, trustPath, cmpVer, rollbackReason, noteVersion, firstContactKeys, recordSwap } from "./trust.mjs";
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -333,6 +333,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
     // (sem shutdownPath, ou um host segurando o processo), o rmSync apagava metade da pasta antes do
     // EPERM e deixava a máquina sem motor nenhum. O rename falha inteiro ou passa inteiro.
     let aside = null;
+    const from = installedVersion(binDir);
     if (existsSync(binDir)) {
       if (onBeforeReplace) { try { await onBeforeReplace(); } catch { /* best-effort */ } }
       aside = `${binDir}.old-${process.pid}`;
@@ -363,6 +364,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
       return { ok: false, reason: `${engine.name}: artefato extraído incompleto (sem ${engine.install.entry})` };
     }
     noteVersion(engine.name, engine.version);
+    recordSwap(engine.name, from, engine.version, exact ? "version" : from ? "auto-update" : "ensure");
     log(`[engine-kit] ${engine.name} instalado em ${binDir} (v${engine.version})`);
     return { ok: true, entryPath, version: engine.version, installed: true, signed: auth.signed, ...(keepPrevious && aside ? { previousDir: aside } : {}) };
   } catch (e) {

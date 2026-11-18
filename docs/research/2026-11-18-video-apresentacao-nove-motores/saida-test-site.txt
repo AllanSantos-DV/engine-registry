@@ -1,0 +1,90 @@
+== site: vitrine dos motores ==
+
+  OK   toda referência local de index.html existe (fora a mídia de apresentação)
+  OK   toda âncora #... aponta para um id da página
+  OK   nenhuma referência absoluta (o site vive sob /engine-registry/)
+  OK   CSP restringe tudo a 'self' (sem fonte, script ou imagem externos)
+  OK   sem <script>, <style> nem atributo style= ou on*= inline (a CSP bloquearia)
+  OK   nenhum recurso externo carregado (só links de navegação saem do site)
+  OK   cada comando do kit (card e passo) ganha botão de copiar que grava o texto do comando na área de transferência
+  OK   assets/site.js tem sintaxe válida
+  OK   um card por motor do manifest.json, nem a mais nem a menos — cards: vox-engine, vxk, mcp-gateway, cerne, embed-house, neural-link, skill-engine, client-harness, motor-de-grafo | manifest: embed-house, vox-engine, mcp-gateway, neural-link, vxk, cerne, skill-engine, client-harness, motor-de-grafo
+  OK   card vox-engine: link da página do produto — https://allansantos-dv.github.io/vox-engine/
+  OK   card vox-engine: abre fora com rel noopener
+  OK   card vxk: link da página do produto — https://allansantos-dv.github.io/visual-explainer/
+  OK   card vxk: abre fora com rel noopener
+  OK   card mcp-gateway: link da release exata da versão do manifest (o produto ainda não tem Pages) — https://github.com/AllanSantos-DV/engine-registry/releases/tag/mcp-gateway-v0.17.10
+  OK   card mcp-gateway: abre fora com rel noopener
+  OK   card cerne: link da release exata da versão do manifest (o produto ainda não tem Pages) — https://github.com/AllanSantos-DV/engine-registry/releases/tag/cerne-v0.4.14
+  OK   card cerne: abre fora com rel noopener
+  OK   card embed-house: link da release exata da versão do manifest (o produto ainda não tem Pages) — https://github.com/AllanSantos-DV/engine-registry/releases/tag/embed-house-v1.0.5
+  OK   card embed-house: abre fora com rel noopener
+  OK   card neural-link: link da release exata da versão do manifest (o produto ainda não tem Pages) — https://github.com/AllanSantos-DV/engine-registry/releases/tag/neural-link-v0.7.16
+  OK   card neural-link: abre fora com rel noopener
+  OK   card skill-engine: link da release exata da versão do manifest (o produto ainda não tem Pages) — https://github.com/AllanSantos-DV/engine-registry/releases/tag/skill-engine-v0.4.1
+  OK   card skill-engine: abre fora com rel noopener
+  OK   card client-harness: link da página do produto — https://allansantos-dv.github.io/harness-padroes-cliente/
+  OK   card client-harness: abre fora com rel noopener
+  OK   card motor-de-grafo: link da release exata da versão do manifest (o produto ainda não tem Pages) — https://github.com/AllanSantos-DV/engine-registry/releases/tag/motor-de-grafo-v0.1.1
+  OK   card motor-de-grafo: abre fora com rel noopener
+  (info) sem Pages próprio ainda, o card leva à versão atual: embed-house, mcp-gateway, neural-link, cerne, skill-engine, motor-de-grafo
+  OK   um card por app do manifest.json, nem a mais nem a menos — cards: agent-launcher, smart-design | manifest: agent-launcher, smart-design
+  OK   card do app agent-launcher: link da página do produto (homepage do manifest) — https://allansantos-dv.github.io/agent-launcher/
+  OK   card do app agent-launcher: abre fora com rel noopener
+  OK   card do app agent-launcher: diz a plataforma e não fixa versão (a página não pode envelhecer a cada release) — <article class="card c-ambar" id="a-agent-launcher" data-app="agent-launcher">
+        <div class="chips"><span class="chip">launcher de agentes</span><span cl
+  OK   card do app smart-design: link da página do produto (homepage do manifest) — https://allansantos-dv.github.io/smart-design/
+  OK   card do app smart-design: abre fora com rel noopener
+  OK   card do app smart-design: diz a plataforma e não fixa versão (a página não pode envelhecer a cada release) — <article class="card c-menta" id="a-smart-design" data-app="smart-design">
+        <div class="chips"><span class="chip">design de telas</span><span class="chi
+  OK   a seção dos apps não contamina a contagem de cards de motor
+  OK   passo de instalação mostra `npx engine-kit ensure <motor>` com um motor do manifest — <h3>Instale pelo kit</h3><p>Um comando do npm, sem clonar nada, confere a assinatura do motor, instala e depois o mantém atualizado.</p><pre>npx engine-kit ensure vxk</pre></div>
+  OK   passo de instalação não manda clonar o repositório nem rodar o doctor — <h3>Instale pelo kit</h3><p>Um comando do npm, sem clonar nada, confere a assinatura do motor, instala e depois o mantém atualizado.</p><pre>npx engine-kit ensure vxk</pre></div>
+  OK   card vox-engine: mostra o comando `npx engine-kit fetch vox-engine` — lass="acoes"><a class="btn pri peq" href="https://allansantos-dv.github.io/vox-engine/" target="_blank" rel="noopener noreferrer">Página do produto<span class="sr"> (abre em nova aba)</span> ↗</a></div>
+      </article>
+  OK   card vxk: mostra o comando `npx engine-kit ensure vxk` — acoes"><a class="btn pri peq" href="https://allansantos-dv.github.io/visual-explainer/" target="_blank" rel="noopener noreferrer">Página do produto<span class="sr"> (abre em nova aba)</span> ↗</a></div>
+      </article>
+  OK   card mcp-gateway: mostra o comando `npx engine-kit ensure mcp-gateway` — ttps://github.com/AllanSantos-DV/engine-registry/releases/tag/mcp-gateway-v0.17.10" target="_blank" rel="noopener noreferrer">Baixar a versão atual<span class="sr"> (abre em nova aba)</span> ↗</a></div>
+      </article>
+  OK   card cerne: mostra o comando `npx engine-kit fetch cerne` — href="https://github.com/AllanSantos-DV/engine-registry/releases/tag/cerne-v0.4.14" target="_blank" rel="noopener noreferrer">Baixar a versão atual<span class="sr"> (abre em nova aba)</span> ↗</a></div>
+      </article>
+  OK   card embed-house: mostra o comando `npx engine-kit ensure embed-house` — "https://github.com/AllanSantos-DV/engine-registry/releases/tag/embed-house-v1.0.5" target="_blank" rel="noopener noreferrer">Baixar a versão atual<span class="sr"> (abre em nova aba)</span> ↗</a></div>
+      </article>
+  OK   card neural-link: mostra o comando `npx engine-kit ensure neural-link` — https://github.com/AllanSantos-DV/engine-registry/releases/tag/neural-link-v0.7.16" target="_blank" rel="noopener noreferrer">Baixar a versão atual<span class="sr"> (abre em nova aba)</span> ↗</a></div>
+      </article>
+  OK   card skill-engine: mostra o comando `npx engine-kit ensure skill-engine` — https://github.com/AllanSantos-DV/engine-registry/releases/tag/skill-engine-v0.4.1" target="_blank" rel="noopener noreferrer">Baixar a versão atual<span class="sr"> (abre em nova aba)</span> ↗</a></div>
+      </article>
+  OK   card client-harness: mostra o comando `npx engine-kit ensure client-harness` — <a class="btn pri peq" href="https://allansantos-dv.github.io/harness-padroes-cliente/" target="_blank" rel="noopener noreferrer">Página do produto<span class="sr"> (abre em nova aba)</span> ↗</a></div>
+      </article>
+  OK   card motor-de-grafo: mostra o comando `npx engine-kit ensure motor-de-grafo` — tps://github.com/AllanSantos-DV/engine-registry/releases/tag/motor-de-grafo-v0.1.1" target="_blank" rel="noopener noreferrer">Baixar a versão atual<span class="sr"> (abre em nova aba)</span> ↗</a></div>
+      </article>
+  OK   passo de versão ensina pin, --version, doctor e ENGINE_KIT_NO_AUTO_UPDATE — <h3>Controle a versão</h3><p>Para travar um motor na versão instalada use <code>pin</code>; para escolher uma versão, <code>--version x.y.z</code>. <code>ENGINE_KIT_NO_AUTO_UPDATE=1</code> desliga a atualização automática e deixa só o aviso
+  OK   os comandos do passo de versão existem no bin do kit
+  OK   métrica de motores = quantidade no manifest — manifest: 9
+  OK   métrica de 147 MB vem do resumo do embed-house no manifest
+  OK   métrica '< 38 KB' acompanha o limite do kill-switch do kit — limite no budget.mjs: 37500; métricas: 9 | 1 | 147 MB | 2 | < 38 KB | 3
+  OK   métrica de sistemas (Windows, Linux, macOS) bate com as plataformas do manifest — win32, linux, darwin
+  OK   cenas carregadas do site.js — 24 falas, 7 cenas
+  OK   texto visível e narração falam só de produto (nada de fases, revisões, testes internos, backlog, veredito, PR)
+  OK   toda fala narrada do site.js consta, igual, em docs/ROTEIRO-APRESENTACAO.md
+  OK   o mapa tem 7 passos e a cena do mapa revela um por frase — passos 7, frases da cena 7
+  OK   mídia de apresentação presente (vídeo, pôster e legendas em site/media/) — faltam: 
+  OK   nenhum speechSynthesis / SpeechSynthesisUtterance em site/ (a voz do navegador não é usada)
+  OK   cada fala de cada cena tem o seu áudio em site/media/narracao/ (7 cenas, 24 falas) — faltam: 
+  OK   nenhum áudio de narração órfão (sem fala correspondente no site.js)
+  OK   site.js toca os áudios por arquivo (elemento audio) e avança pelo fim real do áudio
+  OK   narracao.voz.json: origem vox-engine, voz = padrão do motor, versão do motor e voz não pedida pelo dono — {"origem":"vox-engine","voz":"pt-BR-Chirp3-HD-Iapetus","motor":"0.33.7","padraoDoMotor":"pt-BR-Chirp3-HD-Iapetus","pedidaPeloDono":false,"formato":"mp3 32 kbps mono","falas":24,"audioSeg":147.6,"geradoEm":"2026-11-18T13:27:07.044Z"}
+  OK   o vídeo do produto está no primeiro bloco do <main> e é a primeira mídia
+  OK   no máximo 60 palavras antes do vídeo — 44 palavras
+  OK   botão Apresentar no cabeçalho
+  OK   três caminhos antes do vídeo: Assistir (toca o vídeo), Apresentar (abre o diálogo) e Ver o que o produto faz (rola)
+  OK   vídeo com pôster, sem loading=lazy, sem autoplay e com legendas (<track kind=captions>)
+  OK   Apresentar deixa inerte tudo fora do diálogo, inclusive o link Pular para o conteúdo
+  OK   prefers-reduced-motion desliga transições e a rolagem suave
+  OK   legendas do vídeo falam só de produto
+  OK   apresentacao.voz.json ao lado do mp4: vox-engine, voz padrão do motor, versão, fala cabe no vídeo — {"origem":"vox-engine","voz":"pt-BR-Chirp3-HD-Iapetus","motor":"0.33.7","padraoDoMotor":"pt-BR-Chirp3-HD-Iapetus","pedidaPeloDono":false,"formato":"opus","velocidade":1,"sincronia":{"limiteMs":120,"maxMs":30,"cenas":[{"id":4,"derivasMs":[-16,-29,-24,-20],"maxMs":29,"ok":true},{"id":5,"derivasMs":[30,-20,-20,-20,-20],"maxMs":30,"ok":true}]},"falas":7,"audioSeg":100.49,"videoSeg":111,"geradoEm":"2026-11-18T13:56:30.899Z"}
+  OK   uma só voz na página: vídeo e narração do Apresentar com a mesma voz do Vox — vídeo pt-BR-Chirp3-HD-Iapetus x narração pt-BR-Chirp3-HD-Iapetus
+  OK   verificador de página de produto ok:true (1280x720: vídeo a 106px, 44 palavras antes; 390x844: vídeo a 542px, 44 palavras antes)
+  OK   todo navegador do verificador subiu mudo, headless e sem janela — 2 subida(s)
+
+== TUDO VERDE ==

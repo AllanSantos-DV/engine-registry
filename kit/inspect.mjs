@@ -1,0 +1,103 @@
+// engine-kit/inspect.mjs — verbos de leitura do CLI (`history`, `check`, `url`) e o relatório do `doctor --report`.
+// Só lêem: não instalam, não sobem nem derrubam motor. Nunca lançam: devolvem `{ ok:false, reason }`.
+import { readFileSync } from "node:fs";
+import { basename } from "node:path";
+import { historyPath, cmpVer } from "./trust.mjs";
+import { diagnoseEngines, detailLines } from "./diagnose.mjs";
+import { ownVersion } from "./update.mjs";
+import { discover } from "./client.mjs";
+
+/**
+ * `engine-kit history [motor]`: as trocas de versão gravadas em `history.jsonl`, da mais antiga à mais nova.
+ * Arquivo ausente é histórico vazio; linha ilegível é erro com o número dela (nada é mostrado pela metade).
+ * @param {string=} name filtra um motor.
+ * @returns {{ok:true, entries:{ts:string, engine:string, from:string|null, to:string, via:string}[]} | {ok:false, reason:string}}
+ */
+export function historyCommand(name) {
+  const file = historyPath();
+  let text;
+  try { text = readFileSync(file, "utf8"); }
+  catch (e) { return e.code === "ENOENT" ? { ok: true, entries: [] } : { ok: false, reason: `não consegui ler ${file}: ${e.message}` }; }
+  const entries = [];
+  for (const [i, line] of text.split("\n").entries()) {
+    if (!line.trim()) { continue; }
+    try { entries.push(JSON.parse(line)); }
+    catch { return { ok: false, reason: `${file}: linha ${i + 1} ilegível → corrija ou apague essa linha` }; }
+  }
+  return { ok: true, entries: name ? entries.filter((e) => e.engine === name) : entries };
+}
+
+/**
+ * `version` está na `range`? Faixas: `>=`, `>`, `<=`, `<`, `=` (ou só x.y.z) e `^x.y.z` (mesma major; em 0.x a mesma minor; em 0.0.x exata), sempre com x.y.z.
+ * @throws {Error} faixa não reconhecida: nunca ignorada.
+ */
+export function satisfiesRange(version, range) {
+  const m = /^\s*(>=|<=|>|<|=|\^)?\s*(\d+)\.(\d+)\.(\d+)\s*$/.exec(typeof range === "string" ? range : "");
+  if (!m) { throw Error(`faixa não reconhecida: ${JSON.stringify(range)} (aceito: >=, >, <=, <, = ou ^ seguidos de x.y.z)`); }
+  const [, op = "=", a, b, c] = m, cmp = cmpVer(version, `${a}.${b}.${c}`);
+  if (op === "^") {
+    const [va, vb] = String(version).split(".");
+    return cmp >= 0 && va === a && (a !== "0" || (vb === b && (b !== "0" || cmp === 0)));
+  }
+  return { ">=": cmp >= 0, ">": cmp > 0, "<=": cmp <= 0, "<": cmp < 0, "=": cmp === 0 }[op];
+}
+
+/**
+ * `engine-kit check <manifesto>`: confere o bloco `engines` do manifesto de um plugin (`{ "<motor>": "<faixa>" }`) contra o que está instalado, sem rede.
+ * Estados por motor: OK, FORA-DA-FAIXA, AUSENTE, DESCONHECIDO (fora do manifest do kit), NAO-VERIFICAVEL (self-managed), FAIXA-INVALIDA, ERRO.
+ * @param {string} file caminho do manifesto do plugin.
+ * @returns {Promise<{ok:boolean, manifest:string, engines:{name:string, range:*, installed:string|null, state:string, satisfied:boolean, detail:string}[]} | {ok:false, reason:string}>}
+ */
+export async function checkCommand(file) {
+  let block;
+  try { block = JSON.parse(readFileSync(file, "utf8"))?.engines; }
+  catch (e) { return { ok: false, reason: `não consegui ler ${file}: ${e.message}` }; }
+  if (!block || typeof block !== "object" || Array.isArray(block)) { return { ok: false, reason: `${file}: sem bloco "engines" (esperado { "<motor>": "<faixa>" }, ex.: { "embed-house": ">=1.0.0" })` }; }
+  const diag = await diagnoseEngines({ local: true });
+  if (!diag.ok) { return { ok: false, reason: diag.reason }; }
+  const engines = Object.entries(block).map(([name, range]) => {
+    const row = diag.rows.find((r) => r.name === name);
+    const out = (state, detail, installed = null) => ({ name, range, installed, state, satisfied: state === "OK", detail });
+    try { satisfiesRange("0.0.0", range); } catch (e) { return out("FAIXA-INVALIDA", e.message); }
+    if (!row) { return out("DESCONHECIDO", `"${name}" não existe no manifest deste engine-kit → atualize o kit (npx engine-kit@latest ensure ${name})`); }
+    if (row.state === "ERRO") { return out("ERRO", row.detail); }
+    if (row.state === "SELF-MANAGED") { return out("NAO-VERIFICAVEL", "self-managed: instala e atualiza pelo próprio updater, o kit não lê a versão instalada"); }
+    if (!row.installed) { return out("AUSENTE", `não instalado (${row.state}: ${row.detail}) → engine-kit ensure ${name}`); }
+    return satisfiesRange(row.installed, range)
+      ? out("OK", `v${row.installed} satisfaz ${range}`, row.installed)
+      : out("FORA-DA-FAIXA", `v${row.installed} não satisfaz ${range} → engine-kit ensure ${name} [--version x.y.z]`, row.installed);
+  });
+  return { ok: engines.every((e) => e.satisfied), manifest: file, engines };
+}
+
+/**
+ * `engine-kit url <motor>`: o endereço do daemon vivo, lido do anúncio dele (`discover`). Só url, versão e pid: o `shutdownToken` do anúncio não sai daqui.
+ * @returns {Promise<{ok:true, name:string, url:string, version:string|null, pid:number|null} | {ok:false, reason:string}>}
+ */
+export async function urlCommand(name) {
+  const d = await discover(name);
+  return d.ok ? { ok: true, name, url: d.url, version: d.version ?? null, pid: d.pid ?? null } : { ok: false, reason: d.reason };
+}
+
+/**
+ * `engine-kit doctor --report`: texto colável para suporte (kit, Node, plataforma, variáveis ENGINE_KIT_*, estado de cada motor, sobras e hooks).
+ * Só o que o diagnóstico já calcula: o anúncio (runtime) entra só como pid e porta; token, chave privada, caminho de chave e `--registry-url` (pode levar credencial) ficam de fora.
+ * @param {{only?:string, local?:boolean, verify?:boolean, registryUrl?:string}=} opts as mesmas do `diagnoseEngines`.
+ * @returns {Promise<{ok:true, text:string} | {ok:false, reason:string}>}
+ */
+export async function reportCommand({ only, local, verify, registryUrl } = {}) {
+  const diag = await diagnoseEngines({ only, local, verify, registryUrl });
+  if (!diag.ok) { return { ok: false, reason: diag.reason }; }
+  const env = (n) => process.env[n] ?? "(não definido)";
+  const w = Math.max(...diag.rows.map((r) => r.name.length));
+  const lines = [
+    `engine-kit v${ownVersion()}`, `node: ${process.version}`, `plataforma: ${process.platform} ${process.arch}`,
+    `ENGINE_KIT_NO_AUTO_UPDATE: ${env("ENGINE_KIT_NO_AUTO_UPDATE")}`, `ENGINE_KIT_HOME: ${env("ENGINE_KIT_HOME")}`,
+    `registry: ${local ? "manifest LOCAL" : registryUrl ? "próprio (--registry-url)" : "publicado"}`, "", "motores:",
+  ];
+  for (const r of diag.rows) {
+    lines.push(`  ${r.name.padEnd(w)}  ${r.state}  ${r.detail}`, ...detailLines(r).map((l) => `      ${l}`));
+    if (r.left?.length) { lines.push(`      sobras: ${r.left.length} (${r.left.map((p) => basename(p)).join(", ")})`); }
+  }
+  return { ok: true, text: lines.join("\n") };
+}

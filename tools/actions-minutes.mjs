@@ -113,10 +113,14 @@ export function summarizeBilling(found) {
   return [...byRepo.values()].sort((a, b) => b.last.localeCompare(a.last));
 }
 
-/** `gh api <caminho>` com os tokens do ambiente zerados; devolve o JSON ou lança com a saída já limpa de tokens. */
-export function ghApi(path) {
+/**
+ * `gh api <caminho>` com os tokens do ambiente zerados; devolve o JSON ou lança com a saída já limpa de tokens.
+ * @param {string} path caminho da API (com a query, se houver).
+ * @param {{headers?: string[], gh?: string, prefix?: string[]}} [opts] `headers` viram `-H`; `gh` e `prefix` trocam o executável e os argumentos que o antecedem (testes).
+ */
+export function ghApi(path, { headers = [], gh = 'gh', prefix = [] } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn('gh', ['api', path], {
+    const child = spawn(gh, [...prefix, 'api', ...headers.flatMap((h) => ['-H', h]), path], {
       windowsHide: true,
       env: { ...process.env, GH_TOKEN: '', GITHUB_TOKEN: '' },
     });

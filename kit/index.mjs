@@ -24,7 +24,7 @@ import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { provision, satisfiesPin, installedVersion, autoUpdateEnabled, renameRetry } from "./provision.mjs";
 import { lifecycle, findAlive, shutdown } from "./lifecycle.mjs";
-import { pinOf, setPin } from "./trust.mjs";
+import { pinOf, setPin, recordSwap } from "./trust.mjs";
 
 /**
  * Solta o pin do motor (`engine-kit pin`): volta a receber atualizações. Nunca lança.
@@ -115,6 +115,7 @@ export async function ensureEngine(name, opts = {}) {
       await renameRetry(previousDir, bin);
     } catch (e) { return { available: false, reason: `${l.reason}; a volta para v${previous} falhou (${e.code || e.message}); a versão anterior está em ${previousDir}` }; }
     installed = previous;
+    recordSwap(name, failed.version, previous, "rollback");
     log(`[engine-kit] ${name}: v${failed.version} não subiu (${failed.reason}) — voltei para v${previous}`);
     l = await lifecycle(r.engine, entryPath, { healthCheck, log, bootTimeoutMs, env });
     rolledBack = failed;

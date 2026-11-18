@@ -120,7 +120,11 @@ npx engine-kit doctor [--engine <motor>]          # diagnostica: o que reusar, a
 npx engine-kit doctor --fix [--engine <motor>]    # aplica e limpa as sobras de instalação interrompida
 npx engine-kit doctor --json [--engine <motor>]   # mesmo diagnóstico em JSON, para agentes e hooks
 npx engine-kit doctor --verify [--engine <motor>] # confere o sha256 de cada arquivo instalado: alterado ou ausente = ADULTERADO
+npx engine-kit doctor --report [--engine <motor>] # texto colável para suporte: kit, Node, plataforma, variáveis, motores, sobras e hooks; sem token nem chave
 npx engine-kit list [--json]                      # os motores do pacote, a plataforma de cada um e a versão instalada (sem rede)
+npx engine-kit history [motor] [--json]           # as trocas de versão gravadas nesta máquina: de → para e a origem
+npx engine-kit check meu-plugin/plugin.json [--json]   # confere o bloco `engines` do manifesto do plugin contra o instalado
+npx engine-kit url casa-de-embeddings [--json]    # endereço do daemon vivo (url, versão, pid); nunca imprime o token
 npx engine-kit ensure|pin|fetch|stop <motor> --json   # um objeto JSON por chamada, na forma das linhas do doctor (name, ok, state, detail, warns, pin), também na falha
 ```
 
@@ -132,7 +136,25 @@ Para cada motor o diagnóstico diz se o `stop` se aplica (`stoppable` no `--json
 O diagnóstico avisa, sem alterar nada, quando o registry não respondeu (o descritor veio do cache) e quando a chave
 publicada pelo registry difere da gravada em `trust.json` (o próximo `ensure` abortaria).
 
-No clone do repositório, `node kit/doctor.mjs` faz o mesmo.
+No clone do repositório, `node kit/doctor.mjs` faz o mesmo (o `--report` só existe pelo bin).
+
+**Relatório para suporte.** `doctor --report` imprime um texto para colar num chamado: versão do kit, Node, plataforma, `ENGINE_KIT_NO_AUTO_UPDATE` e `ENGINE_KIT_HOME`,
+e, por motor, o estado, os avisos, a vida (pid e porta), o ponteiro `cli.json`, as sobras de instalação (só o nome) e os hooks do neural-link. Não traz token, chave privada, caminho
+de chave nem o `--registry-url`; o anúncio do motor (`runtime.json`) entra só como pid e porta. Aceita `--engine`, `--local` e `--verify`; não combina com `--json` nem com `--fix`.
+
+**Histórico de trocas.** Cada troca de versão grava uma linha JSON em `history.jsonl`, ao lado do `trust.json` (`ENGINE_KIT_HOME` ou `~/.engine-kit`): `ts` ISO, `engine`, `from` (null na primeira
+instalação), `to` e `via` (`ensure`: instalação nova; `auto-update`: troca sem versão pedida; `version`: versão exata, de `--version` ou de um pin; `rollback`: a volta quando a versão nova não subiu).
+Reusar a instalação não é troca. Se a linha não puder ser gravada, a instalação segue e o aviso sai em stderr. `engine-kit history [motor] [--json]` lê o arquivo; uma linha ilegível
+é erro com o número dela.
+
+**Faixa do plugin.** `engine-kit check <manifesto.json>` lê o bloco `engines` do manifesto do plugin (`{ "embed-house": ">=1.0.0" }`) e diz, por motor, se está instalado e se a versão
+instalada satisfaz a faixa: `>=`, `>`, `<=`, `<`, `=` (ou só `x.y.z`) e `^x.y.z` (mesma major; em 0.x a mesma minor; em 0.0.x exata). Faixa que não é uma dessas (`~`, `*`, `latest`, duas
+condições juntas) é erro explícito (`FAIXA-INVALIDA`), nunca ignorada. Motor ausente (`AUSENTE`), fora da faixa (`FORA-DA-FAIXA`), desconhecido do kit (`DESCONHECIDO`) e motor
+`self-managed`, cuja versão o kit não lê (`NAO-VERIFICAVEL`), contam como não satisfeitos: exit 1. Não usa rede.
+
+**Endereço do daemon.** `engine-kit url <motor>` imprime a `url`, a `version` e o `pid` que o motor anuncia (`discover`, de `kit/client.mjs`), depois de conferir que ele responde.
+O `shutdownToken` do anúncio nunca sai. Motor parado, sem anúncio ou com o anúncio apontando para um endereço morto: erro com a causa e o comando (`engine-kit ensure <motor>`), exit 1.
+Vale para os motores que anunciam `url` no `runtime.json` (a casa de embeddings e o motor de grafo).
 
 O `provision` grava dentro da pasta instalada o sha256 de cada arquivo extraído (`.engine-kit-files.json`). O `doctor --verify` confere a pasta contra esse registro, sob demanda
 (não é o caminho comum): arquivo alterado ou ausente vira o estado `ADULTERADO` e o `--fix` reinstala a mesma versão. Arquivo novo não conta (o motor pode guardar estado
@@ -176,7 +198,7 @@ if (!r.available) {
 }
 ```
 
-Declare a dependência no manifesto do seu plugin:
+Declare a dependência no manifesto do seu plugin (`npx engine-kit check <manifesto>` confere a faixa contra o que está instalado):
 
 ```jsonc
 {
@@ -281,7 +303,8 @@ no `trust.json` (ou a fixada pelo consumidor em `trustedKeys`) é a `from` e a a
 assinatura continua ABORT. A rotação é um salto a partir da chave que a máquina já conhece: quem ainda está duas chaves atrás precisa atualizar o kit (`npx engine-kit@latest`).
 Sem a chave anterior (perdida ou vazada), a saída segue sendo explícita: apagar a entrada em `~/.engine-kit/trust.json`. Um `trust.json` que existe e
 não se lê falha fechado: `ensure`, `pin`, `unpin`, `ensureEngine` e o doctor recusam explicando e não regravam o arquivo,
-para não apagar as chaves de primeiro contato e os pins dos outros motores.
+para não apagar as chaves de primeiro contato e os pins dos outros motores. Cada gravação bem-sucedida também copia o conteúdo novo para `trust.json.bak`, antes do rename (se a cópia
+falha, nada é trocado e o erro sobe); a mensagem de `trust.json` ilegível manda restaurar a partir do `.bak` e só então oferece apagar.
 
 **O que isto NÃO cobre, dito na cara:** comprometimento **anterior** ao primeiro contato (o TOFU
 grava a chave do atacante), downgrade/replay e expiração. Fechar isso exige transparência pública
@@ -301,7 +324,8 @@ kit/
   lifecycle.mjs    # garante o processo vivo (daemon) ou entrega o binário (cli)
   register.mjs     # registerNeuralLink: roda o install() do neural-link instalado (ensure neural-link --register)
   trust.mjs        # trust.json por motor: chave do 1º contato, maior versão vista (anti-rollback) e o pin
-  cli.mjs          # comando `engine-kit` (bin do pacote): ensure, fetch, pin, unpin, stop, doctor e list
+  cli.mjs          # comando `engine-kit` (bin do pacote): ensure, fetch, pin, unpin, stop, doctor, list, history, check e url
+  inspect.mjs      # verbos de leitura: history, check (faixas de versão), url e o relatório do doctor --report
   ensure.mjs       # ensure, pin, unpin e stop: resolve → provision com a chave do manifest embarcado no pacote
   fetch.mjs        # fetch: baixa e confere motor ou app sem instalar
   doctor.mjs       # concilia a máquina inteira (OK, DESATUALIZADO, AUSENTE, FIXADO...); --fix aplica
@@ -342,6 +366,15 @@ consumidores vêm marcados, assim como jobs que nem iniciaram por cobrança):
 ```sh
 node tools/actions-minutes.mjs [--month AAAA-MM] [--days 3] [--top 5] [--json]
 ```
+
+Para conferir o critério de remoção da ponte (CONTRATO-MOTOR §7), a busca de código do `gh` lista onde a URL antiga (`<dono>/copilot-marketplace/releases` e `<dono>/neural-link-runtime`) ainda aparece
+nos repositórios do dono; o próprio `engine-registry`, que documenta a ponte, fica fora (`--exclude <repo>` tira outros):
+
+```sh
+node tools/ponte-marketplace.mjs [--owner <login>] [--exclude <repo>] [--json]   # exit 0 = nada falta migrar; 1 = falta; 2 = não deu para consultar
+```
+
+O `gh` roda sem `GH_TOKEN`/`GITHUB_TOKEN` (vale a conta do keyring). Busca incompleta ou truncada é exit 2, nunca "vazio". O exit 0 prova a ausência no índice do GitHub (só a branch padrão, sem arquivos grandes, com atraso de indexação), não nos clones locais.
 
 ## Publicar um motor
 

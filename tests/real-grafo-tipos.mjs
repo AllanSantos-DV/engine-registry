@@ -2,11 +2,12 @@
 // Não faz parte de `npm test` (precisa do motor instalado). Nunca toca o daemon do usuário: só desliga o pid que subiu, pelo token do próprio anúncio.
 //
 //   node tests/real-grafo-tipos.mjs
+import "./_tmp.mjs";
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import { grafoClient } from "../kit/client.mjs";
+const { grafoClient } = await import(process.env.ENGINE_KIT_CLIENT ? new URL(`file:///${process.env.ENGINE_KIT_CLIENT.replaceAll("\\", "/")}`).href : "../kit/client.mjs");
 
 const EXE = join(homedir(), ".motor-de-grafo", "bin", "motor-de-grafo.exe");
 if (!existsSync(EXE)) { throw new Error(`motor-de-grafo não instalado em ${EXE} → engine-kit ensure motor-de-grafo`); }

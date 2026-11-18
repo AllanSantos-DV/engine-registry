@@ -62,22 +62,19 @@ export async function findAlive(engine, healthCheck) {
   return health ? { runtime: rt, health } : null;
 }
 
-/** Espera o processo sair (até `ms`). true = saiu. */
-export async function waitExit(pid, ms) {
+/** Repete `done()` a cada 500 ms até dar verdadeiro (true) ou passar `ms` (false). */
+async function until(done, ms) {
   for (const fim = Date.now() + ms; ; await sleep(500)) {
-    try { process.kill(pid, 0); } catch { return true; }
+    if (await done()) { return true; }
     if (Date.now() >= fim) { return false; }
   }
 }
 
+/** Espera o processo sair (até `ms`). true = saiu. */
+export const waitExit = (pid, ms) => until(() => { try { process.kill(pid, 0); return false; } catch { return true; } }, ms);
+
 /** Sem pid no runtime, a saída do motor se vê pela porta: true = recusou conexão (até `ms`). */
-async function portClosed(port, ms) {
-  for (const fim = Date.now() + ms; ; await sleep(500)) {
-    try { await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(1000) }); }
-    catch (e) { if (e?.cause?.code === "ECONNREFUSED") { return true; } }
-    if (Date.now() >= fim) { return false; }
-  }
-}
+const portClosed = (port, ms) => until(() => fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(1000) }).then(() => false, (e) => e?.cause?.code === "ECONNREFUSED"), ms);
 
 /**
  * Pede ao motor que se encerre, usando SÓ o que o registry declara.

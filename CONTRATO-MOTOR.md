@@ -175,7 +175,7 @@ polui o histórico e obriga todo consumidor a decidir se atualiza — para desco
 [ ] o defeito foi reproduzido pelo caminho REAL do consumidor, não só na peça isolada
 [ ] a correção vai junto com o teste que a trava
 [ ] consumidores apontados para o engine-registry (o repo antigo deixou de ser consultado)
-[ ] grep nos repos dos consumidores pela URL antiga retorna ZERO   ← critério de remoção da ponte
+[ ] grep nos repos dos consumidores pela URL antiga retorna ZERO   ← critério de remoção da ponte (`node tools/ponte-marketplace.mjs` confere pela busca do gh)
 [ ] só então: release antiga marcada como deprecated / removida
 ```
 

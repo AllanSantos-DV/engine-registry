@@ -189,9 +189,20 @@ export async function diagnoseEngines({ only = null, local = false, verify = fal
     if (first && engine.install.publicKey && first !== engine.install.publicKey && !engine.install.rotation) warns.push("chave do registry ≠ chave embarcada no kit: o próximo ensure/--fix aborta já na primeira instalação (rotação chega com npx engine-kit@latest)");
     const left = engine.status === "self-managed" ? [] : leftovers(engine);
     if (left.length) warns.push(`${left.length} sobra(s) de instalação interrompida em ${engine.homeDir}: doctor --fix as remove`);
-    rows.push({ name, state, detail, warns, integrity, engine, pin, left, hooks: name === "neural-link" ? hooksOf() : undefined, needsWork: !SEM_ACAO.includes(state) });
+    rows.push({ name, state, detail, warns, integrity, installed: inst, engine, pin, left, hooks: name === "neural-link" ? hooksOf() : undefined, needsWork: !SEM_ACAO.includes(state) });
   }
   return { ok: true, rows };
+}
+
+/** Linhas de detalhe de uma linha de `diagnoseEngines` (avisos, vida, ponteiro, stop, integridade, hooks), como o doctor e o `doctor --report` as mostram. */
+export function detailLines(row) {
+  const v = engineView(row);
+  return [
+    ...v.warns.map((w) => `aviso: ${w}`),
+    ...(v.life ? [`vida: ${v.life.state} (${v.life.detail})`, `ponteiro cli.json: ${v.pointer.state} (${v.pointer.detail})`, `stop: ${v.stoppable ? `suportado (engine-kit stop ${row.name})` : "não declarado no registry"}`] : []),
+    ...(v.integrity ? [`integridade: ${v.integrity.state} (${v.integrity.detail})`] : []),
+    ...(v.hooks ? [`hooks: ${v.hooks.registered ? `registrados (${v.hooks.events.join(", ")})` : "não registrados → engine-kit ensure neural-link --register"}`] : []),
+  ];
 }
 
 /** Linha de `diagnoseEngines` no formato do `engine-kit doctor --json`. */

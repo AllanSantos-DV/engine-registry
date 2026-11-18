@@ -16,11 +16,12 @@
 import { rmSync } from "node:fs";
 import { provision, autoUpdateEnabled } from "./provision.mjs";
 import { shutdown } from "./lifecycle.mjs";
-import { lifeOf, pointerOf, diagnoseEngines, engineView, staleVerify, SEM_ACAO } from "./diagnose.mjs";
+import { diagnoseEngines, engineView, detailLines, staleVerify, SEM_ACAO } from "./diagnose.mjs";
 import { firstContactKeys } from "./trust.mjs";
 import { keysWithoutBackup, backupReminder } from "./key-backup.mjs";
 
 const args = process.argv.slice(2);
+if (args.includes("--report")) { console.error("--report só pelo bin: engine-kit doctor --report"); process.exit(1); }
 const useLocal = args.includes("--local");
 const doFix = args.includes("--fix");
 const asJson = args.includes("--json") && !doFix;
@@ -45,15 +46,7 @@ const w0 = Math.max(12, ...rows.map((r) => r.name.length));
 for (const r of rows) {
   const mark = SEM_ACAO.includes(r.state) ? "  OK  " : r.state === "ERRO" ? " ERRO " : "  !!  ";
   say(`${mark} ${pad(r.name, w0)}  ${pad(r.state, 14)} ${r.detail}`);
-  for (const w of r.warns ?? []) say(`       ${pad("", w0)}  aviso: ${w}`);
-  if (r.engine && r.engine.status !== "self-managed") {
-    const life = lifeOf(r.engine), ptr = pointerOf(r.engine);
-    say(`       ${pad("", w0)}  vida: ${life.state} (${life.detail})`);
-    say(`       ${pad("", w0)}  ponteiro cli.json: ${ptr.state} (${ptr.detail})`);
-    say(`       ${pad("", w0)}  stop: ${r.engine.runtime?.shutdownPath ? "suportado (engine-kit stop " + r.name + ")" : "não declarado no registry"}`);
-    if (r.integrity) { say(`       ${pad("", w0)}  integridade: ${r.integrity.state} (${r.integrity.detail})`); }
-    if (r.hooks) { say(`       ${pad("", w0)}  hooks: ${r.hooks.registered ? `registrados (${r.hooks.events.join(", ")})` : "não registrados → engine-kit ensure neural-link --register"}`); }
-  }
+  for (const l of detailLines(r)) say(`       ${pad("", w0)}  ${l}`);
 }
 
 // Só quem publica tem pasta de chaves; no --json o stdout segue sendo o JSON das linhas.

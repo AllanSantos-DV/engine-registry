@@ -18,7 +18,7 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { verifyBlob } from "./signature.mjs";
-import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, openSync, closeSync, unlinkSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, openSync, closeSync, unlinkSync, statSync, appendFileSync, copyFileSync } from "node:fs";
 
 // Lido a CADA chamada, não no import: assim um teste (ou um consumidor com HOME próprio) pode
 // isolar a raiz de confiança sem depender da ordem de carregamento dos módulos. Foi a própria
@@ -35,12 +35,14 @@ export function readTrust() {
   const f = trustFile();
   if (!existsSync(f)) return {};
   try { const v = JSON.parse(readFileSync(f, "utf8")); if (v && typeof v == "object" && !Array.isArray(v)) return v; } catch {}
-  throw Error(`${f} ilegível: nada foi gravado; corrija-o ou apague-o de propósito (perde chaves e pins)`);
+  const bak = `${f}.bak`;
+  throw Error(`${f} ilegível: nada foi gravado; ${existsSync(bak) ? `restaure a cópia: copie ${bak} sobre ${f}; só se ela também falhar, apague-o de propósito` : `não há ${bak} para restaurar; corrija-o ou apague-o de propósito`} (apagar perde chaves e pins)`);
 }
 
 /**
  * Lê, altera e grava a entrada de UM motor sob lock de arquivo, com escrita atômica (tmp + rename):
- * processos concorrentes não perdem gravação e uma queda no meio não deixa `trust.json` pela metade.
+ * processos concorrentes não perdem gravação e uma queda no meio não deixa `trust.json` pela metade. O conteúdo novo também vai para
+ * `trust.json.bak` antes do rename: se a cópia falhar nada é trocado e o erro sobe.
  * @param {string} name motor.
  * @param {(entry:object|undefined)=>object} change recebe a entrada atual e devolve a nova.
  * @returns {object} a entrada gravada; lança se não conseguir.
@@ -57,14 +59,16 @@ export function updateEntry(name, change) {
       nap(20);
     }
   }
+  const tmp = `${trustFile()}.${process.pid}.tmp`;
   try {
-    const store = readTrust(), next = change(store[name]), tmp = `${trustFile()}.${process.pid}.tmp`;
+    const store = readTrust(), next = change(store[name]);
     writeFileSync(tmp, JSON.stringify({ ...store, [name]: next }, null, 2));
+    copyFileSync(tmp, `${trustFile()}.bak`);
     for (let t = 1; ; nap(50 * t++)) {
       try { renameSync(tmp, trustFile()); break; } catch (e) { if (t >= 8 || !/^(EBUSY|EPERM|EACCES)$/.test(e.code)) { throw e; } }
     }
     return next;
-  } finally { try { unlinkSync(lock); } catch { /* já liberado */ } }
+  } finally { for (const f of [lock, tmp]) { try { unlinkSync(f); } catch { /* já liberado, ou renomeado */ } } }
 }
 
 /** Mensagem que a chave anterior assina para legitimar a nova. */
@@ -95,27 +99,36 @@ export function checkTrust(engineName, publicKey, { trustedKeys, rotation } = {}
       `Rotação legítima exige que o registry publique a assinatura da chave antiga; ` +
       `se você não rotacionou, ele pode estar comprometido (entrada em ${trustFile()}).`,
   });
+  // Não poder gravar a raiz não impede a instalação, mas vira `saved:false`: a próxima execução repete o TOFU.
+  const grava = (change, ok) => {
+    try { return updateEntry(engineName, change).publicKey === publicKey ? ok : mudou(); }
+    catch { return { ...ok, saved: false }; }
+  };
   if (known && known !== publicKey) {
     if (!rotationSigned(engineName, publicKey, rotation, known)) { return mudou(); }
-    try {
-      const gravada = updateEntry(engineName, (e) => (e?.publicKey === known ? { ...e, publicKey, rotatedFrom: known, rotatedAt: new Date().toISOString() } : e));
-      if (gravada.publicKey !== publicKey) { return mudou(); }
-    } catch { return { ok: true, tofu: false, rotated: true, saved: false }; }
-    return { ok: true, tofu: false, rotated: true };
+    return grava((e) => (e?.publicKey === known ? { ...e, publicKey, rotatedFrom: known, rotatedAt: new Date().toISOString() } : e), { ok: true, tofu: false, rotated: true });
   }
   if (known) return { ok: true, tofu: false };
-
-  try {
-    const gravada = updateEntry(engineName, (e) => (e?.publicKey ? e : { publicKey, firstSeen: new Date().toISOString(), source: pinned ? "pinned" : "tofu" }));
-    if (gravada.publicKey !== publicKey) { return mudou(); }
-  } catch {
-    // Não poder gravar a raiz não impede a instalação, mas vira `saved:false`: a próxima execução repete o TOFU.
-    return { ok: true, tofu: true, saved: false };
-  }
-  return { ok: true, tofu: true };
+  return grava((e) => (e?.publicKey ? e : { publicKey, firstSeen: new Date().toISOString(), source: pinned ? "pinned" : "tofu" }), { ok: true, tofu: true });
 }
 
 export const trustPath = trustFile;
+
+/** `history.jsonl`, ao lado do `trust.json`: uma linha JSON por troca de versão. */
+export const historyPath = () => join(trustDir(), "history.jsonl");
+
+/**
+ * Anexa a troca `from` → `to` do motor ao histórico local. Falha de escrita não derruba a instalação: vira aviso em stderr.
+ * @param {string} engine motor.
+ * @param {string|null} from versão que estava instalada (null na primeira instalação).
+ * @param {string} to versão agora instalada.
+ * @param {string} via ensure, auto-update, version ou rollback.
+ */
+export function recordSwap(engine, from, to, via) {
+  if (from === to) return;
+  try { appendFileSync(historyPath(), `${JSON.stringify({ ts: new Date().toISOString(), engine, from, to, via })}\n`); }
+  catch (e) { console.warn(`[engine-kit] ${engine}: histórico não gravado em ${historyPath()} (${e.message})`); }
+}
 
 /** Chave do primeiro contato: a do manifest embarcado no pacote, só no registry público. Lança se esse manifest for ilegível. */
 export function firstContactKeys(name, registryUrl) {
