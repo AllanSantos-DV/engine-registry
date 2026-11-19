@@ -39,7 +39,7 @@ lima `#b8e86b`. Títulos em Bahnschrift, texto em Segoe UI, rótulos em Cascadia
 - Um motor faz o trabalho pesado uma única vez, nesta máquina.
 - O Claude Code, o Codex, o Copilot, o Cursor e os seus scripts pedem a ele o que precisam.
 
-### 4. Os nove motores — visual: uma ficha por motor, na cor dele, revelada a cada frase
+### 4. Os dez motores — visual: uma ficha por motor, na cor dele, revelada a cada frase
 
 - O Vox Engine dita, transcreve, traduz e fala.
 - O Cerne lê um vídeo e guarda o que importa numa memória que dá para pesquisar.
@@ -49,7 +49,8 @@ lima `#b8e86b`. Títulos em Bahnschrift, texto em Segoe UI, rótulos em Cascadia
 - O neural-link devolve uma decisão única para cada evento de hook do agente.
 - O skill-engine confere as skills de terceiros e só ativa o que sai limpo.
 - O client-harness faz o agente respeitar os padrões de cada cliente, recusando antes de gravar.
-- E o motor-de-grafo indexa uma pasta e responde o grafo de código e, no mesmo banco, o de documentos e de qualquer tipo de nó que um produto registrar.
+- O motor-de-grafo indexa uma pasta e responde o grafo de código e, no mesmo banco, o de documentos e de qualquer tipo de nó que um produto registrar.
+- E a casa-de-embeddings é a dona do modelo e da identidade do espaço vetorial, e serve vetores, similaridade e reordenação a todos os produtos.
 
 ### 5. Como se conectam — visual: o mapa, revelado em sete passos (um por frase)
 
@@ -74,12 +75,13 @@ Uma fala por passo; a anotação entre parênteses diz o que aparece e não é n
 
 ## Fatos que a narração pode afirmar (fonte: `manifest.json` e README)
 
-- São nove motores: Vox Engine, VXK, mcp-gateway, Cerne, embed-house, neural-link, skill-engine, client-harness, motor-de-grafo.
+- São dez motores: Vox Engine, VXK, mcp-gateway, Cerne, embed-house, neural-link, skill-engine, client-harness, motor-de-grafo, casa-de-embeddings.
 - O VXK precisa do Vox para narrar e avisa quando ele falta, em vez de gerar uma página muda.
 - O mcp-gateway reúne servidores MCP; Vox, Cerne e VXK expõem as ferramentas por MCP.
 - O embed-house evita carregar cerca de 147 MB de modelo a cada sessão.
 - O motor-de-grafo indexa uma pasta e responde o grafo de código e, no mesmo banco, o de documentos e de qualquer tipo de nó que um produto registrar.
+- A casa-de-embeddings é um daemon por máquina que serve /embed, /similarity e /rerank e é dona do modelo e do space_id (a identidade do espaço vetorial); nenhum produto carrega o próprio modelo.
 - O neural-link é chamado a cada evento de hook e não fica rodando em segundo plano.
 - Cada release é conferida por SHA-256 e assinatura Ed25519 antes de instalar; falhando, nada é instalado.
-- O cliente de instalação (engine-kit) tem menos de 37 KB de código.
+- O cliente de instalação (engine-kit) tem menos de 38 KB de código.
 - Sistemas: Windows, Linux e macOS, conforme o motor (embed-house cobre os três; Vox Engine e Cerne são Windows).

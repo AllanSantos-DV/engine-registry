@@ -26,7 +26,7 @@ check("as duas entradas existem", Boolean(casa) && Boolean(grafo));
 for (const e of [casa, grafo].filter(Boolean)) {
   const outros = manifest.engines.filter((x) => x !== e).map((x) => x.install.publicKey);
   check(`${e.name}: chave própria, assinatura obrigatória e sidecars`, /^[0-9a-f]{64}$/.test(e.install.publicKey ?? "") && !outros.includes(e.install.publicKey) && e.install.signatureRequired === true && e.install.checksum === "{asset}.sha256");
-  check(`${e.name}: ${e === grafo ? "release publicada, sem status pendente" : "enquanto a release não sai, pending-release"}, com o motivo da página`, (e === grafo ? e.status === undefined : e.status === "pending-release") && /\S{10}/.test(e.pagesPendente ?? ""));
+  check(`${e.name}: release publicada, sem status pendente, com o motivo da página`, e.status === undefined && /\S{10}/.test(e.pagesPendente ?? ""));
   check(`${e.name}: o motor sobe sozinho, o kit entrega e desliga (kind cli com runtime completo)`, e.kind === "cli" && e.runtime?.runtimeFile === "run/daemon.json" && e.runtime.healthPath === "/health" && Boolean(e.runtime.shutdownPath) && Boolean(e.runtime.shutdownTokenField) && Boolean(e.runtime.shutdownTokenHeader));
   check(`${e.name}: artefato .tgz com o executável em bin/ e plataforma declarada`, /\.tgz$/.test(e.install.asset) && /^bin\/.+\.exe$/.test(e.install.entry) && e.install.extractTo === "bin" && e.platforms?.length > 0, `${e.install.asset} ${e.install.entry}`);
   check(`${e.name}: tag do registry público`, e.install.repo === "AllanSantos-DV/engine-registry" && e.install.tag === `${e.name}-v{version}`, e.install.tag);
@@ -39,8 +39,7 @@ check("o motor de grafo declara o updater próprio (POST /update do servidor)", 
 const readme = read("README.md");
 const site = read("site/index.html");
 for (const e of [casa, grafo].filter(Boolean)) {
-  const anunciado = readme.includes("`" + e.name + "`") && site.includes(`data-motor="${e.name}"`);
-  check(`${e.name}: README e vitrine ${e === grafo ? "anunciam o motor com a release publicada" : "só o anunciam depois da release"}`, e === grafo ? anunciado : !readme.includes("`" + e.name + "`") && !site.includes(`data-motor="${e.name}"`));
+  check(`${e.name}: README e vitrine anunciam o motor com a release publicada`, readme.includes("`" + e.name + "`") && site.includes(`data-motor="${e.name}"`));
 }
 
 console.log(`\n== ${failures === 0 ? "TUDO VERDE" : `${failures} FALHA(S)`} ==`);

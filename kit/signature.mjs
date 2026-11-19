@@ -30,6 +30,9 @@ export const DEFAULT_ALGORITHM = "ed25519-sha256-raw";
 const SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");   // 12 bytes + 32 crus
 const PKCS8_PREFIX = Buffer.from("302e020100300506032b657004220420", "hex"); // 16 bytes + 32 crus
 
+/** SHA-256 de `data` (Buffer de 32 bytes, ou string no `encoding` pedido). */
+export const sha256 = (data, encoding) => createHash("sha256").update(data).digest(encoding);
+
 const RAW_KEY_BYTES = 32;
 export const SIGNATURE_BYTES = 64;
 
@@ -73,7 +76,7 @@ export function publicKeyHexFromPrivateHex(privateKeyHex) {
 /** LADO PUBLISHER: assina o SHA-256 do artefato. Devolve os 64 bytes crus do `.sig`. LANÇA em erro. */
 export function signBlob(blob, privateKeyHex) {
   const key = privateKeyFromHex(privateKeyHex);
-  const sig = edSign(null, createHash("sha256").update(blob).digest(), key);
+  const sig = edSign(null, sha256(blob), key);
   if (sig.length !== SIGNATURE_BYTES) {
     throw new Error(`assinatura com tamanho inesperado (${sig.length}B, esperado ${SIGNATURE_BYTES}B)`);
   }
@@ -81,10 +84,11 @@ export function signBlob(blob, privateKeyHex) {
 }
 
 /**
- * LADO CONSUMIDOR: verifica a assinatura de um artefato. FAIL-CLOSED — qualquer dúvida é `false`.
+ * LADO CONSUMIDOR: verifica a assinatura sobre o SHA-256 (32 bytes) já calculado do artefato — o que permite conferir um
+ * download em fluxo sem tê-lo inteiro em memória. FAIL-CLOSED — qualquer dúvida é `false`.
  * @returns {{ok:true} | {ok:false, reason:string}} nunca lança.
  */
-export function verifyBlob(blob, signature, publicKeyHex, { algorithm = DEFAULT_ALGORITHM } = {}) {
+export function verifyDigest(digest, signature, publicKeyHex, { algorithm = DEFAULT_ALGORITHM } = {}) {
   if (!SUPPORTED_ALGORITHMS.includes(algorithm)) {
     return { ok: false, reason: `algoritmo de assinatura desconhecido "${algorithm}" (suportados: ${SUPPORTED_ALGORITHMS.join(", ")}) → ABORT` };
   }
@@ -96,11 +100,12 @@ export function verifyBlob(blob, signature, publicKeyHex, { algorithm = DEFAULT_
     return { ok: false, reason: `sidecar .sig com ${sig.length} bytes (esperado ${SIGNATURE_BYTES} crus, sem base64) → ABORT` };
   }
   try {
-    const key = publicKeyFromHex(publicKeyHex);
-    const digest = createHash("sha256").update(blob).digest();
-    if (edVerify(null, digest, key, sig)) { return { ok: true }; }
+    if (edVerify(null, digest, publicKeyFromHex(publicKeyHex), sig)) { return { ok: true }; }
     return { ok: false, reason: "assinatura Ed25519 NÃO confere — artefato não veio de quem detém a chave privada → ABORT" };
   } catch (e) {
     return { ok: false, reason: `verificação de assinatura falhou: ${e?.message || e} → ABORT` };
   }
 }
+
+/** LADO CONSUMIDOR: verifica a assinatura de um artefato em memória (hash-then-sign). Mesmo contrato de {@link verifyDigest}. */
+export const verifyBlob = (blob, signature, publicKeyHex, opts) => verifyDigest(sha256(blob), signature, publicKeyHex, opts);

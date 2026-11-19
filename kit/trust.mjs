@@ -55,7 +55,7 @@ export function updateEntry(name, change) {
     try { closeSync(openSync(lock, "wx")); break; }
     catch (e) {
       if ((e.code !== "EEXIST" && e.code !== "EPERM") || i > 250) { throw e; } // EPERM: Windows, lock em remoção
-      try { if (Date.now() - statSync(lock).mtimeMs > 10000) { unlinkSync(lock); } } catch { /* outro processo liberou */ }
+      dropStaleLock(lock, 10000);
       nap(20);
     }
   }
@@ -68,8 +68,14 @@ export function updateEntry(name, change) {
       try { renameSync(tmp, trustFile()); break; } catch (e) { if (t >= 8 || !/^(EBUSY|EPERM|EACCES)$/.test(e.code)) { throw e; } }
     }
     return next;
-  } finally { for (const f of [lock, tmp]) { try { unlinkSync(f); } catch { /* já liberado, ou renomeado */ } } }
+  } finally { [lock, tmp].forEach(dropFile); }
 }
+
+/** Remove o arquivo `p`; ausente não é erro. */
+export const dropFile = (p) => { try { unlinkSync(p); } catch { /* já removido */ } };
+
+/** Apaga `lock` se passou de `ms` sem ser liberado (o dono morreu); outro processo pode tê-lo liberado antes. */
+export const dropStaleLock = (lock, ms) => { try { if (Date.now() - statSync(lock).mtimeMs > ms) { unlinkSync(lock); } } catch { /* já liberado */ } };
 
 /** Mensagem que a chave anterior assina para legitimar a nova. */
 export const rotationBlob = (name, key) => Buffer.from(`engine-kit:rotate:${name}:${String(key).toLowerCase()}`);
@@ -130,9 +136,12 @@ export function recordSwap(engine, from, to, via) {
   catch (e) { console.warn(`[engine-kit] ${engine}: histórico não gravado em ${historyPath()} (${e.message})`); }
 }
 
+/** O manifest embarcado no pacote. Lança se for ilegível. */
+export const embeddedManifest = () => JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8"));
+
 /** Chave do primeiro contato: a do manifest embarcado no pacote, só no registry público. Lança se esse manifest for ilegível. */
 export function firstContactKeys(name, registryUrl) {
-  const key = !registryUrl && JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8")).engines.find((e) => e.name === name)?.install?.publicKey;
+  const key = !registryUrl && embeddedManifest().engines.find((e) => e.name === name)?.install?.publicKey;
   if (key) return { [name]: key };
 }
 

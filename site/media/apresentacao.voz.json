@@ -8,7 +8,7 @@
   "velocidade": 1,
   "sincronia": {
     "limiteMs": 120,
-    "maxMs": 30,
+    "maxMs": 29,
     "cenas": [
       {
         "id": 4,
@@ -24,19 +24,27 @@
       {
         "id": 5,
         "derivasMs": [
-          30,
           -20,
           -20,
           -20,
           -20
         ],
-        "maxMs": 30,
+        "maxMs": 20,
+        "ok": true
+      },
+      {
+        "id": 6,
+        "derivasMs": [
+          -20,
+          -20
+        ],
+        "maxMs": 20,
         "ok": true
       }
     ]
   },
-  "falas": 7,
-  "audioSeg": 100.49,
-  "videoSeg": 111,
-  "geradoEm": "2026-11-18T13:56:30.899Z"
+  "falas": 8,
+  "audioSeg": 110.7,
+  "videoSeg": 123,
+  "geradoEm": "2026-11-19T02:17:22.609Z"
 }

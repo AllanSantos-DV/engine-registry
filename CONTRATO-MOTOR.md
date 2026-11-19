@@ -128,7 +128,7 @@ Um motor pode trazer o próprio updater (o servidor do grafo atualiza por `POST 
 
 ### Casa de embeddings e motor de grafo
 
-`casa-de-embeddings` e `motor-de-grafo` são motores `kind: cli` no sentido do vxk: o kit entrega o executável (`bin/<motor>.exe`) e o desliga pelo `shutdownPath`; quem sobe o daemon é o cliente compartilhado (`kit/client.mjs`, `ensureHome`), que espera o anúncio. O anúncio é `run/daemon.json` dentro do home e traz `url`, `port`, `pid`, `version` e `shutdownToken` (`x-casa-token` na casa, `x-shutdown-token` no motor de grafo). Os dois ficam `status: pending-release` até a primeira release assinada; o `ensure` recusa dizendo isso, o `doctor` mostra SEM-RELEASE sem pedir ação e o README e a vitrine só os anunciam depois.
+`casa-de-embeddings` e `motor-de-grafo` são motores `kind: cli` no sentido do vxk: o kit entrega o executável (`bin/<motor>.exe`) e o desliga pelo `shutdownPath`; quem sobe o daemon é o cliente compartilhado (`kit/client.mjs`, `ensureHome`), que espera o anúncio. O anúncio é `run/daemon.json` dentro do home e traz `url`, `port`, `pid`, `version` e `shutdownToken` (`x-casa-token` na casa, `x-shutdown-token` no motor de grafo). Os dois já têm release assinada e saíram de `pending-release`. Uma entrada nova que ainda não tem release fica `status: pending-release` até a primeira: o `ensure` recusa dizendo isso, o `doctor` mostra SEM-RELEASE sem pedir ação e o README e a vitrine só a anunciam depois.
 
 Um produto usa os dois sem peça local:
 

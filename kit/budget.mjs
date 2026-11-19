@@ -135,8 +135,12 @@ const ROOT = resolvePath(KIT, "..");
 //   que `ensure` e `fetch` liam cada um por si (`pinFor`, `embarcado`), o `onBeforeReplace` copiado no doctor (`derrubarAntes`), o GET anônimo repetido no `verify-release`
 //   (`anonymousGet`), o preâmbulo de argumentos e manifest repetido em `update-manifest` e `verify-release` (`publish-args.mjs`) e a recusa de entrada inexistente do `update-manifest`.
 //   Rodado na mão de quem instala; o fecho de imports de `index.mjs` não mudou e nenhum código funcional foi cortado.
+//   2026-11-18 runtime 37500 → 38000: o artefato desce em fluxo para disco (sha256 incremental, assinatura conferida sobre o digest com `verifyDigest`) e o prazo passa a ser por
+//   inatividade (`idleTimeoutMs`); o tgz de 869 MB da casa-de-embeddings estourava o prazo total e ocupava a memória inteira. O `provision.lock` passa a ser renovado (mtime, a cada `lockStaleMs / 3`) pelo `provision` e `lockStaleMs` torna o prazo de órfão injetável, para um download longo não perder o lock; a extração do `tar` passou a ser assíncrona (`extractTgz` com `execFile`) para o heartbeat seguir durante ela. +0.4 KB líquidos: antes de subir o teto saiu a duplicação, -1.0 KB
+//   (a recusa `{ ok:false, reason:"<motor>: …" }` de provision e lifecycle em `refuse`, o `available:false` de lifecycle e index em `unavailable`, o manifest embarcado em `embeddedManifest`,
+//   o lock velho em `dropStaleLock`, o sha256 em `sha256`, a pasta extraída em `binDirOf`, o `rm` de arquivo em `dropFile`, a linha de log com o prefixo do kit em `say` e a segunda chamada de `lifecycle` do rollback). Ferramental, sem subir o teto: o hash do marcador de extração do `fetch` passou a ser em fluxo e o `rm` da pasta usa `rmTree`. Nenhum código funcional foi cortado.
 const BUDGETS = {
-  runtime: { codeBytes: 37500, baseline: 24519, loc: 900 },
+  runtime: { codeBytes: 38000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10000, baseline: 8500, loc: 230 },
   tooling: { codeBytes: 73400, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },

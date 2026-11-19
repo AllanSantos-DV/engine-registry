@@ -16,6 +16,7 @@
     ["skill-engine", "skills de terceiros conferidas antes de ativar", "var(--color-coral)"],
     ["client-harness", "o agente respeita os padrões de cada cliente", "var(--color-text)"],
     ["motor-de-grafo", "grafo de código, de documentos e de qualquer tipo de nó", "var(--color-amber)"],
+    ["casa-de-embeddings", "dona do modelo e do espaço vetorial de todos os produtos", "var(--color-sky)"],
   ];
   const CENAS = [
     { t: "engine-registry", vis: "hero", partes: [
@@ -29,7 +30,7 @@
       "Um motor faz o trabalho pesado uma única vez, nesta máquina.",
       "O Claude Code, o Codex, o Copilot, o Cursor e os seus scripts pedem a ele o que precisam.",
     ] },
-    { t: "Os nove motores", vis: "fichas", partes: [
+    { t: "Os dez motores", vis: "fichas", partes: [
       "O Vox Engine dita, transcreve, traduz e fala.",
       "O Cerne lê um vídeo e guarda o que importa numa memória que dá para pesquisar.",
       "O VXK transforma o roteiro do agente numa explicação animada e narrada.",
@@ -38,7 +39,8 @@
       "O neural-link devolve uma decisão única para cada evento de hook do agente.",
       "O skill-engine confere as skills de terceiros e só ativa o que sai limpo.",
       "O client-harness faz o agente respeitar os padrões de cada cliente, recusando antes de gravar.",
-      "E o motor-de-grafo indexa uma pasta e responde o grafo de código e, no mesmo banco, o de documentos e de qualquer tipo de nó que um produto registrar.",
+      "O motor-de-grafo indexa uma pasta e responde o grafo de código e, no mesmo banco, o de documentos e de qualquer tipo de nó que um produto registrar.",
+      "E a casa-de-embeddings é a dona do modelo e da identidade do espaço vetorial, e serve vetores, similaridade e reordenação a todos os produtos.",
     ] },
     { t: "Como se conectam", vis: "mapa", partes: [
       "Tudo começa nos seus agentes e aplicativos.",

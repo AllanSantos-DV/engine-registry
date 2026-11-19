@@ -15,7 +15,7 @@ import { spawn } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { resolve } from "./resolve.mjs";
-import { sleep } from "./provision.mjs";
+import { sleep, refuse, say } from "./provision.mjs";
 
 
 /**
@@ -24,6 +24,9 @@ import { sleep } from "./provision.mjs";
  * lifecycle devolveria um motor morto. Sem heartbeat declarado, 2 minutos é o teto.
  */
 const DEFAULT_STALE_MS = 120000;
+
+/** Resposta `available:false` do ciclo de vida, com o motivo. */
+export const unavailable = (reason) => ({ available: false, reason });
 
 const runtimeFile = (engine) => join(engine.homeDir, engine.runtime?.runtimeFile ?? "runtime.json");
 
@@ -110,16 +113,16 @@ export async function shutdown(engine, { log = () => {}, timeoutMs = 90000, wait
     // 202 = aceito, mas o motor está ocupado e só fecha quando o trabalho em curso acabar (vxk com build rodando);
     // 503 = já está fechando. Nos dois o swap só é seguro depois que o processo sair.
     const adiado = res.status === 202 || res.status === 503;
-    if (!res.ok && !adiado) { return { ok: false, reason: `${engine.name}: shutdown respondeu HTTP ${res.status}` }; }
-    log(`[engine-kit] ${engine.name}: shutdown pedido (pid ${rt.pid ?? "?"}, HTTP ${res.status})`);
-    if (adiado) { log(`[engine-kit] ${engine.name}: ocupado, aguardando até ${waitBusyMs / 1000}s o trabalho em curso acabar`); }
+    if (!res.ok && !adiado) { return refuse(engine, `shutdown respondeu HTTP ${res.status}`); }
+    say(log, engine, `shutdown pedido (pid ${rt.pid ?? "?"}, HTTP ${res.status})`);
+    if (adiado) { say(log, engine, `ocupado, aguardando até ${waitBusyMs / 1000}s o trabalho em curso acabar`); }
     // O motor responde ANTES de sair. Sem esta espera, o swap ainda encontra o arquivo em uso.
     if (!(await (rt.pid ? waitExit(rt.pid, adiado ? waitBusyMs : 15000) : portClosed(rt.port, adiado ? waitBusyMs : 15000)))) {
-      return { ok: false, reason: `${engine.name}: ainda ocupado após o pedido; rode de novo depois` };
+      return refuse(engine, "ainda ocupado após o pedido; rode de novo depois");
     }
     return { ok: true, stopped: true };
   } catch (e) {
-    return { ok: false, reason: `${engine.name}: shutdown falhou (${e?.message || e})` };
+    return refuse(engine, `shutdown falhou (${e?.message || e})`);
   }
 }
 
@@ -170,21 +173,21 @@ export async function lifecycle(engine, entryPath, { healthCheck, log = () => {}
   //    entrega. Sai ANTES da exigência de healthCheck: cobrar handshake de quem não tem protocolo
   //    de rede seria uma barreira artificial.
   if (engine.kind === "cli") {
-    log(`[engine-kit] ${engine.name}: motor kind=cli (invocado por evento) — sem processo para manter vivo`);
+    say(log, engine, `motor kind=cli (invocado por evento) — sem processo para manter vivo`);
     return { available: true, kind: "cli", bin: entryPath, runtime: null, health: null };
   }
 
   if (typeof healthCheck !== "function") {
-    return { available: false, reason: "healthCheck é obrigatório (o kit não adivinha o protocolo do motor)" };
+    return unavailable("healthCheck é obrigatório (o kit não adivinha o protocolo do motor)");
   }
 
   // 1) FAST PATH: já vivo? (runtime diz onde; o handshake do motor prova que sim)
   const alive = await findAlive(engine, healthCheck);
-  if (alive) { log(`[engine-kit] ${engine.name}: fast-path (já vivo)`); return { available: true, ...alive }; }
+  if (alive) { say(log, engine, `fast-path (já vivo)`); return { available: true, ...alive }; }
 
   // 2) SOBE. A corrida por singleton é resolvida DENTRO do motor (port-lock/bind); quem perde sai.
   if (!spawnEngine(nodePath, entryPath, log, env)) {
-    return { available: false, reason: `${engine.name}: spawn falhou` };
+    return unavailable(`${engine.name}: spawn falhou`);
   }
 
   const deadline = Date.now() + bootTimeoutMs;
@@ -193,5 +196,5 @@ export async function lifecycle(engine, entryPath, { healthCheck, log = () => {}
     if (up) { return { available: true, ...up }; }
     await sleep(1000);
   }
-  return { available: false, reason: `${engine.name}: não anunciou em ${bootTimeoutMs}ms` };
+  return unavailable(`${engine.name}: não anunciou em ${bootTimeoutMs}ms`);
 }

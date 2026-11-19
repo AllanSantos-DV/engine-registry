@@ -39,6 +39,7 @@ vive num lugar só e o consumidor apenas **declara a dependência**.
 | `skill-engine` | 0.4.1 | `cli` | Gerencia skills de agentes fora de qualquer IDE: busca repositórios em quarentena, varre com regras determinísticas e só ativa o que sai limpo. |
 | `client-harness` | 0.3.2 | `cli` | Daemon local que faz o Claude Code e o Codex respeitarem os padrões de cada cliente: confere cada ação do agente contra as regras da pasta e recusa antes de gravar, com o motivo. |
 | `motor-de-grafo` | 0.1.1 | `cli` | Indexa uma pasta e responde o grafo de código (símbolos, busca, chamadores, chamados, referências, índice SCIP) e, no mesmo banco, o de documentos e qualquer tipo de nó que um produto registrar, com busca por nome, texto, vetor e propriedade. Atualiza pelo próprio updater. |
+| `casa-de-embeddings` | 0.3.2 | `cli` | Casa local de embeddings: um daemon por máquina que serve `/embed`, `/similarity` e `/rerank`, dono do modelo e da identidade do espaço vetorial (`space_id`). Nenhum produto carrega o próprio modelo. |
 
 **Todos** são publicados aqui, assinados com Ed25519 e verificados antes de instalar.
 
@@ -254,10 +255,16 @@ if (!gw.available) { log(`gateway indisponível: ${gw.reason}`); return; }  // d
   troca o artefato no release **regenera o `.sha256` junto** e passaria pela integridade. A
   assinatura amarra o artefato a quem detém a chave privada — que nunca sai da máquina do dono.
 - **Um provisionamento por vez** — lock atômico (`wx`): consumidores concorrentes não brigam;
-  os demais esperam o vencedor.
+  os demais esperam o vencedor. Quem provisiona renova o mtime do lock a cada 40 s; só o lock sem
+  renovação há 120 s (dono morto) é reclamado, então um download longo não perde o lock.
+- **Download em fluxo, prazo por inatividade** — o artefato desce direto para `<asset>.part` (nunca
+  inteiro em memória), com o sha256 calculado durante o download; a assinatura Ed25519 confere sobre
+  esse digest. O prazo é `idleTimeoutMs` (60 s sem receber nenhum byte, `downloadTimeoutMs` é o nome
+  antigo): um download lento que continua recebendo não expira. `engine-kit fetch` também confere o
+  `.tgz` com hash em fluxo.
 - **Reúso por semver same-major `>=`** — dois consumidores com pins diferentes convergem no maior,
   sem loop de download. Major diferente = incompatível (o protocolo é atado ao major).
-- **Troca atômica** — download em `.part` → rename; extração em staging → swap. No Windows, o
+- **Troca atômica** — download em `.part` (apagado se qualquer passo falhar) → rename; extração em staging → swap. No Windows, o
   `ensureEngine` derruba o daemon antes pelo `shutdownPath` do descritor (`onBeforeReplace` troca o gancho, `false` desliga; arquivo em uso não pode ser sobrescrito).
 - **Nunca lança** — toda falha vira `{ ok:false, reason }` / `{ available:false, reason }`. Quem
   decide como degradar é o consumidor.

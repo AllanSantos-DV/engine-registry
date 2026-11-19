@@ -22,9 +22,9 @@ export { SIGNING_DIR, keyPathFor } from "./keystore.mjs";
 import { resolve, platformReason } from "./resolve.mjs";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { provision, satisfiesPin, installedVersion, autoUpdateEnabled, renameRetry } from "./provision.mjs";
-import { lifecycle, findAlive, shutdown } from "./lifecycle.mjs";
-import { pinOf, setPin, recordSwap } from "./trust.mjs";
+import { provision, satisfiesPin, installedVersion, autoUpdateEnabled, renameRetry, rmTree, binDirOf } from "./provision.mjs";
+import { lifecycle, findAlive, shutdown, unavailable } from "./lifecycle.mjs";
+import { pinOf, setPin, recordSwap, embeddedManifest } from "./trust.mjs";
 
 /**
  * Solta o pin do motor (`engine-kit pin`): volta a receber atualizações. Nunca lança.
@@ -42,12 +42,11 @@ export const pin = (name, version) => setPin(name, version);
 async function vivoSemRegistry(name, healthCheck, reason) {
   if (typeof healthCheck !== "function") { return null; }
   try {
-    const { engine } = await resolve(name, { manifest: JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8")) });
+    const { engine } = await resolve(name, { manifest: embeddedManifest() });
     if (!engine) { return null; }
     const alive = await findAlive(engine, healthCheck);
     if (!alive) { return null; }
-    const dir = join(engine.homeDir, engine.install.extractTo ?? "bin");
-    return { available: true, ...alive, engine: { ...engine, installedVersion: installedVersion(dir), registryReason: reason } };
+    return { available: true, ...alive, engine: { ...engine, installedVersion: installedVersion(binDirOf(engine)), registryReason: reason } };
   } catch { return null; }
 }
 
@@ -80,17 +79,17 @@ export async function ensureEngine(name, opts = {}) {
   const { healthCheck, version, allowNetwork = true, registryUrl, log = () => {}, bootTimeoutMs, onBeforeReplace, env, trustedKeys, refresh = false, fetcher, allowDowngrade = false } = opts;
 
   let pin;
-  try { pin = pinOf(name); } catch (e) { return { available: false, reason: e.message }; }
+  try { pin = pinOf(name); } catch (e) { return unavailable(e.message); }
   if (pin && version && !satisfiesPin(pin, version)) {
-    return { available: false, reason: `${name} fixado em v${pin}; o consumidor pede v${version} → engine-kit unpin ${name}` };
+    return unavailable(`${name} fixado em v${pin}; o consumidor pede v${version} → engine-kit unpin ${name}`);
   }
   const r = await resolve(name, { version: pin ?? version, allowNetwork, registryUrl, refresh });
-  if (!r.ok) { return await vivoSemRegistry(name, healthCheck, r.reason) ?? { available: false, reason: r.reason }; }
+  if (!r.ok) { return await vivoSemRegistry(name, healthCheck, r.reason) ?? unavailable(r.reason); }
 
   const fora = platformReason(r.engine);
-  if (fora) { return { available: false, reason: fora }; }
+  if (fora) { return unavailable(fora); }
   const entryPath = join(r.engine.homeDir, r.engine.install.entry);
-  const bin = join(r.engine.homeDir, r.engine.install.extractTo ?? "bin");
+  const bin = binDirOf(r.engine);
   const previous = existsSync(entryPath) ? installedVersion(bin) : null;
   const keep = (!autoUpdateEnabled({ ...process.env, ...env }) || r.engine.runtime?.updatePath) && !version && !pin && previous && !satisfiesPin(previous, r.engine.version);
   let installed = previous, updateAvailable, previousDir;
@@ -100,26 +99,27 @@ export async function ensureEngine(name, opts = {}) {
       ? async () => { const s = await shutdown(r.engine, { log }); if (!s.ok) { log(`aviso: ${s.reason} — o swap pode falhar com o motor vivo`); } }
       : onBeforeReplace || undefined;
     const p = await provision(r.engine, { log, allowNetwork, onBeforeReplace: antes, trustedKeys, keepPrevious: true, exact: Boolean(pin) || (allowDowngrade && Boolean(version)), ...(fetcher ? { fetcher } : {}) });
-    if (!p.ok) { return { available: false, reason: p.reason }; }
+    if (!p.ok) { return unavailable(p.reason); }
     installed = p.version;
     previousDir = p.previousDir;
   }
 
-  let l =await lifecycle(r.engine, entryPath, { healthCheck, log, bootTimeoutMs, env });
+  const live = () => lifecycle(r.engine, entryPath, { healthCheck, log, bootTimeoutMs, env });
+  let l = await live();
   let rolledBack;
   if (!l.available && previousDir) {
     const failed = { version: installed, reason: l.reason };
     try {
       await shutdown(r.engine, { log });
-      rmSync(bin, { recursive: true, force: true });
+      rmTree(bin);
       await renameRetry(previousDir, bin);
-    } catch (e) { return { available: false, reason: `${l.reason}; a volta para v${previous} falhou (${e.code || e.message}); a versão anterior está em ${previousDir}` }; }
+    } catch (e) { return unavailable(`${l.reason}; a volta para v${previous} falhou (${e.code || e.message}); a versão anterior está em ${previousDir}`); }
     installed = previous;
     recordSwap(name, failed.version, previous, "rollback");
     log(`[engine-kit] ${name}: v${failed.version} não subiu (${failed.reason}) — voltei para v${previous}`);
-    l = await lifecycle(r.engine, entryPath, { healthCheck, log, bootTimeoutMs, env });
+    l = await live();
     rolledBack = failed;
-  } else if (previousDir) { try { rmSync(previousDir, { recursive: true, force: true }); } catch { /* sobra limpa pelo doctor --fix */ } }
+  } else if (previousDir) { try { rmTree(previousDir); } catch { /* sobra limpa pelo doctor --fix */ } }
   if (!l.available) { return l; }
 
   const tofu = registryUrl && !trustedKeys?.[name];

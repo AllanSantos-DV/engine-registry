@@ -58,7 +58,7 @@ console.log(`sha256         : ${actual} OK`);
 mkdirSync(verifyRoot(), { recursive: true });
 const staged = join(verifyRoot(), `${engine.name}-${engine.version}-${engine.assetName}`);
 writeFileSync(staged, asset);
-const divergente = versaoDivergente(staged, engine);
+const divergente = await versaoDivergente(staged, engine);
 if (divergente) { die(`${divergente.replace(/ → ABORT \(arquivo removido\)$/, "")} — o artefato publicado não é a versão anunciada`); }
 console.log(`versão no .tgz : v${engine.version} OK`);
 

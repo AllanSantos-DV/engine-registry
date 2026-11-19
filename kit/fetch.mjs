@@ -5,8 +5,8 @@
 // embarcado, conferidos por `verifyAppRelease`. O que passou na conferência vai para `destDir`; nada é extraído nem
 // executado, e o HOME do motor não é tocado. NUNCA lança: devolve { ok, reason }.
 import { resolve } from "./resolve.mjs";
-import { fetchArtifact, extractTgz, installedVersion } from "./provision.mjs";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { fetchArtifact, extractTgz, installedVersion, rmTree } from "./provision.mjs";
+import { createReadStream, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { verifyAppRelease, findApp } from "./app-release.mjs";
@@ -17,20 +17,23 @@ export { verifyRoot };
 /**
  * A assinatura prova quem publicou o artefato, não qual versão ele é: uma release antiga legitimamente assinada passaria. Só confere
  * artefato `.tgz` (o `provision` faz a mesma conferência ao instalar); instalador de outro formato fica como veio.
- * @returns {string|null} o motivo da recusa, ou null se confere.
+ * O hash do marcador de extração é calculado em fluxo: o artefato nunca é lido inteiro em memória.
+ * @returns {Promise<string|null>} o motivo da recusa, ou null se confere.
  */
-export function versaoDivergente(arquivo, engine) {
+export async function versaoDivergente(arquivo, engine) {
   if (!/\.(tgz|tar\.gz)$/i.test(arquivo)) { return null; }
   const dir = join(verifyRoot(), `${engine.name}-${engine.version}`);
   const marker = join(dir, ".sha256");
-  const hash = createHash("sha256").update(readFileSync(arquivo)).digest("hex");
+  const h = createHash("sha256");
+  for await (const pedaco of createReadStream(arquivo)) { h.update(pedaco); }
+  const hash = h.digest("hex");
   let feito = false;
   try { feito = readFileSync(marker, "utf8") === hash; } catch { /* sem marcador: extrai */ }
   if (!feito) {
-    rmSync(dir, { recursive: true, force: true });
+    rmTree(dir);
     mkdirSync(dir, { recursive: true });
-    const ex = extractTgz(arquivo, dir);
-    if (!ex.ok) { rmSync(dir, { recursive: true, force: true }); return `${engine.name}: ${ex.reason}`; }
+    const ex = await extractTgz(arquivo, dir);
+    if (!ex.ok) { rmTree(dir); return `${engine.name}: ${ex.reason}`; }
     writeFileSync(marker, hash);
   }
   const got = installedVersion(dir);
@@ -64,7 +67,7 @@ export async function fetchCommand(name, { version, registryUrl, destDir = proce
     if (!r.ok) { return { ok: false, reason: r.reason }; }
     const f = await fetchArtifact(r.engine, { log, destDir, trustedKeys: { [name]: publicKey }, ...(fetcher ? { fetcher } : {}) });
     if (!f.ok) { return f; }
-    const dif = versaoDivergente(f.path, r.engine);
+    const dif = await versaoDivergente(f.path, r.engine);
     if (dif) { rmSync(f.path, { force: true }); return { ok: false, reason: dif }; }
     return { ok: true, kind: "engine", version: f.version, files: [{ path: f.path, signed: f.signed }], ...(r.engine.staleCache ? { staleCache: true } : {}) };
   }

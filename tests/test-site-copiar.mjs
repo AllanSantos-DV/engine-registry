@@ -39,7 +39,7 @@ const montar = (navigator) => {
   return linhas;
 };
 
-check("a vitrine tem os nove comandos", comandos.length === 9, String(comandos.length));
+check("a vitrine tem os dez comandos", comandos.length === 10, String(comandos.length));
 
 let copiado = [];
 const comClipboard = montar({ clipboard: { writeText: async (t) => { copiado.push(t); } } });

@@ -33,85 +33,101 @@ repetem o mesmo trabalho. Aqui, um motor faz o
 trabalho pesado uma única vez, nesta máquina.
 
 9
-00:00:25.750 --> 00:00:29.591
-Aqui vivem nove motores locais que atendem o Claude
+00:00:25.750 --> 00:00:29.806
+Aqui vivem dez motores locais que atendem o Claude
 
 10
-00:00:29.591 --> 00:00:33.777
+00:00:29.806 --> 00:00:34.297
 Code, o Codex, o Copilot, o Cursor e os seus scripts.
 
 11
-00:00:34.750 --> 00:00:38.731
+00:00:35.350 --> 00:00:39.331
 O Vox Engine dita, transcreve, traduz e fala. O Cerne
 
 12
-00:00:38.731 --> 00:00:42.516
+00:00:39.331 --> 00:00:43.116
 lê um vídeo e guarda o que importa numa memória que
 
 13
-00:00:42.516 --> 00:00:46.083
+00:00:43.116 --> 00:00:46.683
 dá para pesquisar. O VXK transforma o roteiro do
 
 14
-00:00:46.083 --> 00:00:50.306
+00:00:46.683 --> 00:00:50.906
 agente numa explicação animada e narrada. E o mcp-gateway
 
 15
-00:00:50.306 --> 00:00:53.977
+00:00:50.906 --> 00:00:54.577
 reúne todos os servidores MCP num endereço só.
 
 16
-00:00:55.150 --> 00:00:58.580
-O embed-house serve os vetores de busca sem repetir
+00:00:55.750 --> 00:00:58.752
+O embed-house serve os vetores de busca sem
 
 17
-00:00:58.580 --> 00:01:01.895
-o modelo em cada sessão. O neural-link devolve uma
+00:00:58.752 --> 00:01:01.905
+repetir o modelo em cada sessão. O neural-link
 
 18
-00:01:01.895 --> 00:01:05.471
-decisão única para cada evento de hook. O skill-engine
+00:01:01.905 --> 00:01:04.991
+devolve uma decisão única para cada evento de
 
 19
-00:01:05.471 --> 00:01:08.786
-só ativa as skills de terceiros que saem limpas. O
+00:01:04.991 --> 00:01:07.875
+hook. O skill-engine só ativa as skills de
 
 20
-00:01:08.786 --> 00:01:12.166
-client-harness faz o agente respeitar os padrões do
+00:01:07.875 --> 00:01:10.961
+terceiros que saem limpas. E o client-harness
 
 21
-00:01:12.166 --> 00:01:15.807
-cliente. E o motor-de-grafo indexa uma pasta e responde
+00:01:10.961 --> 00:01:14.297
+faz o agente respeitar os padrões do cliente.
 
 22
-00:01:15.807 --> 00:01:19.252
-o grafo de código e, no mesmo banco, o de documentos
+00:01:15.550 --> 00:01:18.692
+O motor-de-grafo indexa uma pasta e responde o
 
 23
-00:01:19.252 --> 00:01:22.817
-e de qualquer tipo de nó que um produto registrar.
+00:01:18.692 --> 00:01:22.046
+grafo de código e, no mesmo banco, o de documentos
 
 24
-00:01:23.950 --> 00:01:28.150
-São nove motores. Antes de instalar, cada um passa
+00:01:22.046 --> 00:01:25.401
+e de qualquer tipo de nó que um produto registrar.
 
 25
-00:01:28.150 --> 00:01:32.057
-por duas conferências, o SHA-256 e a assinatura
+00:01:25.401 --> 00:01:28.492
+E a casa-de-embeddings é a dona do modelo e da
 
 26
-00:01:32.057 --> 00:01:36.044
-Ed25519, e se alguma falhar, nada é instalado. O
+00:01:28.492 --> 00:01:31.650
+identidade do espaço vetorial, e serve vetores,
 
 27
-00:01:36.044 --> 00:01:41.177
-instalador tem menos de trinta e oito quilobytes de código.
+00:01:31.650 --> 00:01:35.057
+similaridade e reordenação a todos os produtos.
 
 28
-00:01:41.950 --> 00:01:45.237
-Para começar, escolha o motor e instale pelo kit.
+00:01:35.950 --> 00:01:39.992
+São dez motores. Antes de instalar, cada um passa
 
 29
-00:01:45.237 --> 00:01:49.177
+00:01:39.992 --> 00:01:43.824
+por duas conferências, o SHA-256 e a assinatura
+
+30
+00:01:43.824 --> 00:01:47.737
+Ed25519, e se alguma falhar, nada é instalado. O
+
+31
+00:01:47.737 --> 00:01:52.777
+instalador tem menos de trinta e oito quilobytes de código.
+
+32
+00:01:53.950 --> 00:01:57.237
+Para começar, escolha o motor e instale pelo kit.
+
+33
+00:01:57.237 --> 00:02:01.177
 Engine-registry: instale uma vez, use em qualquer lugar.

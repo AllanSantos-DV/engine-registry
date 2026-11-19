@@ -3,9 +3,9 @@
 // NUNCA lança: devolve { ok:false, reason } para o consumidor decidir (fail-loud no caller).
 import { mkdirSync, existsSync, readFileSync, writeFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 import { fetchBuf } from "./provision.mjs";
+import { sha256 } from "./signature.mjs";
 
 export const DEFAULT_REGISTRY_URL =
   "https://raw.githubusercontent.com/AllanSantos-DV/engine-registry/main/manifest.json";
@@ -33,7 +33,7 @@ export function fill(tpl, vars) {
 }
 
 /** Cada registry tem o seu cache: o descritor de um registry próprio nunca serve ao público. */
-const cacheFile = (url) => (url === DEFAULT_REGISTRY_URL ? CACHE : join(CACHE_DIR, `manifest-${createHash("sha256").update(url).digest("hex").slice(0, 12)}.json`));
+const cacheFile = (url) => (url === DEFAULT_REGISTRY_URL ? CACHE : join(CACHE_DIR, `manifest-${sha256(url, "hex").slice(0, 12)}.json`));
 
 function readCache(file) {
   try {
