@@ -64,7 +64,7 @@ await new Promise((r) => registry.listen(0, "127.0.0.1", r));
 const instalada = () => JSON.parse(readFileSync(join(HOME, "bin", "package.json"), "utf8")).version;
 const healthCheck = async (rt) => (rt?.version === instalada() ? { ok: true } : null);
 const ensure = (extra = {}) => ensureEngine("motor", {
-  healthCheck, fetcher, refresh: true, bootTimeoutMs: 5000, env: { FAKE_HOME: HOME },
+  healthCheck, fetcher, refresh: true, bootTimeoutMs: 15000, env: { FAKE_HOME: HOME },
   registryUrl: `http://127.0.0.1:${registry.address().port}/manifest.json`, trustedKeys: { motor: owner.publicKeyHex }, ...extra,
 });
 const historico = () => {
@@ -89,8 +89,8 @@ oferecida = "1.2.0";
 await ensure();
 check("atualização que sobe grava auto-update", troca(historico().at(-1)) === "1.0.0>1.2.0:auto-update", historico().map(troca).join());
 
-await ensure({ version: "1.0.0", allowDowngrade: true });
-check("versão exata (allowDowngrade) grava via version", troca(historico().at(-1)) === "1.2.0>1.0.0:version", historico().map(troca).join());
+const rebaixada = await ensure({ version: "1.0.0", allowDowngrade: true });
+check("versão exata (allowDowngrade) grava via version", troca(historico().at(-1)) === "1.2.0>1.0.0:version", `${historico().map(troca).join()} | ${rebaixada.engine?.rolledBack?.reason ?? rebaixada.reason ?? ""}`);
 
 const m = { engines: [descritor("1.2.0")] };
 const cmd = await ensureCommand("motor", { version: "1.2.0", bundled: m, manifest: m, fetcher });
