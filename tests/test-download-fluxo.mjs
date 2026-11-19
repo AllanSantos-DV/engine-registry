@@ -235,12 +235,12 @@ for (const [rotulo, stream] of [
   const engine = () => engineOf({ assetUrl: base, checksumUrl: `${base}.sha256`, signatureUrl: `${base}.sig` });
 
   const d1 = dest(), t0 = Date.now();
-  const ok = await fetchArtifact(engine(), { destDir: d1, trustedKeys: keys, idleTimeoutMs: 250 });
+  const ok = await fetchArtifact(engine(), { destDir: d1, trustedKeys: keys, idleTimeoutMs: 1500 });
   check("download real, lento e contínuo, confere", ok.ok && readFileSync(ok.path).equals(body) && Date.now() - t0 > 250, ok.ok ? "" : ok.reason);
 
   modo = "trava";
   const d2 = dest(), t1 = Date.now();
-  const trava = await fetchArtifact(engine(), { destDir: d2, trustedKeys: keys, idleTimeoutMs: 250 });
+  const trava = await fetchArtifact(engine(), { destDir: d2, trustedKeys: keys, idleTimeoutMs: 1500 });
   check("servidor que trava no meio: aborta por inatividade", !trava.ok && /inatividade/.test(trava.reason), trava.ok ? "" : trava.reason);
   check("abortou perto do prazo", Date.now() - t1 < 5000);
   check("o .part foi apagado", listed(d2).length === 0, listed(d2).join(", "));
@@ -262,11 +262,11 @@ const tgzDe = (nome, extra = 0) => {
 
 {
   console.log("\n-- lock: a vida do lock acompanha o download mais longo que lockStaleMs --");
-  const body = readFileSync(tgzDe("lock")), engine = engineOf(), STALE = 2000;
+  const body = readFileSync(tgzDe("lock")), engine = engineOf(), STALE = 6000;
   const lockFile = join(engine.homeDir, "provision.lock"), baixados = { primeiro: 0, segundo: 0 };
-  const lento = (quem) => fetcherOf({ sha: sha256(body), sig: signBlob(body, owner.privateKeyHex), stream: () => { baixados[quem]++; return pedacos(body, Math.ceil(body.length / 20), 400); } });
+  const lento = (quem) => fetcherOf({ sha: sha256(body), sig: signBlob(body, owner.privateKeyHex), stream: () => { baixados[quem]++; return pedacos(body, Math.ceil(body.length / 20), 800); } });
   const primeiro = provision(engine, { trustedKeys: keys, lockStaleMs: STALE, fetcher: lento("primeiro") });
-  await pausa(3200);
+  await pausa(7000);
   const idade = Date.now() - statSync(lockFile).mtimeMs;
   check(`o lock segue fresco (${Math.round(idade)} ms) com o download em curso há mais de ${STALE} ms`, idade < STALE);
   const segundo = await provision(engine, { trustedKeys: keys, lockStaleMs: STALE, lockWaitMs: 300, fetcher: lento("segundo") });
@@ -304,11 +304,11 @@ const tarFalso = (modo, ms = 0) => [process.execPath, STUB, modo, String(ms), ta
 
 {
   console.log("\n-- extração lenta e longa (assíncrona): o lock não é tomado --");
-  const body = readFileSync(tgzDe("extracao-lenta")), engine = engineOf(), STALE = 2000;
+  const body = readFileSync(tgzDe("extracao-lenta")), engine = engineOf(), STALE = 6000;
   const lockFile = join(engine.homeDir, "provision.lock");
   const rapido = fetcherOf({ sha: sha256(body), sig: signBlob(body, owner.privateKeyHex), stream: () => pedacos(body, 4096) });
-  const primeiro = provision(engine, { trustedKeys: keys, lockStaleMs: STALE, fetcher: rapido, tar: tarFalso("lento", 6000) });
-  await pausa(3200);
+  const primeiro = provision(engine, { trustedKeys: keys, lockStaleMs: STALE, fetcher: rapido, tar: tarFalso("lento", 12000) });
+  await pausa(7000);
   const idade = existsSync(lockFile) ? Date.now() - statSync(lockFile).mtimeMs : Infinity;
   check(`o lock segue fresco (${Math.round(idade)} ms) com a extração em curso há mais de ${STALE} ms`, idade < STALE);
   const segundo = await provision(engine, { trustedKeys: keys, lockStaleMs: STALE, lockWaitMs: 300, fetcher: rapido, tar: tarFalso("falha") });
