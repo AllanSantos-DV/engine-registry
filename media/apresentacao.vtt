@@ -1,0 +1,133 @@
+WEBVTT
+
+1
+00:00:00.550 --> 00:00:03.238
+Esta é a casa dos motores locais: você
+
+2
+00:00:03.238 --> 00:00:05.944
+instala cada um uma vez e todos os seus
+
+3
+00:00:05.944 --> 00:00:08.697
+aplicativos e agentes passam a usar.
+
+4
+00:00:09.550 --> 00:00:12.679
+Hoje, cada ferramenta de inteligência artificial
+
+5
+00:00:12.679 --> 00:00:15.507
+costuma carregar o próprio modelo, o próprio
+
+6
+00:00:15.507 --> 00:00:18.523
+servidor e o próprio processo, e várias sessões
+
+7
+00:00:18.523 --> 00:00:21.476
+repetem o mesmo trabalho. Aqui, um motor faz o
+
+8
+00:00:21.476 --> 00:00:24.617
+trabalho pesado uma única vez, nesta máquina.
+
+9
+00:00:25.750 --> 00:00:29.806
+Aqui vivem dez motores locais que atendem o Claude
+
+10
+00:00:29.806 --> 00:00:34.297
+Code, o Codex, o Copilot, o Cursor e os seus scripts.
+
+11
+00:00:35.350 --> 00:00:39.331
+O Vox Engine dita, transcreve, traduz e fala. O Cerne
+
+12
+00:00:39.331 --> 00:00:43.116
+lê um vídeo e guarda o que importa numa memória que
+
+13
+00:00:43.116 --> 00:00:46.683
+dá para pesquisar. O VXK transforma o roteiro do
+
+14
+00:00:46.683 --> 00:00:50.906
+agente numa explicação animada e narrada. E o mcp-gateway
+
+15
+00:00:50.906 --> 00:00:54.577
+reúne todos os servidores MCP num endereço só.
+
+16
+00:00:55.750 --> 00:00:58.752
+O embed-house serve os vetores de busca sem
+
+17
+00:00:58.752 --> 00:01:01.905
+repetir o modelo em cada sessão. O neural-link
+
+18
+00:01:01.905 --> 00:01:04.991
+devolve uma decisão única para cada evento de
+
+19
+00:01:04.991 --> 00:01:07.875
+hook. O skill-engine só ativa as skills de
+
+20
+00:01:07.875 --> 00:01:10.961
+terceiros que saem limpas. E o client-harness
+
+21
+00:01:10.961 --> 00:01:14.297
+faz o agente respeitar os padrões do cliente.
+
+22
+00:01:15.550 --> 00:01:18.692
+O motor-de-grafo indexa uma pasta e responde o
+
+23
+00:01:18.692 --> 00:01:22.046
+grafo de código e, no mesmo banco, o de documentos
+
+24
+00:01:22.046 --> 00:01:25.401
+e de qualquer tipo de nó que um produto registrar.
+
+25
+00:01:25.401 --> 00:01:28.492
+E a casa-de-embeddings é a dona do modelo e da
+
+26
+00:01:28.492 --> 00:01:31.650
+identidade do espaço vetorial, e serve vetores,
+
+27
+00:01:31.650 --> 00:01:35.057
+similaridade e reordenação a todos os produtos.
+
+28
+00:01:35.950 --> 00:01:39.992
+São dez motores. Antes de instalar, cada um passa
+
+29
+00:01:39.992 --> 00:01:43.824
+por duas conferências, o SHA-256 e a assinatura
+
+30
+00:01:43.824 --> 00:01:47.737
+Ed25519, e se alguma falhar, nada é instalado. O
+
+31
+00:01:47.737 --> 00:01:52.777
+instalador tem menos de trinta e oito quilobytes de código.
+
+32
+00:01:53.950 --> 00:01:57.237
+Para começar, escolha o motor e instale pelo kit.
+
+33
+00:01:57.237 --> 00:02:01.177
+Engine-registry: instale uma vez, use em qualquer lugar.
