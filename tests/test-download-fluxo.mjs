@@ -249,7 +249,7 @@ for (const [rotulo, stream] of [
   await new Promise((ok2) => server.close(ok2));
 }
 
-/** .tgz real de um motor "fluxo-engine" v1.0.0 (`extra` bytes de lixo incompressível, se pedido), gravado em `RUN`. */
+/** Empacota um motor fixture em `RUN` e devolve o caminho do .tgz; `extra` acrescenta bytes incompressíveis para o artefato ser grande. */
 const tgzDe = (nome, extra = 0) => {
   const src = join(RUN, `src-${nome}`);
   mkdirSync(src, { recursive: true });
