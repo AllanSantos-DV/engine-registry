@@ -307,7 +307,7 @@
     },
     {
       "name": "casa-de-embeddings",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "status": "pending-release",
       "kind": "cli",
       "summary": "Casa local de embeddings: um daemon por máquina que serve /embed, /similarity e /rerank, dono do modelo e da identidade do espaço vetorial (space_id). Nenhum produto carrega o próprio modelo.",
