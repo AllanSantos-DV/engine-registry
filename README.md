@@ -473,4 +473,4 @@ node kit/verify-release.mjs --app <app>   # baixa todos os assets sem login e co
 
 ## Licença
 
-MIT
+MIT. Copyright (c) 2026 Allan Santos.
