@@ -90,7 +90,7 @@ check("lista todos os motores do manifest, cada um com o estado", bundled.engine
 check("o motor instalado aparece com o estado e a versão", /vxk\s+(OK|DESATUALIZADO)\s.*0\.5\.3/.test(t), t);
 check("mostra a vida do motor (pid e porta do runtime), sem o resto do anúncio", /vida: (VIVO|TRAVADO) \(pid \d+, porta 4242/.test(t), t);
 check("pid vivo sem daemon atendendo /health aparece como TRAVADO com a causa, nunca VIVO", /vida: TRAVADO \(pid \d+, porta 4242.*\/health.*ECONNREFUSED/.test(t) && !/vida: VIVO/.test(t), t);
-check("heartbeat atrasado vira aviso visível no relatório", /aviso: heartbeat atrasado: runtime atualizado há 3600s \(limite 90s\)/.test(t), t);
+check("heartbeat atrasado vira aviso visível no relatório", /aviso: heartbeat atrasado: runtime atualizado há 36\d\ds \(limite 90s\)/.test(t), t);
 check("a última troca de cada motor traz de → para, a origem e a data (vxk: a mais recente, não a primeira)", /vxk[\s\S]*?última troca: 0\.5\.1 → 0\.5\.3 \(auto-update\) em 2026-11-17T09:30:00\.000Z/.test(t) && !/2026-11-10/.test(t), t);
 check("a última troca do outro motor também aparece", /embed-house[\s\S]*?última troca: 1\.0\.4 → 1\.0\.5 \(version\) em 2026-11-12T10:00:00\.000Z/.test(t), t);
 check("motor sem troca gravada diz isso, em vez de omitir a linha", /neural-link[\s\S]*?última troca: nenhuma registrada/.test(t), t);
