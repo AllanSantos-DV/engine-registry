@@ -139,10 +139,13 @@ const ROOT = resolvePath(KIT, "..");
 //   inatividade (`idleTimeoutMs`); o tgz de 869 MB da casa-de-embeddings estourava o prazo total e ocupava a memória inteira. O `provision.lock` passa a ser renovado (mtime, a cada `lockStaleMs / 3`) pelo `provision` e `lockStaleMs` torna o prazo de órfão injetável, para um download longo não perder o lock; a extração do `tar` passou a ser assíncrona (`extractTgz` com `execFile`) para o heartbeat seguir durante ela. +0.4 KB líquidos: antes de subir o teto saiu a duplicação, -1.0 KB
 //   (a recusa `{ ok:false, reason:"<motor>: …" }` de provision e lifecycle em `refuse`, o `available:false` de lifecycle e index em `unavailable`, o manifest embarcado em `embeddedManifest`,
 //   o lock velho em `dropStaleLock`, o sha256 em `sha256`, a pasta extraída em `binDirOf`, o `rm` de arquivo em `dropFile`, a linha de log com o prefixo do kit em `say` e a segunda chamada de `lifecycle` do rollback). Ferramental, sem subir o teto: o hash do marcador de extração do `fetch` passou a ser em fluxo e o `rm` da pasta usa `rmTree`. Nenhum código funcional foi cortado.
+//   2026-11-21 tooling 73400 → 80300: cinco funções irmãs aditivas da lente de 0.2.18, ordenadas pelo orquestrador — `engine-kit rollback <motor>` (ensure.mjs, reusa
+//   `pinCommand` e o histórico), `engine-kit trust [motor]` (inspect.mjs, só leitura do trust.json), `check` e `ensure --de` com vários manifestos (cli.mjs) e
+//   `verify-release --all` (verify-all.mjs e o preâmbulo `publishArgs`), +6.9 KB. Rodadas na mão de quem instala ou publica; o fecho de imports de `index.mjs` não mudou.
 const BUDGETS = {
   runtime: { codeBytes: 38000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10000, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 73400, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 80300, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

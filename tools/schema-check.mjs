@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const VALIDATING = new Set(['$ref', 'type', 'const', 'enum', 'pattern', 'format', 'minLength', 'maxLength', 'minimum', 'maximum', 'minItems', 'maxItems', 'items',
-  'required', 'properties', 'additionalProperties', 'allOf', 'anyOf', 'if', 'then', 'not']);
+  'required', 'properties', 'additionalProperties', 'allOf', 'anyOf', 'if', 'then', 'else', 'not']);
 const FORMATS = { uri: (v) => URL.canParse(v) };
 const ANNOTATIONS = new Set(['$schema', '$id', '$comment', 'title', 'description', 'definitions', '$defs', 'default', 'examples']);
 
@@ -58,7 +58,10 @@ export function validate(schema, node, value, at = '$') {
   }
   for (const sub of node.allOf ?? []) errs.push(...validate(schema, sub, value, at));
   if (node.anyOf && !node.anyOf.some((sub) => validate(schema, sub, value, at).length === 0)) errs.push(`${at}: não casa nenhum 'anyOf'`);
-  if (node.if && validate(schema, node.if, value, at).length === 0 && node.then) errs.push(...validate(schema, node.then, value, at));
+  if (node.if) {
+    const ramo = validate(schema, node.if, value, at).length === 0 ? node.then : node.else;
+    if (ramo) errs.push(...validate(schema, ramo, value, at));
+  }
   if (node.not && validate(schema, node.not, value, at).length === 0) errs.push(`${at}: casou o 'not'`);
   return errs;
 }

@@ -111,7 +111,7 @@ ou `unpin`); um consumidor que exige versão maior que a fixada recebe `availabl
 `self-managed` não são fixados pelo kit.
 
 Publicar o kit: tag `engine-kit-v<versão do package.json>` criada na `main`; o workflow `.github/workflows/publish.yml`
-roda a suíte e publica por OIDC (sem token guardado). Conferir a proveniência: `npm audit signatures` num projeto
+publica por OIDC (sem token guardado; a suíte roda no pré-check local, nunca no runner hospedado). Conferir a proveniência: `npm audit signatures` num projeto
 que dependa do `engine-kit`, ou o selo "Provenance" na página do pacote.
 
 ## Conciliar a máquina
@@ -124,8 +124,10 @@ npx engine-kit doctor --verify [--engine <motor>] # confere o sha256 de cada arq
 npx engine-kit doctor --report [--engine <motor>] # texto colável para suporte: kit, Node, plataforma, variáveis, motores, sobras e hooks; sem token nem chave
 npx engine-kit list [--json]                      # os motores do pacote, a plataforma de cada um e a versão instalada (sem rede)
 npx engine-kit history [motor] [--json]           # as trocas de versão gravadas nesta máquina: de → para e a origem
-npx engine-kit check meu-plugin/plugin.json [--json]   # confere o bloco `engines` do manifesto do plugin contra o instalado
-npx engine-kit ensure --de meu-plugin/plugin.json [--registry-url <url>] [--json]   # instala ou atualiza o que o check reprova e reconfere
+npx engine-kit rollback <motor> [--json]          # volta à versão anterior à última troca do history (sha256 + Ed25519) e fixa nela; recusa primeira instalação e self-managed
+npx engine-kit trust [motor] [--json]             # o que o trust.json guarda por motor (chave pública, origem, maior versão, pin), se bate com o manifest embarcado e o estado do .bak; só lê
+npx engine-kit check meu-plugin/plugin.json [outro/plugin.json ...] [--json]   # confere o bloco `engines` de um ou mais manifestos de plugin contra o instalado; com vários, --json devolve { ok, manifests }
+npx engine-kit ensure --de meu-plugin/plugin.json [outro/plugin.json ...] [--registry-url <url>] [--json]   # instala ou atualiza o que o check reprova e reconfere
 npx engine-kit url casa-de-embeddings [--json]    # endereço do daemon vivo (url, versão, pid); nunca imprime o token
 npx engine-kit ensure|pin|fetch|stop <motor> --json   # um objeto JSON por chamada, na forma das linhas do doctor (name, ok, state, detail, warns, pin), também na falha
 ```
@@ -348,9 +350,9 @@ kit/
   lifecycle.mjs    # garante o processo vivo (daemon) ou entrega o binário (cli)
   register.mjs     # registerNeuralLink: roda o install() do neural-link instalado (ensure neural-link --register)
   trust.mjs        # trust.json por motor: chave do 1º contato, maior versão vista (anti-rollback) e o pin
-  cli.mjs          # comando `engine-kit` (bin do pacote): ensure, fetch, pin, unpin, stop, doctor, list, history, check e url
-  inspect.mjs      # verbos de leitura: history, check (faixas de versão), url e o relatório do doctor --report
-  ensure.mjs       # ensure (inclusive `--de <manifesto>`), pin, unpin e stop: resolve → provision com a chave do manifest embarcado no pacote
+  cli.mjs          # comando `engine-kit` (bin do pacote): ensure, fetch, pin, unpin, rollback, stop, doctor, list, history, check, trust e url
+  inspect.mjs      # verbos de leitura: history, check (faixas de versão), trust, url e o relatório do doctor --report
+  ensure.mjs       # ensure (inclusive `--de <manifesto>`), pin, unpin, rollback e stop: resolve → provision com a chave do manifest embarcado no pacote
   fetch.mjs        # fetch: baixa e confere motor ou app sem instalar
   doctor.mjs       # concilia a máquina inteira (OK, DESATUALIZADO, AUSENTE, FIXADO...); --fix aplica
   update.mjs       # o kit se atualiza (relança na última versão do npm); ENGINE_KIT_NO_AUTO_UPDATE=1 desliga
@@ -359,14 +361,16 @@ kit/
   gen-key.mjs      # gera o par de UM motor (com auto-prova)
   sign.mjs         # assina um artefato e prova a assinatura na hora
   update-manifest.mjs # patch do manifest parseado (nunca regex em JSON); --app para apps
-  verify-release.mjs  # baixa a release publicada e prova o caminho do consumidor; --app para apps
+  verify-release.mjs  # baixa a release publicada e prova o caminho do consumidor; --app para apps, --all para o catálogo inteiro
+  verify-all.mjs      # o laço do --all: um motor ou app por vez, a falha de um não esconde os outros
   publish-args.mjs    # preâmbulo comum de update-manifest e verify-release: argumentos, alvo e manifest.json
   app-release.mjs     # URLs e verificação de TODOS os assets de um app (manifest.apps)
   publish-base.ps1    # publicação de motor: identidade do gh → assina → release → manifest → prova
 consumers/
   mcp-gateway.mjs  # adaptador pronto: handshake + token + shutdown do agregador MCP
+  neural-link.mjs  # adaptador do neural-link: versão fixada pelo manifest e chave do primeiro contato
 site/               # vitrine de produto dos motores (estática); processo em docs/PAGES.md
-tools/              # pages-branch.mjs: publica site/ na gh-pages; publish-manifest.mjs: manifest e README na main; checar-publicacao.mjs: o checklist do CONTRATO-MOTOR §6 executado
+tools/              # ferramentas de autor: pages-branch (publica site/ na gh-pages), publish-manifest (manifest e README na main), checar-publicacao (o checklist do CONTRATO-MOTOR §6; --todos), contrato-vivo (o daemon vivo contra o contrato aberto), actions-minutes, ponte-marketplace, backup-keys, schema-check, regras-escopo e os geradores da vitrine
 tests/
   smoke.mjs          # contratos do kit: node tests/smoke.mjs
   test-*.mjs         # contratos hermeticos (assinatura, trust, tar, apps, cache, doctor, gateway)
@@ -383,6 +387,19 @@ node tests/test-signature.mjs --network  # + interop com uma release REAL do vox
 node tests/test-apps.mjs                 # catálogo de apps (hermético)
 node tests/e2e-install.mjs               # baixa e sobe o mcp-gateway num HOME isolado (prova real)
 node tests/e2e-install.mjs --local       # idem, mas usando o manifest.json que você vai publicar
+```
+
+Para auditar o catálogo inteiro de uma vez, um motor ou app por vez (a falha de um não esconde os outros):
+
+```sh
+node kit/verify-release.mjs --all [--manifest <caminho>]        # baixa cada release publicada e confere sha256 + assinatura; exit 1 se alguma falha
+node tools/checar-publicacao.mjs --todos [--rede] [--json]       # o checklist do CONTRATO-MOTOR §6 de cada motor; exit 1 se algum item falha
+```
+
+Para provar o daemon vivo da casa de embeddings ou do motor de grafo contra o contrato aberto (só rotas sem efeito colateral; não sobe nem derruba o motor):
+
+```sh
+node tools/contrato-vivo.mjs <casa-de-embeddings|motor-de-grafo> [--json]   # exit 0 = conforme; 1 = resposta fora do contrato; 2 = motor não está vivo
 ```
 
 Para ver quais repositórios e workflows consomem os minutos do GitHub Actions da conta logada no `gh` (só leitura; os maiores

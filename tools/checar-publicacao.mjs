@@ -22,7 +22,7 @@ import { keyPathFor, envVarFor } from '../kit/keystore.mjs';
 import { publicKeyHexFromPrivateHex } from '../kit/signature.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const USO = 'uso: node tools/checar-publicacao.mjs <motor> [--rede] [--json] [--manifest <caminho>]';
+const USO = 'uso: node tools/checar-publicacao.mjs <motor> [--rede] [--json] [--manifest <caminho>]\n     node tools/checar-publicacao.mjs --todos [--rede] [--json] [--manifest <caminho>]';
 
 const ok = (detalhe) => ({ status: 'OK', detalhe });
 const falha = (detalhe) => ({ status: 'FALHA', detalhe });
@@ -167,13 +167,14 @@ export function render(r, rede) {
   return lines.join('\n');
 }
 
-/** Lê `<motor>`, `--rede`, `--json` e `--manifest <caminho>`; lança em opção desconhecida ou sem valor. */
+/** Lê `<motor>` (ou `--todos`), `--rede`, `--json` e `--manifest <caminho>`; lança em opção desconhecida ou sem valor. */
 function parseArgs(argv) {
-  const o = { motor: null, rede: false, json: false, manifest: null };
+  const o = { motor: null, rede: false, json: false, manifest: null, todos: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--rede') o.rede = true;
     else if (a === '--json') o.json = true;
+    else if (a === '--todos') o.todos = true;
     else if (a === '--manifest') {
       o.manifest = argv[++i];
       if (!o.manifest || o.manifest.startsWith('-')) throw new Error('--manifest precisa de um caminho');
@@ -181,15 +182,35 @@ function parseArgs(argv) {
     else if (o.motor) throw new Error(`argumento inesperado: ${a}`);
     else o.motor = a;
   }
-  if (!o.motor) throw new Error(USO);
+  if (o.todos && o.motor) throw new Error('--todos não combina com um motor: ou um, ou todos');
+  if (!o.motor && !o.todos) throw new Error(USO);
   return o;
 }
 
-/** Roda o checklist e imprime o relatório. @returns {Promise<number>} o exit code (0, 1 ou 2) */
+/**
+ * Roda o checklist de cada motor do manifest, um por vez; motor que lança entra como falha com o motivo e os demais seguem.
+ * @returns {Promise<{ok:boolean, relatorios:object[]}>} `ok` só se todos os motores passaram.
+ */
+export async function checarTodos(motores, rodar) {
+  const relatorios = [];
+  for (const motor of motores) {
+    try { relatorios.push(await rodar(motor)); }
+    catch (e) { relatorios.push({ motor, ok: false, itens: [{ id: 'checagem', status: 'NAO-CHECADO', detalhe: scrub(e.message), cobre: [] }], manuais: [] }); }
+  }
+  return { ok: relatorios.every((r) => r.ok), relatorios };
+}
+
+/** Roda o checklist e imprime o relatório. @returns {Promise<number>} o exit code (0, 1 ou 2); com `--todos`, o pior de todos os motores. */
 export async function run(argv, { log = console.log, error = console.error } = {}) {
   try {
     const o = parseArgs(argv);
     const opts = { rede: o.rede, ...(o.manifest ? { manifest: JSON.parse(readFileSync(o.manifest, 'utf8')), manifestPath: o.manifest } : {}) };
+    if (o.todos) {
+      const manifest = opts.manifest ?? JSON.parse(readFileSync(path.join(ROOT, 'manifest.json'), 'utf8'));
+      const t = await checarTodos((manifest.engines ?? []).map((e) => e.name), (m) => checar(m, { ...opts, manifest }));
+      log(o.json ? JSON.stringify(t, null, 2) : [...t.relatorios.map((r) => render(r, o.rede)), `== ${t.relatorios.filter((r) => !r.ok).length} de ${t.relatorios.length} motores com item que falhou ==`].join('\n\n'));
+      return t.ok ? 0 : 1;
+    }
     const r = await checar(o.motor, opts);
     log(o.json ? JSON.stringify(r, null, 2) : render(r, o.rede));
     return r.ok ? 0 : 1;

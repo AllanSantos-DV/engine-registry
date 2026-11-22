@@ -18,7 +18,7 @@ import { shutdown, stopEngine } from "./lifecycle.mjs";
 import { pinOf, setPin } from "./trust.mjs";
 export { firstContactKeys } from "./trust.mjs";
 import { pointerOf } from "./diagnose.mjs";
-import { checkCommand } from "./inspect.mjs";
+import { checkCommand, historyCommand } from "./inspect.mjs";
 
 const BUNDLED_MANIFEST = new URL("../manifest.json", import.meta.url);
 const installedOf = (e) => existsSync(join(e.homeDir, e.install.entry)) ? installedVersion(join(e.homeDir, e.install.extractTo ?? "bin")) : null;
@@ -207,6 +207,25 @@ export async function pinCommand(name, { version, ...opts } = {}) {
 export function unpinCommand(name) {
   const s = setPin(name, null);
   return s.ok ? { ok: true, was: s.was } : s;
+}
+
+/**
+ * `engine-kit rollback <motor>`: volta o motor para a versão que ele tinha antes da última troca gravada no histórico (`history`), instalando-a
+ * por `pin --version` (sha256 + Ed25519, downgrade permitido) e FIXANDO: sem o pin o próximo `ensure` atualizaria de volta. Só desfaz uma troca
+ * que ainda vale: a versão instalada precisa ser a que a última troca gravou. Nunca lança. Opções de teste iguais às do `pinCommand`.
+ * @returns {Promise<{ok:true, version:string, pinned:string} | {ok:false, reason:string}>}
+ */
+export async function rollbackCommand(name, { bundled, ...opts } = {}) {
+  const h = historyCommand(name);
+  if (!h.ok) { return h; }
+  const last = h.entries.at(-1);
+  if (!last) { return { ok: false, reason: `nenhuma troca registrada nesta máquina; não há versão anterior para voltar` }; }
+  if (!last.from) { return { ok: false, reason: `a última troca (→ v${last.to}) foi a primeira instalação; não há versão anterior para voltar` }; }
+  const row = listCommand({ bundled }).engines?.find((e) => e.name === name);
+  if (!row) { return { ok: false, reason: `motor "${name}" não está no manifest deste engine-kit → atualize o kit (npx engine-kit@latest rollback ${name})` }; }
+  if (row.selfManaged) { return { ok: false, reason: `${name} é self-managed: atualiza pelo próprio updater, o engine-kit não troca a versão dele` }; }
+  if (row.installed !== last.to) { return { ok: false, reason: `instalado v${row.installed ?? "nenhuma"}, mas a última troca gravada terminou em v${last.to} → o histórico não descreve a instalação atual; use engine-kit pin ${name} --version <x.y.z>` }; }
+  return pinCommand(name, { ...opts, bundled, version: last.from });
 }
 
 /**

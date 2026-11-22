@@ -1,8 +1,8 @@
 // engine-kit/inspect.mjs — verbos de leitura do CLI (`history`, `check`, `url`) e o relatório do `doctor --report`.
 // Só lêem: não instalam, não sobem nem derrubam motor. Nunca lançam: devolvem `{ ok:false, reason }`.
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { basename } from "node:path";
-import { historyPath, cmpVer } from "./trust.mjs";
+import { historyPath, cmpVer, readTrust, trustPath, embeddedManifest } from "./trust.mjs";
 import { diagnoseEngines, detailLines } from "./diagnose.mjs";
 import { ownVersion } from "./update.mjs";
 import { discover } from "./client.mjs";
@@ -69,6 +69,32 @@ export async function checkCommand(file, { manifest } = {}) {
       : out("FORA-DA-FAIXA", `v${row.installed} não satisfaz ${range} → engine-kit ensure ${name} [--version x.y.z]`, row.installed);
   });
   return { ok: engines.every((e) => e.satisfied), manifest: file, engines };
+}
+
+/**
+ * `engine-kit trust [motor]`: o que o kit guarda em `trust.json` por motor (chave pública do primeiro contato, de onde veio, maior versão vista e pin),
+ * se a chave bate com a do manifest embarcado e se o arquivo e a cópia `.bak` estão legíveis. Só lê: nada é gravado nem restaurado.
+ * Mostra só chave PÚBLICA. Arquivo ilegível devolve o motivo do `readTrust` (que já diz como restaurar), junto com o estado do `.bak`.
+ * @param {string=} name filtra um motor.
+ * @param {{bundled?:object}=} opts `bundled` = manifest embarcado (testes).
+ * @returns {{ok:boolean, file:string, backup:{exists:boolean, readable:boolean}, engines:object[], reason?:string}}
+ */
+export function trustCommand(name, { bundled } = {}) {
+  const file = trustPath(), bak = `${file}.bak`;
+  const backup = { exists: existsSync(bak), readable: false };
+  if (backup.exists) { try { backup.readable = typeof JSON.parse(readFileSync(bak, "utf8")) === "object"; } catch { /* .bak ilegível */ } }
+  let store;
+  try { store = readTrust(); } catch (e) { return { ok: false, file, backup, engines: [], reason: e.message }; }
+  let known;
+  try { known = (bundled ?? embeddedManifest()).engines ?? []; } catch (e) { return { ok: false, file, backup, engines: [], reason: `manifest embarcado ilegível: ${e.message}` }; }
+  if (name && !(name in store) && !known.some((e) => e.name === name)) { return { ok: false, file, backup, engines: [], reason: `motor "${name}" não está no trust.json nem no manifest deste engine-kit → atualize o kit (npx engine-kit@latest trust)` }; }
+  const names = name ? [name] : [...new Set([...Object.keys(store), ...known.map((e) => e.name)])];
+  const engines = names.map((n) => {
+    const e = store[n] ?? {}, embedded = known.find((k) => k.name === n)?.install?.publicKey ?? null;
+    const state = !e.publicKey ? "SEM-CONTATO" : embedded && embedded.toLowerCase() !== String(e.publicKey).toLowerCase() ? "CHAVE-DIFERENTE" : "OK";
+    return { name: n, state, publicKey: e.publicKey ?? null, source: e.source ?? null, firstSeen: e.firstSeen ?? null, maxVersion: e.maxVersion ?? null, pin: e.pin ?? null, embeddedKey: embedded };
+  });
+  return { ok: true, file, backup, engines };
 }
 
 /**

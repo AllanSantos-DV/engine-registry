@@ -3,6 +3,7 @@
 //
 //   node kit/verify-release.mjs <motor> [--manifest <path>]
 //   node kit/verify-release.mjs --app <nome> [--manifest <path>]   # aplicativo: TODOS os assets
+//   node kit/verify-release.mjs --all [--manifest <path>]          # todos os motores e apps do catálogo, um por vez
 //
 // Baixa do release público exatamente o que um consumidor baixaria (asset + .sha256 + .sig),
 // usando as URLs montadas a partir do manifest, e confere as duas garantias:
@@ -14,15 +15,25 @@
 import { writeFileSync, mkdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { versaoDivergente, verifyRoot } from "./fetch.mjs";
 import { resolve } from "./resolve.mjs";
 import { verifyBlob, DEFAULT_ALGORITHM } from "./signature.mjs";
 import { findApp, appAssetUrls, verifyAppRelease, anonymousGet as grab } from "./app-release.mjs";
 import { publishArgs, die } from "./publish-args.mjs";
+import { verificarTodos } from "./verify-all.mjs";
 
 const USAGE = "uso: node kit/verify-release.mjs <motor> [--manifest <path>]\n" +
-              "     node kit/verify-release.mjs --app <nome> [--manifest <path>]";
-const { appName, engineName, manifest } = publishArgs(USAGE);
+              "     node kit/verify-release.mjs --app <nome> [--manifest <path>]\n" +
+              "     node kit/verify-release.mjs --all [--manifest <path>]";
+const { appName, engineName, todos, manifest, manifestPath } = publishArgs(USAGE, { all: true });
+
+if (todos) {
+  const self = fileURLToPath(import.meta.url);
+  const rodar = (extra) => { const r = spawnSync(process.execPath, [self, ...extra, "--manifest", manifestPath], { encoding: "utf8", windowsHide: true }); return { ok: r.status === 0, saida: `${r.stdout}${r.stderr}` }; };
+  process.exit((await verificarTodos(manifest, { rodar, log: console.log })).ok ? 0 : 1);
+}
 
 // Aplicativo: não há asset único nem provision — baixa TODOS os assets da entrada, anônimo.
 if (appName) {

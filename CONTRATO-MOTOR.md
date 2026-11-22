@@ -142,7 +142,7 @@ await g.ready("C:/projeto");                  // status → ingest → espera at
 const s = await g.symbols("C:/projeto", { query: "ensure" });
 ```
 
-O cliente cumpre os contratos abertos publicados: `POST /embed` e `POST /similarity` (formato do TEI) e `POST /rerank` (Cohere e Jina) da casa, e `POST /api/v1/graph/<status|ingest|symbols|search|callers|callees|references>` do servidor do grafo (path-autoritativo; o servidor deriva o projeto do `path`). Uma resposta fora do contrato (quantidade de vetores errada, índice de rerank fora do intervalo, cosseno fora de [-1, 1]) é recusada, nunca repassada. Os esquemas da casa estão copiados em `tests/contratos/casa`; o contrato do grafo ainda não tem esquema publicado, e o teste do grafo usa um servidor falso com a forma documentada em `docs/REST.md` do servidor.
+O cliente cumpre os contratos abertos publicados: `POST /embed` e `POST /similarity` (formato do TEI) e `POST /rerank` (Cohere e Jina) da casa, e `POST /api/v1/graph/<status|ingest|symbols|search|callers|callees|references>` do servidor do grafo (path-autoritativo; o servidor deriva o projeto do `path`). Uma resposta fora do contrato (quantidade de vetores errada, índice de rerank fora do intervalo, cosseno fora de [-1, 1]) é recusada, nunca repassada. Os esquemas e os exemplos da casa estão em `tests/contratos/casa` e os do grafo em `tests/contratos/grafo` (um esquema de pedido, um de resposta e os exemplos válidos e inválidos de cada rota); o teste do grafo usa um servidor falso com a forma documentada em `docs/REST.md` do servidor, e `node tools/contrato-vivo.mjs <motor>` prova o daemon vivo contra esses esquemas.
 
 ## 5. Disciplina de release
 
@@ -196,6 +196,8 @@ sem `--rede` os itens de rede ficam `NAO-RODADO`, visíveis. A lista vem das lin
 | `cerne` | daemon, **self-managed** | `cerne` | `engine-registry` ✅ | ✅ | — (nunca esteve lá) |
 | `skill-engine` | **cli** | `skill-engine` | `engine-registry` ✅ | ✅ | — (nunca esteve lá) |
 | `client-harness` | **cli** (daemon único próprio, desligado pelo `ensure` via `runtime.shutdownPath`) | `harness-padroes-cliente` | `engine-registry` ✅ | ✅ | — (nunca esteve lá) |
+| `casa-de-embeddings` | **cli** (daemon único por máquina, desligado pelo `shutdownPath`) | `casa-de-embeddings` | `engine-registry` ✅ | ✅ | — (nunca esteve lá) |
+| `motor-de-grafo` | **cli** (daemon único, desligado pelo `shutdownPath`) | `motor-de-grafo` | `engine-registry` ✅ | ✅ | — (nunca esteve lá) |
 
 Cada repo de motor tem o próprio `publish.ps1`, que **builda** o que é específico dele e **delega**
 ao `kit/publish-base.ps1` a parte comum (identidade do `gh`, assinatura, release, manifest, prova).

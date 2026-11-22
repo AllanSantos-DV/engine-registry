@@ -11,17 +11,19 @@
 //   npx engine-kit doctor [--fix|--verify] [--engine <motor>]  # concilia os motores instalados com o registry
 //   npx engine-kit doctor --report                    # texto colável para suporte, sem token nem chave
 //   npx engine-kit history [motor] [--json]           # trocas de versão gravadas nesta máquina
-//   npx engine-kit check <manifesto.json> [--json]    # o bloco `engines` do plugin contra o instalado
+//   npx engine-kit check <manifesto.json>... [--json] # o bloco `engines` de um ou mais plugins contra o instalado
 //   npx engine-kit url <motor> [--json]               # endereço do daemon vivo, nunca o token
-//   npx engine-kit ensure --de <manifesto.json> [--json]  # instala/atualiza o que o `check` do manifesto reprova
+//   npx engine-kit ensure --de <manifesto.json>... [--json]  # instala/atualiza o que o `check` de cada manifesto reprova
+//   npx engine-kit rollback <motor> [--json]         # volta à versão anterior à última troca do histórico e fixa nela
+//   npx engine-kit trust [motor] [--json]            # o que o trust.json guarda por motor (só chave pública), sem gravar
 //
 // Por padrão o kit se atualiza (roda de novo como a última versão do npm) e atualiza o motor instalado.
 // ENGINE_KIT_NO_AUTO_UPDATE=1 desliga os dois e deixa só o aviso de versão nova (ver update.mjs).
 // Exit code: 0 = motor instalado (ou reusado). 1 = recusou/falhou, com o motivo na saída de erro.
-import { ensureCommand, ensureDeCommand, pinCommand, unpinCommand, stopCommand, listCommand } from "./ensure.mjs";
+import { ensureCommand, ensureDeCommand, pinCommand, unpinCommand, stopCommand, listCommand, rollbackCommand } from "./ensure.mjs";
 import { registerNeuralLink, unregisterNeuralLink } from "./register.mjs";
 import { fetchCommand } from "./fetch.mjs";
-import { historyCommand, checkCommand, urlCommand, reportCommand } from "./inspect.mjs";
+import { historyCommand, checkCommand, urlCommand, reportCommand, trustCommand } from "./inspect.mjs";
 import { selfUpdate, autoUpdateEnabled } from "./update.mjs";
 
 const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-url <url>]\n" +
@@ -34,8 +36,10 @@ const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-ur
   "     engine-kit ensure neural-link --unregister   além de instalar, desfaz esse registro (precisa de um neural-link que exponha uninstall)\n" +
   "     engine-kit list [--json]                     motores do pacote, a plataforma de cada um e a versão instalada (sem rede)\n" +
   "     engine-kit history [motor] [--json]          trocas de versão gravadas nesta máquina (de → para e a origem: ensure, auto-update, version, rollback)\n" +
-  "     engine-kit check <manifesto-do-plugin.json> [--json]   confere o bloco engines do manifesto (faixas >=, >, <=, <, =, ^x.y.z) contra o instalado; exit 1 se algum não satisfaz\n" +
-  "     engine-kit ensure --de <manifesto-do-plugin.json> [--registry-url <url>] [--json]   instala ou atualiza cada motor que o check reprova (ausente, fora da faixa) e reconfere; self-managed é pulado; faixa inválida aborta antes de instalar; exit 1 se algum não satisfaz no fim\n" +
+  "     engine-kit check <manifesto-do-plugin.json>... [--json]   confere o bloco engines de um ou mais manifestos (faixas >=, >, <=, <, =, ^x.y.z) contra o instalado; exit 1 se algum não satisfaz; com vários, --json devolve { ok, manifests }\n" +
+  "     engine-kit ensure --de <manifesto-do-plugin.json>... [--registry-url <url>] [--json]   instala ou atualiza cada motor que o check reprova (ausente, fora da faixa) e reconfere; self-managed é pulado; faixa inválida aborta antes de instalar; exit 1 se algum não satisfaz no fim\n" +
+  "     engine-kit rollback <motor> [--registry-url <url>] [--json]   volta à versão anterior à última troca do history (sha256 + Ed25519) e fixa nela; recusa primeira instalação e motor self-managed\n" +
+  "     engine-kit trust [motor] [--json]            o que o trust.json guarda por motor (chave pública, origem, maior versão, pin) e se bate com o manifest embarcado; só lê\n" +
   "     engine-kit url <motor> [--json]              endereço do daemon vivo (url, versão e pid) lido do anúncio dele; nunca imprime o token\n" +
   "     engine-kit doctor [--fix|--json|--verify] [--engine <motor>] [--local] [--registry-url <url>]   diagnostica os motores instalados (--fix instala o que falta e atualiza o que está velho)\n" +
   "     engine-kit doctor --report [--engine <motor>] [--local] [--verify]   texto colável para suporte (kit, Node, plataforma, motores, sobras, hooks); sem token nem chave\n" +
@@ -43,8 +47,8 @@ const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-ur
 
 const args = process.argv.slice(2);
 const flag = (n) => { const i = args.indexOf(n); return i === -1 ? undefined : args[i + 1]; };
-const VERBS = ["ensure", "pin", "unpin", "fetch", "stop", "doctor", "list", "history", "check", "url"];
-const NOME_OPCIONAL = ["doctor", "list", "history"];
+const VERBS = ["ensure", "pin", "unpin", "fetch", "stop", "doctor", "list", "history", "check", "url", "rollback", "trust"];
+const NOME_OPCIONAL = ["doctor", "list", "history", "trust"];
 const [cmd, name] = args;
 const nomeOpcional = name?.startsWith("-") ? undefined : name;
 const COM_VALOR = ["--version", "--registry-url", "--dest", "--engine", "--de"];
@@ -60,12 +64,14 @@ const FLAGS = {
   history: ["--json"],
   check: ["--json"],
   url: ["--json"],
+  rollback: ["--registry-url", "--json"],
+  trust: ["--json"],
 };
 /** Primeira flag que o verbo não aceita, ou argumento solto além do nome do motor. */
 const sobra = () => {
   const aceitas = FLAGS[cmd] ?? [];
-  for (let i = deManifesto || (NOME_OPCIONAL.includes(cmd) && !(cmd === "history" && nomeOpcional)) ? 1 : 2; i < args.length; i++) {
-    if (!args[i].startsWith("-")) { return `argumento inesperado: ${args[i]}`; }
+  for (let i = deManifesto || (NOME_OPCIONAL.includes(cmd) && !(["history", "trust"].includes(cmd) && nomeOpcional)) ? 1 : 2; i < args.length; i++) {
+    if (!args[i].startsWith("-")) { if (cmd === "check" || deManifesto) { continue; } return `argumento inesperado: ${args[i]}`; }
     if (!aceitas.includes(args[i]) && /^--(un)?register$/.test(args[i])) { return "--register e --unregister só valem para `engine-kit ensure neural-link`"; }
     if (!aceitas.includes(args[i])) { return `${args[i]} não vale para \`${cmd}\``; }
     if (COM_VALOR.includes(args[i])) { i++; }
@@ -74,6 +80,8 @@ const sobra = () => {
   if (args.includes("--json") && args.includes("--fix")) { return "--json e --fix não combinam: o --fix imprime o progresso, não JSON"; }
   return args.includes("--json") && ["--register", "--unregister"].some((f) => args.includes(f)) ? "--json não combina com --register/--unregister: o registro dos hooks imprime texto" : null;
 };
+/** Argumentos soltos depois do verbo, sem as flags nem os valores delas: os manifestos extras de `check` e `ensure --de`. */
+const posicionais = () => { const o = []; for (let i = 1; i < args.length; i++) { if (!args[i].startsWith("-")) { o.push(args[i]); } else if (COM_VALOR.includes(args[i])) { i++; } } return o; };
 const asJson = args.includes("--json");
 const log = (m) => { if (!asJson) { console.log(m); } };
 
@@ -148,16 +156,33 @@ if (cmd === "--help" || cmd === "-h") {
     else { console.log(`url: ${r.url}\nversão: ${r.version ?? "?"}\npid: ${r.pid ?? "?"}`); }
     if (!r.ok) { process.exitCode = 1; }
   } else if (cmd === "check" || deManifesto) {
-    const r = deManifesto ? await ensureDeCommand(flag("--de"), { registryUrl: flag("--registry-url"), autoUpdate: autoUpdateEnabled(), log }) : await checkCommand(name);
-    if (asJson) { console.log(JSON.stringify(r, null, 2)); }
-    else if (!r.engines) { console.error(`FALHOU ${cmd}: ${r.reason}`); }
+    const files = deManifesto ? [flag("--de"), ...posicionais()] : posicionais();
+    const rs = [];
+    for (const f of files) { rs.push(deManifesto ? await ensureDeCommand(f, { registryUrl: flag("--registry-url"), autoUpdate: autoUpdateEnabled(), log }) : await checkCommand(f)); }
+    if (asJson) { console.log(JSON.stringify(files.length > 1 ? { ok: rs.every((r) => r.ok), manifests: rs } : rs[0], null, 2)); }
     else {
-      const w = Math.max(0, ...r.engines.map((e) => e.name.length));
-      for (const e of r.engines) { console.log(`${e.satisfied ? "  OK  " : "  !!  "} ${e.name.padEnd(w)}  ${String(e.range).padEnd(10)} ${e.acao ? `[${e.acao}] ` : ""}${e.state === "OK" ? e.detail : `${e.state}: ${e.detail}`}${e.available ? ` (v${e.available} disponível; ENGINE_KIT_NO_AUTO_UPDATE ligado)` : ""}`); }
-      if (r.reason) { console.error(r.reason); }
-      console.log(r.engines.length ? (r.ok ? `\n== os ${r.engines.length} motor(es) satisfazem o manifesto ==` : `\n== ${r.engines.filter((e) => !e.satisfied).length} motor(es) não satisfazem o manifesto ==`) : "nenhum motor declarado no bloco engines");
+      for (const [i, r] of rs.entries()) {
+        if (files.length > 1) { console.log(`${i ? "\n" : ""}-- ${files[i]} --`); }
+        if (!r.engines) { console.error(`FALHOU ${cmd}: ${r.reason}`); continue; }
+        const w = Math.max(0, ...r.engines.map((e) => e.name.length));
+        for (const e of r.engines) { console.log(`${e.satisfied ? "  OK  " : "  !!  "} ${e.name.padEnd(w)}  ${String(e.range).padEnd(10)} ${e.acao ? `[${e.acao}] ` : ""}${e.state === "OK" ? e.detail : `${e.state}: ${e.detail}`}${e.available ? ` (v${e.available} disponível; ENGINE_KIT_NO_AUTO_UPDATE ligado)` : ""}`); }
+        if (r.reason) { console.error(r.reason); }
+        console.log(r.engines.length ? (r.ok ? `\n== os ${r.engines.length} motor(es) satisfazem o manifesto ==` : `\n== ${r.engines.filter((e) => !e.satisfied).length} motor(es) não satisfazem o manifesto ==`) : "nenhum motor declarado no bloco engines");
+      }
+    }
+    if (rs.some((r) => !r.ok)) { process.exitCode = 1; }
+  } else if (cmd === "trust") {
+    const r = trustCommand(nomeOpcional);
+    if (asJson) { console.log(JSON.stringify(r, null, 2)); }
+    else {
+      console.log(`${r.file}  (cópia .bak: ${r.backup.exists ? (r.backup.readable ? "legível" : "ILEGÍVEL") : "ausente"})`);
+      if (!r.ok) { console.error(`FALHOU trust: ${r.reason}`); }
+      for (const e of r.engines) { console.log(`  ${e.state.padEnd(15)} ${e.name}  chave ${e.publicKey ?? "(nenhuma)"}${e.source ? ` (${e.source}, ${e.firstSeen})` : ""}  maior versão ${e.maxVersion ?? "-"}  pin ${e.pin ?? "-"}${e.state === "CHAVE-DIFERENTE" ? `  embarcada ${e.embeddedKey}` : ""}`); }
     }
     if (!r.ok) { process.exitCode = 1; }
+  } else if (cmd === "rollback") {
+    const r = await rollbackCommand(name, { registryUrl: flag("--registry-url"), log });
+    done("rollback", r, () => { console.log(`motor revertido: ${name} v${r.previous} → v${r.version}; fixado em v${r.pinned} (engine-kit unpin ${name} volta a atualizar)`); avisoCache(r); });
   } else if (cmd === "history") {
     const r = historyCommand(nomeOpcional);
     if (!r.ok) { console.error(`FALHOU history: ${r.reason}`); process.exitCode = 1; }
