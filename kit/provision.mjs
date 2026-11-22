@@ -7,13 +7,13 @@
 //   • download em fluxo -> .part -> rename atômico (prazo por inatividade); extração em staging -> swap;
 //   • shutdown-first (Windows: DLL/EXE em uso impede sobrescrever o diretório).
 // NUNCA lança: devolve { ok:false, reason }.
-import { mkdirSync, existsSync, renameSync, rmSync, openSync, closeSync, readFileSync, writeFileSync, unlinkSync, readdirSync, utimesSync } from "node:fs";
+import { mkdirSync, existsSync, renameSync, rmSync, openSync, closeSync, readSync, readFileSync, writeFileSync, unlinkSync, readdirSync, utimesSync } from "node:fs";
 import { open } from "node:fs/promises";
 import { join, dirname, resolve as resolvePath, relative, isAbsolute } from "node:path";
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { verifyDigest, sha256, DEFAULT_ALGORITHM } from "./signature.mjs";
+import { verifyDigest, DEFAULT_ALGORITHM } from "./signature.mjs";
 import { checkTrust, trustPath, cmpVer, rollbackReason, noteVersion, firstContactKeys, recordSwap, dropStaleLock, dropFile } from "./trust.mjs";
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -47,11 +47,8 @@ export const LOCK_STALE_MS = 120000;
  * @returns {string} caminho do tar nativo ou `"tar"` (PATH).
  */
 export function tarBinary({ platform = process.platform, systemRoot = process.env.SystemRoot || process.env.windir, exists = existsSync } = {}) {
-  if (platform === "win32" && systemRoot) {
-    const native = join(systemRoot, "System32", "tar.exe");
-    if (exists(native)) return native;
-  }
-  return "tar";
+  const native = platform === "win32" && systemRoot && join(systemRoot, "System32", "tar.exe");
+  return native && exists(native) ? native : "tar";
 }
 
 /**
@@ -65,17 +62,8 @@ export function tarBinary({ platform = process.platform, systemRoot = process.en
  */
 export async function extractTgz(tgz, dest, tar = [tarBinary()]) {
   const run = (args) => promisify(execFile)(tar[0], [...tar.slice(1), ...args], { windowsHide: true });
-  try {
-    await run(["--version"]);
-  } catch {
-    return { ok: false, reason: "`tar` não encontrado no PATH: instale-o para extrair o artefato." };
-  }
-  try {
-    await run(["-xzf", tgz, "-C", dest]);
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, reason: `extração (tar) falhou: ${e?.message || e}` };
-  }
+  try { await run(["--version"]); } catch { return { ok: false, reason: "`tar` não encontrado no PATH: instale-o para extrair o artefato." }; }
+  try { await run(["-xzf", tgz, "-C", dest]); return { ok: true }; } catch (e) { return { ok: false, reason: `extração (tar) falhou: ${e?.message || e}` }; }
 }
 
 /**
@@ -89,10 +77,8 @@ function claimLock(lock, staleMs) {
     try { writeFileSync(lock, String(process.pid)); } catch { /* diagnóstico é best-effort */ }
     return fd;
   };
-  try { return open(); } catch {
-    dropStaleLock(lock, staleMs);
-    try { return open(); } catch { return null; }
-  }
+  try { return open(); } catch { dropStaleLock(lock, staleMs); }
+  try { return open(); } catch { return null; }
 }
 
 /** true se a versão instalada serve o pin: MESMO major e >= (protocolo é atado ao major). */
@@ -155,13 +141,20 @@ export async function fetchBuf(url, timeoutMs, { stream, signal } = {}) {
 /** Registro dos hashes dos arquivos extraídos, gravado dentro da pasta instalada para acompanhar o swap e o rollback. */
 export const FILES_MANIFEST = ".engine-kit-files.json";
 
+/** sha256 (hex) de um arquivo lido em pedaços de 1 MiB: um arquivo de GB nunca ocupa esse tamanho em memória. */
+function hashFile(p) {
+  const h = createHash("sha256"), buf = Buffer.alloc(1 << 20), fd = openSync(p, "r");
+  try { for (let n; (n = readSync(fd, buf)) > 0;) h.update(buf.subarray(0, n)); } finally { closeSync(fd); }
+  return h.digest("hex");
+}
+
 /** sha256 de cada arquivo sob `dir` (caminho relativo com `/`), exceto o próprio registro. */
 export function hashTree(dir, sub = "") {
   const out = {};
   for (const d of readdirSync(join(dir, sub), { withFileTypes: true })) {
     const rel = sub ? `${sub}/${d.name}` : d.name;
     if (d.isDirectory()) { Object.assign(out, hashTree(dir, rel)); }
-    else if (d.isFile() && rel !== FILES_MANIFEST) { out[rel] = sha256(readFileSync(join(dir, rel)), "hex"); }
+    else if (d.isFile() && rel !== FILES_MANIFEST) { out[rel] = hashFile(join(dir, rel)); }
   }
   return out;
 }
@@ -260,8 +253,7 @@ async function verifyAuthenticity(engine, digest, { log, fetcher, trustedKeys })
  *
  * @returns {Promise<{ok:true, path:string, version:string, signed:boolean} | {ok:false, reason:string}>} nunca lança.
  */
-export async function fetchArtifact(engine, { log = () => {}, destDir = process.cwd(), idleTimeoutMs, downloadTimeoutMs, fetcher = fetchBuf, trustedKeys, intoHome = false } = {}) {
-  const dir = destDir;
+export async function fetchArtifact(engine, { log = () => {}, destDir: dir = process.cwd(), idleTimeoutMs, downloadTimeoutMs, fetcher = fetchBuf, trustedKeys, intoHome = false } = {}) {
   const dentro = relative(resolvePath(engine.homeDir), resolvePath(dir));
   if (!intoHome && !dentro.startsWith("..") && !isAbsolute(dentro)) {
     return refuse(engine, `destino ${dir} está dentro do home de ${engine.name} (${engine.homeDir}): o doctor --fix trata o artefato ali como sobra de instalação e o apagaria → escolha outra pasta`);
@@ -306,15 +298,10 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
   // numa instalação quebrada para sempre, ignorando o pin do registry.
   if (!repair && existsSync(entryPath)) {
     const inst = installedVersion(binDir);
-    if (serves(inst)) {
-      noteVersion(engine.name, inst);
-      return { ok: true, entryPath, version: inst, reused: true };
-    }
+    if (serves(inst)) { noteVersion(engine.name, inst); return { ok: true, entryPath, version: inst, reused: true }; }
     if (!inst && engine.status !== "self-managed") {
       say(log, engine, `instalação em estado desconhecido (versão ilegível) → reprovisionando`);
-      if (!allowNetwork) {
-        return refuse(engine, `instalação em estado desconhecido (package.json ausente/corrompido em ${binDir}) e rede desabilitada: sem como reparar`);
-      }
+      if (!allowNetwork) { return refuse(engine, `instalação em estado desconhecido (package.json ausente/corrompido em ${binDir}) e rede desabilitada: sem como reparar`); }
     } else if (inst) {
       say(log, engine, `instalada v${inst} não satisfaz o pin v${engine.version} → atualizando`);
     }
@@ -372,9 +359,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
     //      sha256 e pela Ed25519. O package.json do artefato tem de dizer a versão que o registry pede.
     const got = installedVersion(staging);
     const abort = (reason) => { rmTree(staging); dropFile(tgz); return { ok: false, reason }; };
-    if (got !== engine.version) {
-      return abort(`${engine.name}: o artefato diz v${got ?? "? (package.json ausente/ilegível)"} e o registry pede v${engine.version} → ABORT`);
-    }
+    if (got !== engine.version) { return abort(`${engine.name}: o artefato diz v${got ?? "? (package.json ausente/ilegível)"} e o registry pede v${engine.version} → ABORT`); }
 
     writeFileSync(join(staging, FILES_MANIFEST), JSON.stringify(hashTree(staging)));
 
@@ -387,9 +372,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
       if (onBeforeReplace) { try { await onBeforeReplace(); } catch { /* best-effort */ } }
       aside = `${binDir}.old-${process.pid}`;
       rmTree(aside);
-      try {
-        await renameRetry(binDir, aside);
-      } catch (e) {
+      try { await renameRetry(binDir, aside); } catch (e) {
         return abort(`${engine.name}: não consegui trocar ${binDir} (${e.code || e.message}): arquivos em uso — feche quem usa o motor e rode de novo; a instalação atual ficou intacta`);
       }
     }
@@ -404,14 +387,11 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
       return refuse(engine, `swap falhou (${e.code || e.message})${aside && existsSync(aside) ? `; a instalação anterior está em ${aside}` : ""}`);
     }
     if (aside && !keepPrevious) {
-      try { rmTree(aside); }
-      catch (e) { say(log, engine, `instalado, mas a versão anterior ficou em ${aside} (${e.code || e.message})`); }
+      try { rmTree(aside); } catch (e) { say(log, engine, `instalado, mas a versão anterior ficou em ${aside} (${e.code || e.message})`); }
     }
     dropFile(tgz);
 
-    if (!existsSync(entryPath)) {
-      return refuse(engine, `artefato extraído incompleto (sem ${engine.install.entry})`);
-    }
+    if (!existsSync(entryPath)) { return refuse(engine, `artefato extraído incompleto (sem ${engine.install.entry})`); }
     noteVersion(engine.name, engine.version);
     recordSwap(engine.name, from, engine.version, exact ? "version" : from ? "auto-update" : "ensure");
     log(`[engine-kit] ${engine.name} instalado em ${binDir} (v${engine.version})`);
