@@ -135,6 +135,7 @@ Um produto usa os dois sem peça local:
 ```js
 import { ensureHome, casaClient, grafoClient, CASA, GRAFO } from "engine-kit/kit/client.mjs";
 const casa = await ensureHome(CASA);          // { ok:false, reason } diz o que faltou e o comando que resolve
+// o executável que sobe e morre volta na hora, com o código de saída e o fim de <home>/run/boot.log (a saída dele vai para esse arquivo)
 const v = await casaClient(casa).embed(["texto"], { priority: "interactive" });
 const grafo = await ensureHome(GRAFO);
 const g = grafoClient(grafo);
@@ -174,7 +175,7 @@ sem `--rede` os itens de rede ficam `NAO-RODADO`, visíveis. A lista vem das lin
 [ ] release publicada no engine-registry com .tgz + .sig + .sha256
 [ ] manifest.json com publicKey, signatureAlgorithm, signatureRequired:true, repo=engine-registry
 [ ] node kit/verify-release.mjs <motor>  → verde
-[ ] node tests/e2e-install.mjs --local          → instala e sobe num HOME isolado
+[ ] node tests/e2e-install.mjs <motor> --local  → instala num HOME isolado (o mcp-gateway também sobe)
 [ ] o motor PUBLICA o ponteiro do CLI (<raiz>/cli.json) no arranque — nada de o consumidor adivinhar
 [ ] nenhum consumidor tem caminho de instalação escrito à mão (grep por "Scripts" nos conectores)
 [ ] o defeito foi reproduzido pelo caminho REAL do consumidor, não só na peça isolada

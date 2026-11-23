@@ -38,5 +38,7 @@ console.log("== e2e-install por motor ==");
   check("flag desconhecida: uso e exit 2, sem baixar", f.code === 2 && /uso:/.test(f.out) && !/baixando/.test(f.out) && !f.travou, f.out.slice(0, 300));
 }
 
+check("a prova isola o ENGINE_KIT_HOME: o trust.json da máquina não recebe a chave do motor testado", /process\.env\.ENGINE_KIT_HOME = join\(HOME/.test(readFileSync(new URL("./e2e-install.mjs", import.meta.url), "utf8")));
+
 console.log(`\n== ${failures === 0 ? "TUDO VERDE" : `${failures} FALHA(S)`} ==`);
 process.exit(failures === 0 ? 0 : 1);

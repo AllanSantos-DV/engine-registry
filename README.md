@@ -125,6 +125,8 @@ npx engine-kit doctor --verify [--engine <motor>] # confere o sha256 de cada arq
 npx engine-kit doctor --report [--engine <motor>] # texto colável para suporte: kit, Node, plataforma, variáveis, motores, sobras e hooks; sem token nem chave
 npx engine-kit list [--json]                      # os motores do pacote, a plataforma de cada um e a versão instalada (sem rede)
 npx engine-kit history [motor] [--json]           # as trocas de versão gravadas nesta máquina: de → para e a origem
+npx engine-kit ensure <motor> <motor> [...] [--registry-url <url>] [--json]   # vários motores numa chamada; uma falha não esconde os outros, exit 1 se algum falhou, --json devolve { ok, engines }
+npx engine-kit update <motor> [--check] [--json]       # pede ao updater do daemon vivo (motor com runtime.updatePath, como o motor-de-grafo) que se atualize; --check só compara as versões; o token do anúncio vai só no cabeçalho
 npx engine-kit rollback <motor> [--json]          # volta à versão anterior à última troca do history (sha256 + Ed25519) e fixa nela; recusa primeira instalação e self-managed
 npx engine-kit trust [motor] [--json]             # o que o trust.json guarda por motor (chave pública, origem, maior versão, pin), se bate com o manifest embarcado e o estado do .bak; só lê
 npx engine-kit trust --restaurar                  # devolve o trust.json a partir do .bak quando ele está ilegível (a cópia é validada, a troca é atômica)
@@ -393,6 +395,7 @@ node tests/test-signature.mjs --network  # + interop com uma release REAL do vox
 node tests/test-apps.mjs                 # catálogo de apps (hermético)
 node tests/e2e-install.mjs               # baixa e sobe o mcp-gateway num HOME isolado (prova real)
 node tests/e2e-install.mjs --local       # idem, mas usando o manifest.json que você vai publicar
+node tests/e2e-install.mjs <motor> --local   # qualquer motor do manifest: resolve + provision num HOME isolado (só o mcp-gateway sobe daemon)
 ```
 
 Para auditar o catálogo inteiro de uma vez, um motor ou app por vez (a falha de um não esconde os outros):
