@@ -39,7 +39,7 @@ vive num lugar só e o consumidor apenas **declara a dependência**.
 | `skill-engine` | 0.4.1 | `cli` | Gerencia skills de agentes fora de qualquer IDE: busca repositórios em quarentena, varre com regras determinísticas e só ativa o que sai limpo. |
 | `client-harness` | 0.3.2 | `cli` | Daemon local que faz o Claude Code e o Codex respeitarem os padrões de cada cliente: confere cada ação do agente contra as regras da pasta e recusa antes de gravar, com o motivo. |
 | `motor-de-grafo` | 0.1.2 | `cli` | Indexa uma pasta e responde o grafo de código (símbolos, busca, chamadores, chamados, referências, índice SCIP) e, no mesmo banco, o de documentos e qualquer tipo de nó que um produto registrar, com busca por nome, texto, vetor e propriedade. Atualiza pelo próprio updater. |
-| `casa-de-embeddings` | 0.3.5 | `cli` | Casa local de embeddings: um daemon por máquina que serve `/embed`, `/similarity` e `/rerank`, dono do modelo e da identidade do espaço vetorial (`space_id`). Nenhum produto carrega o próprio modelo. |
+| `casa-de-embeddings` | 0.3.6 | `cli` | Casa local de embeddings: um daemon por máquina que serve `/embed`, `/similarity` e `/rerank`, dono do modelo e da identidade do espaço vetorial (`space_id`). Nenhum produto carrega o próprio modelo. |
 
 **Todos** são publicados aqui, assinados com Ed25519 e verificados antes de instalar.
 
