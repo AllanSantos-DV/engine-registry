@@ -8,7 +8,7 @@
 //
 //   node tests/test-client.mjs
 import "./_tmp.mjs";
-import { mkdirSync, writeFileSync, readFileSync, mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, mkdtempSync, rmSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createServer } from "node:http";
 import { createHash } from "node:crypto";
@@ -247,6 +247,18 @@ console.log("\n-- ensure: instala, sobe e espera o anúncio --");
   rmSync(join(home, "run"), { recursive: true, force: true });
   const mudo = await client.ensureHome(nome, { registryUrl, fetcher, launch: () => {}, refresh: true, bootTimeoutMs: 200 });
   check("o executável sobe e não anuncia: erro visível com o prazo e o caminho", !mudo.ok && /não anunciou/.test(mudo.reason) && mudo.reason.includes(`${nome}.exe`), mudo.reason);
+
+  rmSync(join(home, "run"), { recursive: true, force: true });
+  const morreu = (code) => (_entry, log) => { mkdirSync(join(home, "run"), { recursive: true }); writeFileSync(log, "linha velha\nfalta a biblioteca libfoo.so\n"); return { dead: { code } }; };
+  const t0 = Date.now();
+  const caiu = await client.ensureHome(nome, { registryUrl, fetcher, launch: morreu(3), refresh: true, bootTimeoutMs: 60000 });
+  check("o executável morre ao subir: volta na hora (sem esperar o prazo) com o código de saída e o fim do registro de boot",
+    !caiu.ok && Date.now() - t0 < 10000 && /saiu ao subir/.test(caiu.reason) && /código 3/.test(caiu.reason) && /libfoo\.so/.test(caiu.reason) && caiu.reason.includes("boot.log"), caiu.reason);
+
+  rmSync(join(home, "run"), { recursive: true, force: true });
+  const naoSobe = await client.ensureHome(nome, { registryUrl, fetcher, refresh: true, bootTimeoutMs: 60000 });
+  check("o executável não pode ser executado: erro visível com a causa, sem derrubar o processo, e o registro de boot é criado em run/",
+    !naoSobe.ok && /saiu ao subir|não consegui subir/.test(naoSobe.reason) && existsSync(join(home, "run", "boot.log")), naoSobe.reason);
 
   corpo = registry("pending-release");
   rmSync(home, { recursive: true, force: true });
