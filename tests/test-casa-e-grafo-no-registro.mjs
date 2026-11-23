@@ -24,7 +24,7 @@ check("o manifest passa no schema com as duas entradas", manifestErrors(manifest
 check("as duas entradas existem", Boolean(casa) && Boolean(grafo));
 
 for (const e of [casa, grafo].filter(Boolean)) {
-  const outros = manifest.engines.filter((x) => x !== e).map((x) => x.install.publicKey);
+  const outros = manifest.engines.filter((x) => x !== e && x.install.tag !== e.install.tag).map((x) => x.install.publicKey);
   check(`${e.name}: chave própria, assinatura obrigatória e sidecars`, /^[0-9a-f]{64}$/.test(e.install.publicKey ?? "") && !outros.includes(e.install.publicKey) && e.install.signatureRequired === true && e.install.checksum === "{asset}.sha256");
   check(`${e.name}: release publicada, sem status pendente, com o motivo da página`, e.status === undefined && /\S{10}/.test(e.pagesPendente ?? ""));
   check(`${e.name}: o motor sobe sozinho, o kit entrega e desliga (kind cli com runtime completo)`, e.kind === "cli" && e.runtime?.runtimeFile === "run/daemon.json" && e.runtime.healthPath === "/health" && Boolean(e.runtime.shutdownPath) && Boolean(e.runtime.shutdownTokenField) && Boolean(e.runtime.shutdownTokenHeader));
@@ -35,6 +35,11 @@ for (const e of [casa, grafo].filter(Boolean)) {
 check("a casa desliga por POST /admin/shutdown com o X-Casa-Token do anúncio", casa?.runtime.shutdownPath === "/admin/shutdown" && casa.runtime.shutdownTokenField === "shutdownToken" && casa.runtime.shutdownTokenHeader === "x-casa-token");
 check("a casa não tem updater próprio: o kit a atualiza", casa && casa.runtime.updatePath === undefined);
 check("o motor de grafo declara o updater próprio (POST /update do servidor)", grafo?.runtime.updatePath === "/api/v1/server/update" && grafo.runtime.shutdownPath === "/api/v1/server/shutdown");
+
+const linux = entry("motor-de-grafo-linux-x64");
+check("o motor de grafo tem a entrada própria do Linux, na versão do Windows e com a mesma chave e tag", Boolean(linux) && linux.version === grafo.version && linux.install.publicKey === grafo.install.publicKey && linux.install.tag === grafo.install.tag, `${linux?.version} / ${grafo.version}`);
+check("a entrada do Linux aponta o pacote e o executável do Linux, assinados e só para linux-x64", linux?.install.asset === "motor-de-grafo-linux-x64.tgz" && linux.install.entry === "bin/motor-de-grafo" && linux.install.checksum === "{asset}.sha256" && linux.install.signatureAlgorithm === "ed25519-sha256-raw" && linux.install.signatureRequired === true && JSON.stringify(linux.platforms) === '["linux-x64"]');
+check("a entrada do Linux declara o mesmo runtime do motor (updater próprio e desligamento com token)", JSON.stringify(linux?.runtime) === JSON.stringify(grafo.runtime));
 
 const readme = read("README.md");
 const site = read("site/index.html");

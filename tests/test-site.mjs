@@ -30,7 +30,8 @@ console.log("== site: vitrine dos motores ==\n");
 const html = read(join(SITE, "index.html"));
 const js = read(join(SITE, "assets", "site.js"));
 const manifest = JSON.parse(read(join(REPO, "manifest.json")));
-const engines = manifest.engines.filter((e) => e.status !== "pending-release").map((e) => e.name);
+const variante = (e) => manifest.engines.some((o) => o !== e && e.name.startsWith(`${o.name}-`) && o.install.tag === e.install.tag);
+const engines = manifest.engines.filter((e) => e.status !== "pending-release" && !variante(e)).map((e) => e.name);
 
 // ---- 1) referências locais existem; âncoras apontam para ids reais -----------------------------------------------------
 const MIDIA = new Set(["media/apresentacao.mp4", "media/apresentacao-poster.jpg", "media/apresentacao.vtt"]);

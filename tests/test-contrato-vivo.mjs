@@ -36,7 +36,9 @@ async function daemon(desvio = {}) {
     "POST /api/v1/graph/search": (b) => (validate(buscaReq, buscaReq, b).length ? [400, erroBusca] : [200, naoIndexado]),
     ...desvio,
   };
+  const autorizacoes = new Set();
   const server = createServer((req, res) => {
+    autorizacoes.add(req.headers.authorization);
     let raw = "";
     req.on("data", (d) => (raw += d));
     req.on("end", () => {
@@ -48,7 +50,7 @@ async function daemon(desvio = {}) {
     });
   });
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
-  return { url: `http://127.0.0.1:${server.address().port}`, close: () => server.close() };
+  return { url: `http://127.0.0.1:${server.address().port}`, autorizacoes, close: () => server.close() };
 }
 const item = (r, id) => r.itens.find((i) => i.id === id);
 
@@ -111,6 +113,14 @@ console.log("== contrato-vivo ==\n");
   const d2 = await daemon({ "POST /rerank": () => [200, { results: [] , nao: 1 }], "GET /info": () => [200, []] });
   const ruim = await run(["casa-de-embeddings"], { ...io, achar: async () => ({ ok: true, url: d2.url }) });
   check("daemon fora do contrato: exit 1 e o texto diz quantos casos", ruim === 1 && /caso\(s\) fora do contrato/.test(saida.at(-1)), saida.at(-1));
+  const d3 = await daemon();
+  const semAnuncio = async () => { throw new Error("o anúncio não deve ser consultado com --url"); };
+  const comUrl = await run(["motor-de-grafo", "--url", d3.url, "--token-stdin", "--json"], { ...io, achar: semAnuncio, lerToken: async () => "segredo-de-equipe" });
+  check("--url prova o endereço dado sem consultar o anúncio, com o token da entrada como Bearer", comUrl === 0 && JSON.parse(saida.at(-1)).ok === true && d3.autorizacoes.has("Bearer segredo-de-equipe") && !d3.autorizacoes.has("Bearer undefined"), [...d3.autorizacoes].join(","));
+  check("--url sem token não manda cabeçalho de autorização", await (async () => { const d4 = await daemon(); await run(["casa-de-embeddings", "--url", d4.url], { ...io, achar: semAnuncio }); const so = [...d4.autorizacoes].every((a) => a === undefined); d4.close(); return so; })());
+  check("--url com valor inválido ou --token-stdin sem --url: uso e exit 2", (await run(["motor-de-grafo", "--url", "nao-e-url"], io)) === 2 && (await run(["motor-de-grafo", "--token-stdin"], io)) === 2 && /uso:/.test(erros.at(-1)));
+  check("o token nunca aparece na saída", !saida.concat(erros).some((m) => String(m).includes("segredo-de-equipe")));
+  d3.close();
   d.close(); d2.close();
 }
 

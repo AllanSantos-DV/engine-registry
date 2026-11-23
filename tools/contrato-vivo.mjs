@@ -16,7 +16,7 @@ import { validate } from './schema-check.mjs';
 import { discover, CASA, GRAFO } from '../kit/client.mjs';
 
 const CONTRATOS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'tests', 'contratos');
-const USO = 'uso: node tools/contrato-vivo.mjs <casa-de-embeddings|motor-de-grafo> [--json]';
+const USO = 'uso: node tools/contrato-vivo.mjs <casa-de-embeddings|motor-de-grafo> [--json] [--url <endereço> [--token-stdin]]';
 const lerJson = (dir, arquivo) => JSON.parse(readFileSync(path.join(CONTRATOS, dir, arquivo), 'utf8'));
 const recusa = (http) => http >= 400 && http < 500;
 
@@ -110,15 +110,30 @@ export function render(r) {
     r.ok ? '== o daemon vivo cumpre o contrato ==' : `== ${r.itens.filter((i) => i.status !== 'OK').length} caso(s) fora do contrato ==`].join('\n');
 }
 
-/** @returns {Promise<number>} o exit code (0, 1 ou 2) */
-export async function run(argv, { log = console.log, error = console.error, achar = discover, ...opts } = {}) {
-  const motor = argv.find((a) => !a.startsWith('-'));
-  if (!motor || argv.some((a) => a.startsWith('-') && a !== '--json')) { error(USO); return 2; }
+/** Lê o token da entrada padrão, sem nunca aceitá-lo como argumento. */
+async function tokenDaEntrada() {
+  let t = '';
+  for await (const parte of process.stdin) t += parte;
+  return t.trim();
+}
+
+/**
+ * Prova o daemon do motor contra o contrato aberto. Sem `--url` acha o daemon pelo anúncio; com `--url` prova o endereço
+ * dado (grafo em modo equipe, HOME isolado), e `--token-stdin` lê o token Bearer da entrada padrão.
+ * @returns {Promise<number>} o exit code (0, 1 ou 2)
+ */
+export async function run(argv, { log = console.log, error = console.error, achar = discover, lerToken = tokenDaEntrada, ...opts } = {}) {
+  const i = argv.indexOf('--url');
+  const url = i < 0 ? null : argv[i + 1];
+  const resto = argv.filter((a, j) => j !== i && j !== i + 1 || i < 0);
+  const motor = resto.find((a) => !a.startsWith('-'));
+  const livres = resto.filter((a) => a.startsWith('-') && a !== '--json' && !(url && a === '--token-stdin'));
+  if (!motor || livres.length || (i >= 0 && !/^https?:\/\//.test(url ?? ''))) { error(USO); return 2; }
   try {
-    const home = await achar(motor);
+    const home = url ? { ok: true, url, ...(resto.includes('--token-stdin') ? { token: await lerToken() } : {}) } : await achar(motor);
     if (!home.ok) { error(`FALHOU: ${motor} não está vivo: ${home.reason} (este comando não sobe o motor)`); return 2; }
     const r = await provar(motor, home, opts);
-    log(argv.includes('--json') ? JSON.stringify(r, null, 2) : render(r));
+    log(resto.includes('--json') ? JSON.stringify(r, null, 2) : render(r));
     return r.ok ? 0 : 1;
   } catch (e) { error(`FALHOU: ${e.message}`); return 2; }
 }

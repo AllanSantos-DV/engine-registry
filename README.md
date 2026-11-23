@@ -38,7 +38,8 @@ vive num lugar só e o consumidor apenas **declara a dependência**.
 | `cerne` | 0.4.14 | `daemon`, **self-managed** | Leitura ativa de vídeo (captura, quadros, transcrição, tradução) exposta via MCP. Instalador Inno por usuário, Windows. |
 | `skill-engine` | 0.4.1 | `cli` | Gerencia skills de agentes fora de qualquer IDE: busca repositórios em quarentena, varre com regras determinísticas e só ativa o que sai limpo. |
 | `client-harness` | 0.3.2 | `cli` | Daemon local que faz o Claude Code e o Codex respeitarem os padrões de cada cliente: confere cada ação do agente contra as regras da pasta e recusa antes de gravar, com o motivo. |
-| `motor-de-grafo` | 0.1.2 | `cli` | Indexa uma pasta e responde o grafo de código (símbolos, busca, chamadores, chamados, referências, índice SCIP) e, no mesmo banco, o de documentos e qualquer tipo de nó que um produto registrar, com busca por nome, texto, vetor e propriedade. Atualiza pelo próprio updater. |
+| `motor-de-grafo` | 0.1.3 | `cli` | Indexa uma pasta e responde o grafo de código (símbolos, busca, chamadores, chamados, referências, índice SCIP) e, no mesmo banco, o de documentos e qualquer tipo de nó que um produto registrar, com busca por nome, texto, vetor e propriedade. Atualiza pelo próprio updater. |
+| `motor-de-grafo-linux-x64` | 0.1.3 | `cli` | O mesmo motor de grafos para Linux x64 (`motor-de-grafo-linux-x64.tgz`, executável `bin/motor-de-grafo`), na mesma release do motor do Windows; atualiza pelo próprio updater e roda como unidade de usuário do systemd. |
 | `casa-de-embeddings` | 0.3.5 | `cli` | Casa local de embeddings: um daemon por máquina que serve `/embed`, `/similarity` e `/rerank`, dono do modelo e da identidade do espaço vetorial (`space_id`). Nenhum produto carrega o próprio modelo. |
 
 **Todos** são publicados aqui, assinados com Ed25519 e verificados antes de instalar.
@@ -164,6 +165,8 @@ Reusar a instalação não é troca. Se a linha não puder ser gravada, a instal
 instalada satisfaz a faixa: `>=`, `>`, `<=`, `<`, `=` (ou só `x.y.z`) e `^x.y.z` (mesma major; em 0.x a mesma minor; em 0.0.x exata). Faixa que não é uma dessas (`~`, `*`, `latest`, duas
 condições juntas) é erro explícito (`FAIXA-INVALIDA`), nunca ignorada. Motor ausente (`AUSENTE`), fora da faixa (`FORA-DA-FAIXA`), desconhecido do kit (`DESCONHECIDO`) e motor
 `self-managed`, cuja versão o kit não lê (`NAO-VERIFICAVEL`), contam como não satisfeitos: exit 1. Não usa rede.
+
+**Gate de CI do plugin.** `npx engine-kit check meu-plugin/plugin.json --rede --json` serve de passo de CI do próprio plugin: o exit code é 1 quando um motor da faixa `engines` está fora dela ou ausente do registro, e o `--json` traz `{ ok, manifests }`. Rode-o no runner Linux do plugin; este repositório não o roda em CI hospedado.
 
 **Instalar pela faixa do plugin.** `engine-kit ensure --de <manifesto.json>` roda o mesmo `check` e instala ou atualiza, pelo `ensure` de sempre (sha256 e Ed25519, chave do pacote), cada motor
 reprovado por `AUSENTE` ou `FORA-DA-FAIXA`; depois reconfere pelo `check` e mostra o estado final de cada motor com a ação (`instalado`, `atualizado`, `reusado`, `pulado`, `mantido`, `recusado`, `falhou`).
@@ -403,6 +406,7 @@ Para provar o daemon vivo da casa de embeddings ou do motor de grafo contra o co
 
 ```sh
 node tools/contrato-vivo.mjs <casa-de-embeddings|motor-de-grafo> [--json]   # exit 0 = conforme; 1 = resposta fora do contrato; 2 = motor não está vivo
+printf %s "$TOKEN" | node tools/contrato-vivo.mjs motor-de-grafo --url http://127.0.0.1:8190 --token-stdin   # prova um endereço dado (grafo em modo equipe, HOME isolado); o token vem só pela entrada padrão
 ```
 
 Para ver quais repositórios e workflows consomem os minutos do GitHub Actions da conta logada no `gh` (só leitura; os maiores
