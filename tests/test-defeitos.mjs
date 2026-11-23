@@ -186,7 +186,7 @@ console.log("== defeitos com resposta óbvia ==\n");
     [["fetch", "fake-engine", "--fix"], /--fix não vale para `fetch`/],
     [["unpin", "fake-engine", "--version", "1.0.0"], /--version não vale para `unpin`/],
     [["stop", "fake-engine", "--dest", "x"], /--dest não vale para `stop`/],
-    [["ensure", "fake-engine", "sobra"], /argumento inesperado: sobra/],
+    [["fetch", "fake-engine", "sobra"], /argumento inesperado: sobra/],
     [["doctor", "--bogus"], /--bogus não vale para `doctor`/],
     [["doctor", "--fix", "--json"], /--json e --fix não combinam/],
   ];
