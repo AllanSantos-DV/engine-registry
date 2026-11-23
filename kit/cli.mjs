@@ -27,6 +27,7 @@ import { historyCommand, checkCommand, urlCommand, reportCommand, trustCommand, 
 import { selfUpdate, autoUpdateEnabled } from "./update.mjs";
 
 const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-url <url>]\n" +
+  "     engine-kit ensure <motor> <motor>... [--registry-url <url>] [--json]   vários motores numa chamada; uma falha não esconde os outros (exit 1 se algum falhou; --json devolve { ok, engines })\n" +
   "     engine-kit pin <motor> [--version <x.y.z>] [--registry-url <url>]   fixa a versão instalada (ou instala e fixa x.y.z)\n" +
   "     engine-kit unpin <motor>                     solta o motor para voltar a atualizar\n" +
   "     engine-kit fetch <motor|app> [--version <x.y.z>] [--dest <pasta>] [--registry-url <url>]   baixa e confere (sha256 + Ed25519) sem instalar\n" +
@@ -74,7 +75,7 @@ const FLAGS = {
 const sobra = () => {
   const aceitas = FLAGS[cmd] ?? [];
   for (let i = deManifesto || (NOME_OPCIONAL.includes(cmd) && !(["history", "trust"].includes(cmd) && nomeOpcional)) ? 1 : 2; i < args.length; i++) {
-    if (!args[i].startsWith("-")) { if (cmd === "check" || deManifesto) { continue; } return `argumento inesperado: ${args[i]}`; }
+    if (!args[i].startsWith("-")) { if (cmd === "check" || cmd === "ensure" || deManifesto) { continue; } return `argumento inesperado: ${args[i]}`; }
     if (!aceitas.includes(args[i]) && /^--(un)?register$/.test(args[i])) { return "--register e --unregister só valem para `engine-kit ensure neural-link`"; }
     if (!aceitas.includes(args[i])) { return `${args[i]} não vale para \`${cmd}\``; }
     if (COM_VALOR.includes(args[i])) { i++; }
@@ -85,6 +86,7 @@ const sobra = () => {
 };
 /** Argumentos soltos depois do verbo, sem as flags nem os valores delas: os manifestos extras de `check` e `ensure --de`. */
 const posicionais = () => { const o = []; for (let i = 1; i < args.length; i++) { if (!args[i].startsWith("-")) { o.push(args[i]); } else if (COM_VALOR.includes(args[i])) { i++; } } return o; };
+const motores = cmd === "ensure" && !deManifesto ? [...new Set(posicionais())] : [];
 const asJson = args.includes("--json");
 const log = (m) => { if (!asJson) { console.log(m); } };
 
@@ -121,6 +123,9 @@ if (cmd === "--help" || cmd === "-h") {
   process.exitCode = 1;
 } else if (sobra()) {
   console.error(sobra());
+  process.exitCode = 1;
+} else if (motores.length > 1 && ["--version", "--register", "--unregister"].some((f) => args.includes(f))) {
+  console.error("--version, --register e --unregister valem para um motor só, não para vários motores: engine-kit ensure <motor> <motor>... [--registry-url <url>] [--json]");
   process.exitCode = 1;
 } else if (["--register", "--unregister"].some((f) => args.includes(f)) && !(cmd === "ensure" && name === "neural-link")) {
   console.error("--register e --unregister só valem para `engine-kit ensure neural-link`");
@@ -215,6 +220,12 @@ if (cmd === "--help" || cmd === "-h") {
   } else if (cmd === "pin") {
     const r = await pinCommand(name, { version: flag("--version"), registryUrl: flag("--registry-url"), log });
     done("pin", r, () => { console.log(`OK ${name} fixado em v${r.pinned}; a atualização automática pula este motor (engine-kit unpin ${name} solta)`); avisoCache(r); });
+  } else if (motores.length > 1) {
+    const rs = [];
+    for (const m of motores) { rs.push([m, await ensureCommand(m, { registryUrl: flag("--registry-url"), autoUpdate: autoUpdateEnabled(), log })]); }
+    if (asJson) { console.log(JSON.stringify({ ok: rs.every(([, r]) => r.ok), engines: rs.map(([m, r]) => jsonOf("ensure", m, r)) }, null, 2)); }
+    else { for (const [m, r] of rs) { if (r.ok) { console.log(`OK ${m} v${r.version} (${r.reused ? "já instalado, reusado" : r.previous ? `atualizado de v${r.previous}` : "instalado"}) em ${r.entryPath}`); } else { console.error(`FALHOU ${m}: ${r.reason}`); } } }
+    if (rs.some(([, r]) => !r.ok)) { process.exitCode = 1; }
   } else {
     const autoUpdate = autoUpdateEnabled();
     const r = await ensureCommand(name, { version: flag("--version"), registryUrl: flag("--registry-url"), autoUpdate, log });

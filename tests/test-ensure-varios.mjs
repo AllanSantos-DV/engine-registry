@@ -70,8 +70,8 @@ console.log("\n== ensure com vários motores ==");
 
   const falha = await cli("ensure", "vxk", "neural-link", "skill-engine", "--json");
   const f = json(falha);
-  check("um motor ausente com o registry fora do ar: exit 1, ok:false, e os outros dois seguem como OK",
-    falha.code === 1 && f?.ok === false && f.engines.length === 3 && f.engines[0].ok && !f.engines[1].ok && /registry inacess/.test(f.engines[1].detail) && f.engines[2].ok, falha.out.slice(0, 400));
+  check("um motor ausente com o download fora do ar: exit 1, ok:false, e os outros dois seguem como OK",
+    falha.code === 1 && f?.ok === false && f.engines.length === 3 && f.engines[0].ok && !f.engines[1].ok && /inacessível \(offline\)/.test(f.engines[1].detail) && f.engines[2].ok, falha.out.slice(0, 400));
   const ft = await cli("ensure", "neural-link", "vxk");
   check("em texto: a falha vai para a saída de erro com o nome do motor e o outro ainda é reportado", ft.code === 1 && /FALHOU neural-link/.test(ft.err) && /^OK vxk/m.test(ft.out), ft.out + ft.err);
 
