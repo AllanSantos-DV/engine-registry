@@ -115,6 +115,26 @@ console.log("== contrato-vivo ==\n");
 }
 
 {
+  const { mkdtempSync, readdirSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dados = mkdtempSync(join(tmpdir(), "dados-"));
+  const antes = process.env.LOCALAPPDATA;
+  process.env.LOCALAPPDATA = dados;
+  const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+  const arvore = (d) => readdirSync(d, { recursive: true }).sort().join("|");
+  const d = await daemon();
+  await provar("motor-de-grafo", { url: d.url });
+  const primeira = arvore(dados);
+  await provar("motor-de-grafo", { url: d.url });
+  await provar("motor-de-grafo", { url: d.url });
+  check("a busca de prova usa uma pasta estável por versão do kit, em LOCALAPPDATA", primeira.split("|").includes(join("engine-kit", "contrato-vivo", `v${version}`)), primeira);
+  check("uma segunda rodada com a mesma entrada não cria arquivo nem pasta nova", arvore(dados) === primeira, `${primeira} → ${arvore(dados)}`);
+  d.close();
+  if (antes === undefined) delete process.env.LOCALAPPDATA; else process.env.LOCALAPPDATA = antes;
+}
+
+{
   const esquema = { type: "object", if: { required: ["a"] }, then: { required: ["b"] }, else: { required: ["c"] } };
   check("o validador aplica o then quando o if casa", validate(esquema, esquema, { a: 1 }).some((e) => /falta "b"/.test(e)) && validate(esquema, esquema, { a: 1, b: 2 }).length === 0);
   check("o validador aplica o else quando o if não casa (antes lançava palavra-chave não suportada)", validate(esquema, esquema, { x: 1 }).some((e) => /falta "c"/.test(e)) && validate(esquema, esquema, { c: 1 }).length === 0);

@@ -8,8 +8,8 @@
  *
  * Exit: 0 = tudo conforme. 1 = alguma resposta fora do contrato. 2 = uso errado ou motor não encontrado vivo.
  */
-import { readFileSync, mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, mkdirSync } from 'node:fs';
+import { homedir } from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validate } from './schema-check.mjs';
@@ -19,6 +19,18 @@ const CONTRATOS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 const USO = 'uso: node tools/contrato-vivo.mjs <casa-de-embeddings|motor-de-grafo> [--json]';
 const lerJson = (dir, arquivo) => JSON.parse(readFileSync(path.join(CONTRATOS, dir, arquivo), 'utf8'));
 const recusa = (http) => http >= 400 && http < 500;
+
+/**
+ * Pasta vazia e estável, uma por versão do kit, que o grafo nunca indexou: a busca de prova aponta para ela. Fica em
+ * `%LOCALAPPDATA%\engine-kit\contrato-vivo\v<versão>`; criar de novo uma pasta que já existe não cria nada.
+ * @returns {string} caminho absoluto da pasta.
+ */
+export function pastaDaProva() {
+  const { version } = JSON.parse(readFileSync(path.join(CONTRATOS, '..', '..', 'package.json'), 'utf8'));
+  const pasta = path.join(process.env.LOCALAPPDATA || path.join(homedir(), '.local', 'share'), 'engine-kit', 'contrato-vivo', `v${version}`);
+  mkdirSync(pasta, { recursive: true });
+  return pasta;
+}
 
 /** Os casos de cada motor: `http` aceito (número ou função), `schema` da resposta e `confere` extra sobre o corpo (devolve problemas). */
 function casosDa(motor, raiz) {
@@ -59,11 +71,11 @@ function casosDa(motor, raiz) {
  * Roda os casos do `motor` contra o daemon em `home.url`.
  * @param {string} motor `casa-de-embeddings` ou `motor-de-grafo`.
  * @param {{url:string, token?:string}} home endereço do daemon vivo.
- * @param {{fetchImpl?:typeof fetch, timeoutMs?:number, raiz?:string}=} opts `raiz` = pasta que o grafo nunca indexou (default: uma pasta temporária nova).
+ * @param {{fetchImpl?:typeof fetch, timeoutMs?:number, raiz?:string}=} opts `raiz` = pasta que o grafo nunca indexou (default: `pastaDaProva()`).
  * @returns {Promise<{motor:string, ok:boolean, itens:{id:string, status:'OK'|'FALHA', detalhe:string}[]}>}
  * @throws {Error} motor sem contrato aberto.
  */
-export async function provar(motor, home, { fetchImpl = fetch, timeoutMs = 15000, raiz = mkdtempSync(path.join(tmpdir(), 'contrato-vivo-')) } = {}) {
+export async function provar(motor, home, { fetchImpl = fetch, timeoutMs = 15000, raiz = pastaDaProva() } = {}) {
   if (![CASA, GRAFO].includes(motor)) throw new Error(`"${motor}" não tem contrato aberto para provar (aceito: ${CASA}, ${GRAFO})`);
   const itens = [];
   for (const c of casosDa(motor, raiz)) {
