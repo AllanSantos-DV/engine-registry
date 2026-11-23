@@ -1,9 +1,10 @@
 // engine-kit/inspect.mjs — verbos de leitura do CLI (`history`, `check`, `url`) e o relatório do `doctor --report`.
 // Só lêem: não instalam, não sobem nem derrubam motor. Nunca lançam: devolvem `{ ok:false, reason }`.
-import { readFileSync, existsSync } from "node:fs";
-import { basename } from "node:path";
+import { readFileSync, existsSync, writeFileSync, renameSync } from "node:fs";
+import { basename, join } from "node:path";
 import { historyPath, cmpVer, readTrust, trustPath, embeddedManifest } from "./trust.mjs";
-import { diagnoseEngines, detailLines } from "./diagnose.mjs";
+import { diagnoseEngines, detailLines, pointerOf } from "./diagnose.mjs";
+import { resolve } from "./resolve.mjs";
 import { ownVersion } from "./update.mjs";
 import { discover } from "./client.mjs";
 
@@ -46,19 +47,27 @@ export function satisfiesRange(version, range) {
  * `engine-kit check <manifesto>`: confere o bloco `engines` do manifesto de um plugin (`{ "<motor>": "<faixa>" }`) contra o que está instalado, sem rede.
  * Estados por motor: OK, FORA-DA-FAIXA, AUSENTE, DESCONHECIDO (fora do manifest do kit), NAO-VERIFICAVEL (self-managed), FAIXA-INVALIDA, ERRO.
  * @param {string} file caminho do manifesto do plugin.
- * @param {{manifest?:object}=} opts `manifest` = manifest dos motores no lugar do embarcado (testes).
- * @returns {Promise<{ok:boolean, manifest:string, engines:{name:string, range:*, installed:string|null, state:string, satisfied:boolean, detail:string}[]} | {ok:false, reason:string}>}
+ * Com `rede`, consulta o registry e, para o motor ausente ou fora da faixa, diz se a versão publicada satisfaz a faixa (`registry`, `registrySatisfies`):
+ * é o que o `ensure --de` instalaria. Motor fixado (pin) não tem versão publicada para comparar, então não recebe esses campos.
+ * @param {{manifest?:object, rede?:boolean, registryUrl?:string}=} opts `manifest` = manifest dos motores no lugar do embarcado (testes).
+ * @returns {Promise<{ok:boolean, manifest:string, engines:{name:string, range:*, installed:string|null, state:string, satisfied:boolean, detail:string, registry?:string, registrySatisfies?:boolean}[]} | {ok:false, reason:string}>}
  */
-export async function checkCommand(file, { manifest } = {}) {
+export async function checkCommand(file, { manifest, rede, registryUrl } = {}) {
   let block;
   try { block = JSON.parse(readFileSync(file, "utf8"))?.engines; }
   catch (e) { return { ok: false, reason: `não consegui ler ${file}: ${e.message}` }; }
   if (!block || typeof block !== "object" || Array.isArray(block)) { return { ok: false, reason: `${file}: sem bloco "engines" (esperado { "<motor>": "<faixa>" }, ex.: { "embed-house": ">=1.0.0" })` }; }
-  const diag = await diagnoseEngines({ local: true, manifest });
+  const diag = await diagnoseEngines({ local: !rede, manifest, registryUrl });
   if (!diag.ok) { return { ok: false, reason: diag.reason }; }
   const engines = Object.entries(block).map(([name, range]) => {
     const row = diag.rows.find((r) => r.name === name);
-    const out = (state, detail, installed = null) => ({ name, range, installed, state, satisfied: state === "OK", detail });
+    const out = (state, detail, installed = null) => {
+      const o = { name, range, installed, state, satisfied: state === "OK", detail };
+      const publicada = rede && !row?.pin && ["AUSENTE", "FORA-DA-FAIXA"].includes(state) ? row.engine?.version : null;
+      if (!publicada) { return o; }
+      const registrySatisfies = satisfiesRange(publicada, range);
+      return { ...o, registry: publicada, registrySatisfies, detail: `${detail} | registry v${publicada} ${registrySatisfies ? "satisfaz: ensure --de instala" : "NÃO satisfaz: ensure --de reprova, ajuste a faixa ou use --version"}` };
+    };
     try { satisfiesRange("0.0.0", range); } catch (e) { return out("FAIXA-INVALIDA", e.message); }
     if (!row) { return out("DESCONHECIDO", `"${name}" não existe no manifest deste engine-kit → atualize o kit (npx engine-kit@latest ensure ${name})`); }
     if (row.state === "ERRO") { return out("ERRO", row.detail); }
@@ -95,6 +104,46 @@ export function trustCommand(name, { bundled } = {}) {
     return { name: n, state, publicKey: e.publicKey ?? null, source: e.source ?? null, firstSeen: e.firstSeen ?? null, maxVersion: e.maxVersion ?? null, pin: e.pin ?? null, embeddedKey: embedded };
   });
   return { ok: true, file, backup, engines };
+}
+
+/**
+ * `engine-kit trust --restaurar`: devolve o `trust.json` a partir da cópia `.bak` quando o arquivo principal está ilegível. A cópia é validada antes
+ * (JSON de objeto) e a troca é atômica (tmp + rename). Recusa se o principal está legível ou ausente (nada a restaurar) e se a cópia também falha.
+ * A cópia guarda a última escrita que o kit tentou, mesmo a que chegou ao chamador como falha: confira os motores devolvidos em `restored`.
+ * @returns {{ok:true, file:string, restored:string[]} | {ok:false, reason:string}}
+ */
+export function trustRestoreCommand() {
+  const file = trustPath(), bak = `${file}.bak`;
+  try { readTrust(); return { ok: false, reason: `${file} está legível ou ausente: nada a restaurar` }; } catch { /* ilegível: segue para a cópia */ }
+  let text, restored;
+  try {
+    text = readFileSync(bak, "utf8");
+    const o = JSON.parse(text);
+    if (!o || typeof o !== "object" || Array.isArray(o)) { throw Error("não é um objeto"); }
+    restored = Object.keys(o);
+  } catch (e) { return { ok: false, reason: `a cópia ${bak} está ausente ou ilegível (${e.message}): nada foi gravado` }; }
+  try { writeFileSync(`${file}.tmp`, text); renameSync(`${file}.tmp`, file); }
+  catch (e) { return { ok: false, reason: `não consegui gravar ${file}: ${e.message}` }; }
+  return { ok: true, file, restored };
+}
+
+/**
+ * `engine-kit path <motor>`: o caminho do executável de um motor instalado, sem rede, sem subir nada e sem trocar versão. Mostra também o estado do
+ * ponteiro `cli.json` que o motor publica. Motor não instalado, self-managed ou fora do manifest é recusado com o motivo, nunca com um caminho inventado.
+ * @param {string} name motor.
+ * @param {{bundled?:object}=} opts `bundled` = manifest embarcado (testes).
+ * @returns {Promise<{ok:true, name:string, path:string, pointer:{state:string, detail:string}} | {ok:false, reason:string}>}
+ */
+export async function pathCommand(name, { bundled } = {}) {
+  let local;
+  try { local = bundled ?? embeddedManifest(); } catch (e) { return { ok: false, reason: `manifest embarcado ilegível: ${e.message}` }; }
+  if (!(local.engines ?? []).some((e) => e.name === name)) { return { ok: false, reason: `motor "${name}" não está no manifest deste engine-kit → atualize o kit (npx engine-kit@latest path ${name})` }; }
+  const r = await resolve(name, { allowNetwork: false, manifest: local });
+  if (!r.ok) { return { ok: false, reason: r.reason }; }
+  const e = r.engine, path = join(e.homeDir, e.install.entry);
+  if (e.status === "self-managed") { return { ok: false, reason: `${name} é self-managed: o kit não o instala nem sabe onde o próprio updater o pôs` }; }
+  if (!existsSync(path)) { return { ok: false, reason: `${name} não está instalado (falta ${path}) → engine-kit ensure ${name}` }; }
+  return { ok: true, name, path, pointer: pointerOf(e) };
 }
 
 /**

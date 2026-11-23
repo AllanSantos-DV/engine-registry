@@ -126,6 +126,9 @@ npx engine-kit list [--json]                      # os motores do pacote, a plat
 npx engine-kit history [motor] [--json]           # as trocas de versão gravadas nesta máquina: de → para e a origem
 npx engine-kit rollback <motor> [--json]          # volta à versão anterior à última troca do history (sha256 + Ed25519) e fixa nela; recusa primeira instalação e self-managed
 npx engine-kit trust [motor] [--json]             # o que o trust.json guarda por motor (chave pública, origem, maior versão, pin), se bate com o manifest embarcado e o estado do .bak; só lê
+npx engine-kit trust --restaurar                  # devolve o trust.json a partir do .bak quando ele está ilegível (a cópia é validada, a troca é atômica)
+npx engine-kit path <motor> [--json]              # caminho do executável do motor instalado e o estado do cli.json; sem rede, não sobe nada
+npx engine-kit check meu-plugin/plugin.json --rede   # além do check: diz se a versão publicada satisfaz a faixa do que falta ou está fora dela
 npx engine-kit check meu-plugin/plugin.json [outro/plugin.json ...] [--json]   # confere o bloco `engines` de um ou mais manifestos de plugin contra o instalado; com vários, --json devolve { ok, manifests }
 npx engine-kit ensure --de meu-plugin/plugin.json [outro/plugin.json ...] [--registry-url <url>] [--json]   # instala ou atualiza o que o check reprova e reconfere
 npx engine-kit url casa-de-embeddings [--json]    # endereço do daemon vivo (url, versão, pid); nunca imprime o token

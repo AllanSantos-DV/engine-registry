@@ -195,3 +195,15 @@ Seis funções irmãs: **decididas e construídas** (decisão do dono, 2026-11-1
   instalar), `ensureGateway` devolvendo `instructions`, o passo "Instale pelo kit" da vitrine ensinando
   `npx engine-kit ensure <motor>` e os cartões dos apps lidos de `manifest.apps`. Detalhe em
   `docs/research/2026-11-12-fetch-instrucoes-e-cards-de-apps.md`.
+
+- **Construído (Jarvis, 2026-11-22): lente de 0.2.18, segunda rodada.** `engine-kit path <motor>`, `check --rede`, `trust --restaurar`, a recusa do
+  `rollback` depois da volta automática, a pasta estável do `tools/contrato-vivo.mjs` e a exclusão de `kit/.token-guard` do pacote
+  (`tests/test-verbos-irmaos.mjs`, `tests/test-pacote-limpo.mjs`, `tests/test-contrato-vivo.mjs`). Relatório completo da lente:
+  `docs/research/2026-11-22-lente-feature-irma-engine-kit-0.2.18.md`.
+
+- **Técnico, aberto (2026-11-22): `maxVersion` é gravado antes do teste de boot** (`kit/provision.mjs`, `noteVersion` antes do `lifecycle`). Depois de uma
+  volta automática, a versão que não subiu fica como "maior vista" e `rollbackReason` recusa instalar uma correção de número menor sem `--version`.
+  Mexe no runtime, que está a 4 bytes do teto: precisa liberar bytes ou recalibrar com nota datada.
+
+- **Técnico, aberto (2026-11-22): quarentena da versão que não subiu** (candidata 1 da lente). Hoje, com auto-update ligado, cada `ensure` baixa de novo a
+  versão ruim enquanto o registry a oferecer. É SUBSTITUTIVA (muda o que o `ensure` faz) e toca o runtime: decidir junto com o item acima.

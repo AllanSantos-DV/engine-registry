@@ -221,6 +221,7 @@ export async function rollbackCommand(name, { bundled, ...opts } = {}) {
   const last = h.entries.at(-1);
   if (!last) { return { ok: false, reason: `nenhuma troca registrada nesta máquina; não há versão anterior para voltar` }; }
   if (!last.from) { return { ok: false, reason: `a última troca (→ v${last.to}) foi a primeira instalação; não há versão anterior para voltar` }; }
+  if (last.via === "rollback") { return { ok: false, reason: `a última troca foi a volta automática de v${last.from} para v${last.to}: v${last.from} não subiu e voltar a ela repetiria a falha → engine-kit pin ${name} --version <x.y.z> escolhe outra` }; }
   const row = listCommand({ bundled }).engines?.find((e) => e.name === name);
   if (!row) { return { ok: false, reason: `motor "${name}" não está no manifest deste engine-kit → atualize o kit (npx engine-kit@latest rollback ${name})` }; }
   if (row.selfManaged) { return { ok: false, reason: `${name} é self-managed: atualiza pelo próprio updater, o engine-kit não troca a versão dele` }; }

@@ -23,7 +23,7 @@
 import { ensureCommand, ensureDeCommand, pinCommand, unpinCommand, stopCommand, listCommand, rollbackCommand } from "./ensure.mjs";
 import { registerNeuralLink, unregisterNeuralLink } from "./register.mjs";
 import { fetchCommand } from "./fetch.mjs";
-import { historyCommand, checkCommand, urlCommand, reportCommand, trustCommand } from "./inspect.mjs";
+import { historyCommand, checkCommand, urlCommand, reportCommand, trustCommand, trustRestoreCommand, pathCommand } from "./inspect.mjs";
 import { selfUpdate, autoUpdateEnabled } from "./update.mjs";
 
 const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-url <url>]\n" +
@@ -36,10 +36,12 @@ const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-ur
   "     engine-kit ensure neural-link --unregister   além de instalar, desfaz esse registro (precisa de um neural-link que exponha uninstall)\n" +
   "     engine-kit list [--json]                     motores do pacote, a plataforma de cada um e a versão instalada (sem rede)\n" +
   "     engine-kit history [motor] [--json]          trocas de versão gravadas nesta máquina (de → para e a origem: ensure, auto-update, version, rollback)\n" +
-  "     engine-kit check <manifesto-do-plugin.json>... [--json]   confere o bloco engines de um ou mais manifestos (faixas >=, >, <=, <, =, ^x.y.z) contra o instalado; exit 1 se algum não satisfaz; com vários, --json devolve { ok, manifests }\n" +
+  "     engine-kit check <manifesto-do-plugin.json>... [--rede] [--registry-url <url>] [--json]   confere o bloco engines de um ou mais manifestos (faixas >=, >, <=, <, =, ^x.y.z) contra o instalado; exit 1 se algum não satisfaz; com vários, --json devolve { ok, manifests }; --rede diz, para o que falta ou está fora da faixa, se a versão publicada satisfaz\n" +
   "     engine-kit ensure --de <manifesto-do-plugin.json>... [--registry-url <url>] [--json]   instala ou atualiza cada motor que o check reprova (ausente, fora da faixa) e reconfere; self-managed é pulado; faixa inválida aborta antes de instalar; exit 1 se algum não satisfaz no fim\n" +
   "     engine-kit rollback <motor> [--registry-url <url>] [--json]   volta à versão anterior à última troca do history (sha256 + Ed25519) e fixa nela; recusa primeira instalação e motor self-managed\n" +
   "     engine-kit trust [motor] [--json]            o que o trust.json guarda por motor (chave pública, origem, maior versão, pin) e se bate com o manifest embarcado; só lê\n" +
+  "     engine-kit trust --restaurar                 devolve o trust.json a partir do .bak quando ele está ilegível (a cópia é validada; a troca é atômica)\n" +
+  "     engine-kit path <motor> [--json]             caminho do executável do motor instalado e o estado do cli.json dele; sem rede, não sobe nada\n" +
   "     engine-kit url <motor> [--json]              endereço do daemon vivo (url, versão e pid) lido do anúncio dele; nunca imprime o token\n" +
   "     engine-kit doctor [--fix|--json|--verify] [--engine <motor>] [--local] [--registry-url <url>]   diagnostica os motores instalados (--fix instala o que falta e atualiza o que está velho)\n" +
   "     engine-kit doctor --report [--engine <motor>] [--local] [--verify]   texto colável para suporte (kit, Node, plataforma, motores, sobras, hooks); sem token nem chave\n" +
@@ -47,7 +49,7 @@ const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-ur
 
 const args = process.argv.slice(2);
 const flag = (n) => { const i = args.indexOf(n); return i === -1 ? undefined : args[i + 1]; };
-const VERBS = ["ensure", "pin", "unpin", "fetch", "stop", "doctor", "list", "history", "check", "url", "rollback", "trust"];
+const VERBS = ["ensure", "pin", "unpin", "fetch", "stop", "doctor", "list", "history", "check", "url", "rollback", "trust", "path"];
 const NOME_OPCIONAL = ["doctor", "list", "history", "trust"];
 const [cmd, name] = args;
 const nomeOpcional = name?.startsWith("-") ? undefined : name;
@@ -62,10 +64,11 @@ const FLAGS = {
   doctor: ["--fix", "--json", "--verify", "--report", "--engine", "--local", "--registry-url"],
   list: ["--json"],
   history: ["--json"],
-  check: ["--json"],
+  check: ["--json", "--rede", "--registry-url"],
   url: ["--json"],
   rollback: ["--registry-url", "--json"],
-  trust: ["--json"],
+  trust: ["--json", "--restaurar"],
+  path: ["--json"],
 };
 /** Primeira flag que o verbo não aceita, ou argumento solto além do nome do motor. */
 const sobra = () => {
@@ -158,7 +161,7 @@ if (cmd === "--help" || cmd === "-h") {
   } else if (cmd === "check" || deManifesto) {
     const files = deManifesto ? [flag("--de"), ...posicionais()] : posicionais();
     const rs = [];
-    for (const f of files) { rs.push(deManifesto ? await ensureDeCommand(f, { registryUrl: flag("--registry-url"), autoUpdate: autoUpdateEnabled(), log }) : await checkCommand(f)); }
+    for (const f of files) { rs.push(deManifesto ? await ensureDeCommand(f, { registryUrl: flag("--registry-url"), autoUpdate: autoUpdateEnabled(), log }) : await checkCommand(f, { rede: args.includes("--rede"), registryUrl: flag("--registry-url") })); }
     if (asJson) { console.log(JSON.stringify(files.length > 1 ? { ok: rs.every((r) => r.ok), manifests: rs } : rs[0], null, 2)); }
     else {
       for (const [i, r] of rs.entries()) {
@@ -171,6 +174,16 @@ if (cmd === "--help" || cmd === "-h") {
       }
     }
     if (rs.some((r) => !r.ok)) { process.exitCode = 1; }
+  } else if (cmd === "path") {
+    const r = await pathCommand(name);
+    if (asJson) { console.log(JSON.stringify(r, null, 2)); }
+    else if (!r.ok) { console.error(`FALHOU path ${name}: ${r.reason}`); }
+    else { console.log(r.path); if (!["OK", "AUSENTE"].includes(r.pointer.state)) { console.error(`aviso: ponteiro cli.json ${r.pointer.state}: ${r.pointer.detail}`); } }
+    if (!r.ok) { process.exitCode = 1; }
+  } else if (cmd === "trust" && args.includes("--restaurar")) {
+    const r = nomeOpcional || asJson ? { ok: false, reason: "--restaurar não combina com um motor nem com --json" } : trustRestoreCommand();
+    if (r.ok) { console.log(`trust.json restaurado de ${r.file}.bak (motores: ${r.restored.join(", ") || "nenhum"}); confira com engine-kit trust`); }
+    else { console.error(`FALHOU trust --restaurar: ${r.reason}`); process.exitCode = 1; }
   } else if (cmd === "trust") {
     const r = trustCommand(nomeOpcional);
     if (asJson) { console.log(JSON.stringify(r, null, 2)); }

@@ -142,10 +142,13 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-11-21 tooling 73400 → 80300: cinco funções irmãs aditivas da lente de 0.2.18, ordenadas pelo orquestrador — `engine-kit rollback <motor>` (ensure.mjs, reusa
 //   `pinCommand` e o histórico), `engine-kit trust [motor]` (inspect.mjs, só leitura do trust.json), `check` e `ensure --de` com vários manifestos (cli.mjs) e
 //   `verify-release --all` (verify-all.mjs e o preâmbulo `publishArgs`), +6.9 KB. Rodadas na mão de quem instala ou publica; o fecho de imports de `index.mjs` não mudou.
+//   2026-11-22 tooling 80300 → 84400: três funções irmãs aditivas da lente do 0.2.18 e a recusa do rollback após a volta automática — `engine-kit path <motor>`
+//   (pathCommand, só lê), `check --rede` (checkCommand diz se a versão publicada satisfaz a faixa) e `trust --restaurar` (trustRestoreCommand, troca atômica a partir
+//   do .bak), todas em inspect.mjs e cli.mjs, +4.1 KB. Rodadas na mão de quem instala; o fecho de imports de `index.mjs` não mudou.
 const BUDGETS = {
   runtime: { codeBytes: 38000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10000, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 80300, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 84400, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 
