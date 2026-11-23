@@ -9,6 +9,7 @@
 // e o contrato é o publicado pela casa (embed, similarity, rerank) e pelo servidor do grafo (`/api/v1/graph/*`).
 // Contrato do kit: nenhuma função lança. Falha vira `{ ok:false, reason }` com a causa e o comando que resolve; nunca resposta plausível.
 import { spawn } from "node:child_process";
+import { closeSync, mkdirSync, openSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { resolve } from "./resolve.mjs";
 import { readRuntime } from "./lifecycle.mjs";
@@ -42,13 +43,22 @@ export async function discover(name, { manifest = bundledManifest() } = {}) {
   return { ok: true, url, shutdownToken: rt[r.engine.runtime?.shutdownTokenField], version: rt.version, pid: rt.pid, engine: r.engine };
 }
 
-/** Sobe o executável instalado, sem janela, e o solta do processo do chamador. */
-const launchDetached = (entryPath) => spawn(entryPath, [], { detached: true, stdio: "ignore", windowsHide: true }).unref();
+/** Sobe o executável instalado, sem janela, com a saída em `log`; devolve `{dead}`, que ganha a causa se o processo morrer. */
+const launchDetached = (entryPath, log) => {
+  mkdirSync(join(log, ".."), { recursive: true });
+  const fd = openSync(log, "w");
+  const boot = {};
+  const c = spawn(entryPath, [], { detached: true, stdio: ["ignore", fd, fd], windowsHide: true });
+  c.once("exit", (code, signal) => { boot.dead = { code, signal }; }).once("error", (e) => { boot.dead = { error: message(e) }; });
+  closeSync(fd);
+  c.unref();
+  return boot;
+};
 
 /**
  * Garante o motor instalado (engine-kit) e de pé: instala o que falta, sobe quem está parado e espera o anúncio.
  * @param {string} name `CASA` ou `GRAFO`.
- * @param {{launch?:(entryPath:string)=>void, bootTimeoutMs?:number}&object} [opts] o restante vai ao `ensureEngine` (registryUrl, fetcher, trustedKeys…); `launch` troca a subida (testes).
+ * @param {{launch?:(entryPath:string, log:string)=>{dead?:object}|void, bootTimeoutMs?:number}&object} [opts] o restante vai ao `ensureEngine` (registryUrl, fetcher, trustedKeys…); `launch` troca a subida (testes).
  * @returns {Promise<{ok:true, url:string, shutdownToken?:string, version?:string, installed?:string, updateAvailable?:string} | {ok:false, reason:string}>}
  */
 export async function ensureHome(name, { launch = launchDetached, bootTimeoutMs = 60000, ...opts } = {}) {
@@ -58,8 +68,15 @@ export async function ensureHome(name, { launch = launchDetached, bootTimeoutMs 
   let d = await discover(name, { manifest });
   if (!d.ok) {
     const entry = join(e.engine.homeDir, e.engine.install.entry);
-    try { launch(entry); } catch (err) { return { ok: false, reason: `${name}: não consegui subir ${entry} (${message(err)})` }; }
-    for (const fim = Date.now() + bootTimeoutMs; !d.ok && Date.now() < fim; d = await discover(name, { manifest })) { await sleep(250); }
+    const log = join(e.engine.homeDir, "run", "boot.log");
+    let boot;
+    try { boot = launch(entry, log); } catch (err) { return { ok: false, reason: `${name}: não consegui subir ${entry} (${message(err)})` }; }
+    for (const fim = Date.now() + bootTimeoutMs; !d.ok && !boot?.dead && Date.now() < fim; d = await discover(name, { manifest })) { await sleep(250); }
+    if (!d.ok && boot?.dead) {
+      const { code, signal, error } = boot.dead;
+      const fim = (() => { try { return readFileSync(log, "utf8").trim().split("\n").slice(-5).join(" | "); } catch { return ""; } })();
+      return { ok: false, reason: `${name}: ${entry} saiu ao subir (${error ?? (signal ? `sinal ${signal}` : `código ${code}`)}); últimas linhas de ${log}: ${fim || "(vazio)"}` };
+    }
     if (!d.ok) { return { ok: false, reason: `${name}: ${entry} subiu mas não anunciou em ${bootTimeoutMs}ms: ${d.reason}` }; }
   }
   const { engine, ...rest } = d;
