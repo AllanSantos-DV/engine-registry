@@ -19,26 +19,21 @@ export function expandHome(p) {
   return p.startsWith("~") ? join(homedir(), p.slice(1).replace(/^[/\\]/, "")) : p;
 }
 
-export function target() {
-  return `${process.platform}-${process.arch}`;
-}
+export const target = () => `${process.platform}-${process.arch}`;
 
 /** Motivo da recusa quando o motor não tem build para esta máquina (`platforms` do descritor), ou null. */
 export const platformReason = ({ name, platforms: p = [] }, plat = target()) =>
   p.length && !p.includes("any") && !p.includes(plat) ? `${name} não tem build para ${plat} (suporta: ${p.join(", ")})` : null;
 
 /** Substitui {version}, {platform}, {arch}, {asset} num template. */
-export function fill(tpl, vars) {
-  return String(tpl).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
-}
+export const fill = (tpl, vars) => String(tpl).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
 
 /** Cada registry tem o seu cache: o descritor de um registry próprio nunca serve ao público. */
 const cacheFile = (url) => (url === DEFAULT_REGISTRY_URL ? CACHE : join(CACHE_DIR, `manifest-${sha256(url, "hex").slice(0, 12)}.json`));
 
 function readCache(file) {
   try {
-    const age = Date.now() - statSync(file).mtimeMs;
-    return { manifest: JSON.parse(readFileSync(file, "utf8")), stale: age > CACHE_TTL_MS };
+    return { manifest: JSON.parse(readFileSync(file, "utf8")), stale: Date.now() - statSync(file).mtimeMs > CACHE_TTL_MS };
   } catch {
     return null;
   }
@@ -50,7 +45,7 @@ function readCache(file) {
  *        conferir a release contra o manifest LOCAL que ele acabou de escrever, e por testes.
  * @returns {Promise<{ok:true, engine:object} | {ok:false, reason:string}>}
  */
-export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowNetwork = true, timeoutMs = 10000, version, manifest: given, refresh = false } = {}) {
+export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowNetwork = true, timeoutMs = 10000, version, manifest: given, refresh } = {}) {
   let manifest = null;
   const cacheAt = cacheFile(registryUrl), cached = given ? null : readCache(cacheAt);
   // Sinalizações marcadas ONDE acontecem (não deduzidas depois):
@@ -96,22 +91,23 @@ export async function resolve(name, { registryUrl = DEFAULT_REGISTRY_URL, allowN
 
   const v = version ?? found.version;
   const vars = { version: v, platform: process.platform, arch: process.arch };
-  const asset = fill(found.install.asset, vars);
-  const tag = fill(found.install.tag, vars);
-  const base = `https://github.com/${found.install.repo}/releases/download/${tag}`;
+  const install = { ...found.install, ...found.install.byPlatform?.[target()] };
+  const asset = fill(install.asset, vars);
+  const base = `https://github.com/${install.repo}/releases/download/${fill(install.tag, vars)}`;
   // Sidecar de assinatura: template opcional, default `<asset>.sig`. A URL é sempre montada —
   // quem decide se ela é OBRIGATÓRIA é o provision, olhando publicKey/signatureRequired.
-  const sigName = fill(found.install.signature ?? "{asset}.sig", { ...vars, asset });
+  const sigName = fill(install.signature ?? "{asset}.sig", { ...vars, asset });
 
   return {
     ok: true,
     engine: {
       ...found,
+      install,
       version: v,
       homeDir: expandHome(found.home),
       assetName: asset,
       assetUrl: `${base}/${asset}`,
-      checksumUrl: `${base}/${fill(found.install.checksum, { ...vars, asset })}`,
+      checksumUrl: `${base}/${fill(install.checksum, { ...vars, asset })}`,
       signatureName: sigName,
       signatureUrl: `${base}/${sigName}`,
       /** true = o descritor veio do registry público (nem manifest entregue, nem `registryUrl` próprio). */

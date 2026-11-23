@@ -188,7 +188,7 @@ const r = await diagnoseEngines({ local: true, verify: true });   // { ok: true,
 const json = await Promise.all(r.rows.map(engineView));          // igual ao `doctor --json`
 ```
 
-`engine-kit list` lê só o manifest embarcado. `ensure` recusa antes de resolver ou baixar o motor cujo `platforms` não inclui esta máquina (`any` serve a todas).
+`engine-kit list` lê só o manifest embarcado. `ensure` recusa antes de resolver ou baixar o motor cujo `platforms` não inclui esta máquina (`any` serve a todas). Um motor nativo cujo artefato muda por plataforma declara `install.byPlatform["<plataforma>-<arch>"] = { asset, entry }`: o kit sobrepõe esses campos ao `install` nessa máquina e as outras plataformas seguem com o `install` base (o motor de grafo traz `motor-de-grafo-linux-x64.tgz` e `bin/motor-de-grafo` para o Linux; a plataforma só entra em `platforms` quando a release com o asset dela está publicada).
 
 Desatualizado → atualiza. Ausente → baixa. **Atualizado → reusa**. Fixado (`engine-kit pin`) → `FIXADO`, fica na
 versão fixada; instalado diferente do pin → `FORA DO PIN`, e o `--fix` instala a versão fixada. O diagnóstico não baixa nada,

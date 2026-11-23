@@ -354,6 +354,12 @@
         "checksum": "{asset}.sha256",
         "extractTo": "bin",
         "entry": "bin/motor-de-grafo.exe",
+        "byPlatform": {
+          "linux-x64": {
+            "asset": "motor-de-grafo-linux-x64.tgz",
+            "entry": "bin/motor-de-grafo"
+          }
+        },
         "publicKey": "3ccde5f5f0f46f3f63c3a7d6c4196f3de1db1af6d61c1a4c9b7a99c2e9e86bac",
         "signatureAlgorithm": "ed25519-sha256-raw",
         "signatureRequired": true

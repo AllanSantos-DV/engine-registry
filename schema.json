@@ -133,6 +133,21 @@
             },
             "extractTo": { "type": "string", "default": "bin" },
             "entry": { "type": "string", "description": "Caminho do entrypoint relativo ao home." },
+            "byPlatform": {
+              "type": "object",
+              "description": "Sobrepõe campos de 'install' numa plataforma ('<platform>-<arch>'), p.ex. o 'asset' e o 'entry' de um binário nativo que não tem o nome do Windows. A plataforma precisa estar em 'platforms'. Os campos não sobrepostos (tag, chave, assinatura) valem como declarados.",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "asset": { "type": "string" },
+                  "checksum": { "type": "string" },
+                  "signature": { "type": "string" },
+                  "entry": { "type": "string" },
+                  "extractTo": { "type": "string" }
+                }
+              }
+            },
             "agentInstructions": {
               "type": "string",
               "description": "Caminho RELATIVO ao home do motor, dentro do artefato desempacotado, onde mora o pacote de instruções para agentes (ex.: docs/AGENT-INSTRUCTIONS.md). Sem raiz absoluta e sem '..': o valor é publicado no manifesto público. Ausente = o motor não publica instrução para agente."
