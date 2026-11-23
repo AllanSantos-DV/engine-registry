@@ -183,3 +183,37 @@ export async function reportCommand({ only, local, verify, registryUrl } = {}) {
   }
   return { ok: true, text: lines.join("\n") };
 }
+
+/**
+ * `engine-kit update <motor>`: pede ao updater do daemon vivo (`runtime.updatePath`) que se atualize; o motor confere a release
+ * por conta própria. O token do anúncio vai só no cabeçalho do pedido e nunca volta no resultado.
+ * @param {string} name motor com `runtime.updatePath`.
+ * @param {{check?:boolean}} [opts] `check`: só compara as versões, sem baixar nem aplicar.
+ * @returns {Promise<{ok:true, name:string, state:string, detail:string, current?:string, available?:string} | {ok:false, reason:string}>}
+ */
+export async function updateCommand(name, { check = false } = {}) {
+  const d = await discover(name);
+  if (!d.ok) { return { ok: false, reason: d.reason }; }
+  const rt = d.engine.runtime;
+  const file = join(d.engine.homeDir, rt.runtimeFile);
+  if (!rt.updatePath) { return { ok: false, reason: `${name} não tem updater próprio (runtime.updatePath); o kit o atualiza: engine-kit ensure ${name}` }; }
+  if (!d.shutdownToken) { return { ok: false, reason: `${name}: o anúncio ${file} não traz ${rt.shutdownTokenField}; sem ele o motor recusa o pedido` }; }
+  let res;
+  try {
+    res = await fetch(d.url + rt.updatePath, {
+      method: "POST", signal: AbortSignal.timeout(120000),
+      headers: { [rt.shutdownTokenHeader]: d.shutdownToken, ...(check ? { "content-type": "application/json" } : {}) },
+      ...(check ? { body: JSON.stringify({ check: true }) } : {}),
+    });
+  } catch (e) { return { ok: false, reason: `${name} sem resposta em ${d.url}${rt.updatePath} (${e?.cause?.code ?? e.message}) → engine-kit ensure ${name}` }; }
+  const j = (await res.json().catch(() => null)) ?? {};
+  if (res.status !== 200 && res.status !== 202) {
+    const dica = res.status === 401 || res.status === 403 ? `; o token vem do anúncio ${file}` : "";
+    return { ok: false, reason: `${name} respondeu HTTP ${res.status}${j.code ? ` ${j.code}` : ""}${j.message ? `: ${j.message}` : ""}${dica}` };
+  }
+  const { current, available } = j;
+  const state = res.status === 202 ? "applying" : j.state ?? (j.updateAvailable ? "available" : "up-to-date");
+  const detail = state === "applying" ? `troca agendada para v${j.version}; o motor reinicia sozinho e anuncia o novo pid em ${rt.runtimeFile}`
+    : state === "available" ? `v${current} instalada; v${available} disponível` : `em dia (v${current ?? available ?? d.version})`;
+  return { ok: true, name, state, detail, ...(current ? { current } : {}), ...(available ? { available } : {}) };
+}

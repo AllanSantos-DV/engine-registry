@@ -23,10 +23,11 @@
 import { ensureCommand, ensureDeCommand, pinCommand, unpinCommand, stopCommand, listCommand, rollbackCommand } from "./ensure.mjs";
 import { registerNeuralLink, unregisterNeuralLink } from "./register.mjs";
 import { fetchCommand } from "./fetch.mjs";
-import { historyCommand, checkCommand, urlCommand, reportCommand, trustCommand, trustRestoreCommand, pathCommand } from "./inspect.mjs";
+import { historyCommand, checkCommand, urlCommand, updateCommand, reportCommand, trustCommand, trustRestoreCommand, pathCommand } from "./inspect.mjs";
 import { selfUpdate, autoUpdateEnabled } from "./update.mjs";
 
 const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-url <url>]\n" +
+  "     engine-kit update <motor> [--check] [--json]   pede ao updater do daemon vivo (motor com runtime.updatePath) que se atualize; --check só compara as versões\n" +
   "     engine-kit ensure <motor> <motor>... [--registry-url <url>] [--json]   vários motores numa chamada; uma falha não esconde os outros (exit 1 se algum falhou; --json devolve { ok, engines })\n" +
   "     engine-kit pin <motor> [--version <x.y.z>] [--registry-url <url>]   fixa a versão instalada (ou instala e fixa x.y.z)\n" +
   "     engine-kit unpin <motor>                     solta o motor para voltar a atualizar\n" +
@@ -50,7 +51,7 @@ const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-ur
 
 const args = process.argv.slice(2);
 const flag = (n) => { const i = args.indexOf(n); return i === -1 ? undefined : args[i + 1]; };
-const VERBS = ["ensure", "pin", "unpin", "fetch", "stop", "doctor", "list", "history", "check", "url", "rollback", "trust", "path"];
+const VERBS = ["ensure", "pin", "unpin", "fetch", "stop", "doctor", "list", "history", "check", "url", "rollback", "trust", "path", "update"];
 const NOME_OPCIONAL = ["doctor", "list", "history", "trust"];
 const [cmd, name] = args;
 const nomeOpcional = name?.startsWith("-") ? undefined : name;
@@ -70,6 +71,7 @@ const FLAGS = {
   rollback: ["--registry-url", "--json"],
   trust: ["--json", "--restaurar"],
   path: ["--json"],
+  update: ["--json", "--check"],
 };
 /** Primeira flag que o verbo não aceita, ou argumento solto além do nome do motor. */
 const sobra = () => {
@@ -101,6 +103,7 @@ const jsonOf = (verb, name, r) => {
   const base = { name, ok: true, warns, pin: r.pinned ?? null };
   if (verb === "stop") { return { ...base, state: r.stopped ? "PARADO" : "SEM PROCESSO", detail: r.stopped ? "desligado" : "nada vivo para desligar", stopped: r.stopped }; }
   if (verb === "fetch") { return { ...base, state: "BAIXADO", detail: `v${r.version} conferido, não instalado`, version: r.version, files: r.files }; }
+  if (verb === "update") { return { ...base, state: r.state, detail: r.detail, ...(r.current ? { current: r.current } : {}), ...(r.available ? { available: r.available } : {}) }; }
   if (verb === "pin") { return { ...base, state: "FIXADO", detail: `v${r.pinned} fixado`, version: r.version }; }
   const state = r.reused ? "OK" : r.previous ? "ATUALIZADO" : "INSTALADO";
   return { ...base, state, detail: r.previous ? `v${r.previous} → v${r.version}` : `v${r.version}${r.reused ? " reusado" : ""}`, version: r.version, signed: r.signed ?? null, entryPath: r.entryPath, kind: r.kind, ...(r.previous ? { previous: r.previous } : {}), ...(r.pointer ? { pointer: r.pointer } : {}) };
@@ -157,6 +160,9 @@ if (cmd === "--help" || cmd === "-h") {
       const w = Math.max(...r.engines.map((e) => e.name.length));
       for (const e of r.engines) { console.log(`${e.supported ? "  ok  " : " fora "} ${e.name.padEnd(w)}  v${e.version.padEnd(8)} ${e.platforms.join(",")}${e.supported ? "" : ` (esta máquina: ${r.platform})`}  ${e.selfManaged ? "instala pelo próprio updater" : e.installed ? `instalado v${e.installed}` : "não instalado"}`); }
     }
+  } else if (cmd === "update") {
+    const r = await updateCommand(name, { check: args.includes("--check") });
+    done("update", r, () => console.log(r.state === "applying" ? `OK ${name}: ${r.detail}` : `OK ${name} ${r.detail}`));
   } else if (cmd === "url") {
     const r = await urlCommand(name);
     if (asJson) { console.log(JSON.stringify(r, null, 2)); }

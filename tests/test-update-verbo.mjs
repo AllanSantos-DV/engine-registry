@@ -102,7 +102,6 @@ console.log("\n== recusas e falhas dizem a causa ==");
   const t2 = await cli("update", "motor-de-grafo");
   check("401 e 403: o erro cita o token do anúncio sem mostrá-lo", t1.code === 1 && t2.code === 1 && /TOKEN_REQUIRED/.test(t1.err) && /TOKEN_MISMATCH/.test(t2.err) && /run[\\/]daemon\.json/.test(t2.err) && semToken(t1) && semToken(t2), t1.err + t2.err);
 
-  const sem = join(RUN, "sem-token.json");
   writeFileSync(arquivo, JSON.stringify({ url, port: motor.address().port, pid: process.pid, version: "0.1.2" }));
   pedidos.length = 0;
   const st = await cli("update", "motor-de-grafo");
