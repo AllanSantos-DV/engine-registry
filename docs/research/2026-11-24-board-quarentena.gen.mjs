@@ -1,0 +1,153 @@
+/**
+ * Gera a spec do quadro narrado (VXK, modo board) com a decisão do dono sobre a quarentena da versão que não subiu.
+ *
+ *   node docs/research/2026-11-24-board-quarentena.gen.mjs
+ *   vxk_build com a spec docs/research/2026-11-24-board-quarentena.json
+ */
+import { readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const saida = readFileSync(join(HERE, '2026-11-24-board-quarentena.saida.txt'), 'utf8').split(/\r?\n/);
+const ensure1 = saida.slice(saida.indexOf(saida.find(l => l.startsWith('--- ensure nº 1'))) + 1, saida.findIndex(l => l.startsWith('--- ensure nº 2')) - 1)
+  .filter(l => /baixando|assinatura|não subiu|resultado|downloads/.test(l)).join('\n');
+const historico = saida.filter(l => /^  motor /.test(l)).join('\n');
+
+const OPCOES = [
+  { rotulo: 'Q1 · Sai da quarentena com versão nova (recomendada)',
+    descricao: 'A versão que falhou fica de lado até o registry oferecer outra; um --version explícito seu sempre vale e libera na hora.' },
+  { rotulo: 'Q2 · Só com --version explícito',
+    descricao: 'A versão que falhou só volta se você pedir por número; uma correção publicada depois não é instalada sozinha.' },
+  { rotulo: 'Q3 · Tenta de novo depois de um intervalo',
+    descricao: 'A quarentena expira por tempo e o kit tenta a mesma versão outra vez; tem de escolher o intervalo, e o ciclo de baixar e voltar reaparece.' },
+  { rotulo: 'Q4 · Manter como está',
+    descricao: 'Cada ensure baixa a versão que falhou, derruba o motor, troca, falha e volta, enquanto o registry a oferecer.' }
+];
+
+const lista = os => `<ol style="margin:0;padding-left:22px;display:grid;gap:10px;font-size:15px;line-height:1.5;list-style:none">\n${os.map(o => `<li><b>${esc(o.rotulo)}</b>: ${esc(o.descricao)}</li>`).join('\n')}\n</ol>`;
+
+const decisaoHtml = `<section style="border:2px solid #ffc15e;border-radius:16px;padding:18px 20px;background:#241d0b;color:#f3e4bd">
+<h2 style="margin:0 0 10px">Sua decisão</h2>
+<p style="margin:0 0 8px;font-size:17px;line-height:1.5">Quando uma versão que não subiu pode voltar a ser tentada neste computador?</p>
+${lista(OPCOES)}
+<p style="margin:14px 0 0;font-size:14.5px;line-height:1.5">Nada disso foi construído. Escolhida a opção, ela é construída, testada, instalada aqui e publicada pela mesma esteira de sempre.</p>
+</section>
+<script type="application/json" id="orq-opcoes">${JSON.stringify(OPCOES).replace(/</g, '\\u003c')}</script>`;
+
+const blocks = [
+  { type: 'hero', kicker: 'engine-registry · uma decisão sua · 24/11/2026',
+    title: 'Quando uma versão que não subiu pode voltar?',
+    subtitle: 'Hoje, enquanto o registry oferecer a versão que falhou, todo ensure baixa, derruba, troca e volta de novo. A quarentena corta esse ciclo. A decisão é sobre quando ela termina.',
+    say: 'Este quadro tem uma decisão para você sobre o engine-kit. Quando um motor atualiza sozinho para uma versão que não sobe, o kit volta para a anterior. Mas enquanto o registry continuar oferecendo aquela versão, ele repete o ciclo inteiro a cada ensure. A quarentena corta isso. O que precisa de você é uma regra: quando essa versão pode voltar a ser tentada.' },
+
+  { type: 'table', title: 'O que está aberto no backlog do engine-registry',
+    head: ['Item', 'Situação', 'Onde é decidido'],
+    rows: [
+      ['Quarentena da versão que não subiu', 'Aberto, espera você', 'Este quadro'],
+      ['maxVersion gravado antes do teste de boot', 'Aberto, decidido junto com a quarentena', 'Este quadro'],
+      ['Esquema de confiança do registry', 'Aberto, espera você', 'Quadro de 11/11/2026, decisão A'],
+      ['Rotação de chave de motor', 'Aberto, preso ao esquema de confiança', 'Quadro de 11/11/2026, decisão A']
+    ],
+    say: 'O que está aberto no backlog do registry. A quarentena da versão que não subiu é o tema deste quadro. O item do maxVersion gravado antes do teste de boot trata do mesmo problema e é decidido junto. O esquema de confiança e a rotação de chave estão no quadro de onze de novembro.' },
+
+  { type: 'steps', title: 'O que acontece hoje, a cada ensure, com uma versão que já falhou',
+    items: [
+      { title: '1 · Baixa de novo', body: 'O registry ainda oferece a v1.1.0 e a instalada é a v1.0.0, então o kit baixa o pacote inteiro outra vez e confere a assinatura.' },
+      { title: '2 · Derruba o motor e troca', body: 'Para o motor que estava no ar, guarda a pasta anterior e põe a nova no lugar.' },
+      { title: '3 · A nova não sobe', body: 'O kit espera o motor novo anunciar que está de pé; ele não anuncia dentro do prazo.' },
+      { title: '4 · Volta para a anterior', body: 'Devolve a pasta anterior, sobe a v1.0.0 de novo e grava a volta no histórico. O motor fica no ar, mas já passou por uma queda.' }
+    ],
+    say: 'O que acontece hoje, a cada ensure, com uma versão que já falhou. Um: baixa de novo o pacote inteiro e confere a assinatura. Dois: derruba o motor que estava no ar e troca a pasta. Três: espera o motor novo anunciar que está de pé, e ele não anuncia. Quatro: devolve a pasta anterior, sobe a versão antiga de novo e grava a volta no histórico. O motor termina no ar, mas passou por uma queda, e isso se repete no ensure seguinte.' },
+
+  { type: 'callout', tone: 'info', title: 'Medição real de hoje (texto de terminal, não captura de tela)',
+    body: `<pre style="margin:0;white-space:pre-wrap;font-size:12.5px;line-height:1.45">${esc(ensure1)}</pre><p style="margin:10px 0 0;font-size:13.5px">O mesmo ensure rodado três vezes seguidas: três downloads e três quedas do motor. Histórico gravado:</p><pre style="margin:6px 0 0;white-space:pre-wrap;font-size:12.5px;line-height:1.45">${esc(historico)}</pre>`,
+    say: 'Esta é a medição real de hoje, saída de terminal, não captura de tela. Um motor de teste na versão um ponto zero, e o registry oferecendo a um ponto um, que não sobe. A cada ensure aparece a mesma sequência: baixou, assinatura confere, a nova não subiu, voltei para a anterior. Em três ensure seguidos foram três downloads e três quedas. O histórico mostra o vai e volta repetido.' },
+
+  { type: 'cards', title: 'O que mudaria com a quarentena', columns: 3,
+    items: [
+      { icon: 'shield-check', title: 'Não derruba o motor à toa', badge: 'muda',
+        body: 'Na versão em quarentena o ensure não baixa, não para o motor e não troca. O motor que está no ar segue no ar.' },
+      { icon: 'megaphone', title: 'Aviso visível', badge: 'muda',
+        body: 'O ensure diz que a versão X está em quarentena, por que falhou e como sair dela. Nada escondido.' },
+      { icon: 'check', title: 'O resto fica igual', badge: 'igual',
+        body: 'Assinatura e confiança, volta automática para a versão anterior, pin, o histórico e o aviso de versão nova disponível continuam como são.' }
+    ],
+    say: 'O que mudaria com a quarentena. Na versão que falhou, o ensure não baixa, não derruba o motor e não troca; o motor que está no ar segue no ar. O ensure diz com todas as letras que a versão está em quarentena, por que falhou e como sair. E o resto fica igual: assinatura, confiança, a volta automática para a anterior, o pin, o histórico e o aviso de versão nova.' },
+
+  { type: 'cards', title: 'Quem é afetado', columns: 3,
+    items: [
+      { icon: 'user', title: 'Quem usa com atualização automática ligada', badge: 'afetado',
+        body: 'É o padrão do kit. O resultado do ensure muda só quando o registry oferece uma versão que já falhou nesta máquina: em vez de baixar e voltar, mantém a atual e avisa.' },
+      { icon: 'plug', title: 'Quem chama o ensureEngine em código', badge: 'afetado',
+        body: 'Plugins e extensões que usam o kit recebem o motor anterior no ar, com um campo novo dizendo que a versão está em quarentena, no lugar do campo rolledBack.' },
+      { icon: 'lock', title: 'Quem fixou versão (pin) ou usa --version', badge: 'não muda',
+        body: 'O pin e o --version explícito continuam mandando: pedir uma versão por número sempre tenta aquela versão.' }
+    ],
+    say: 'Quem é afetado. Quem usa com atualização automática ligada, que é o padrão: o resultado do ensure muda só quando o registry oferece uma versão que já falhou nesta máquina. Quem chama o ensureEngine em código recebe o motor anterior no ar com um campo novo de quarentena. Quem fixou versão ou usa a flag version não muda: pedir uma versão por número sempre tenta aquela versão.' },
+
+  { type: 'cards', title: 'Ganho, esforço e o que já existe', columns: 3,
+    items: [
+      { icon: 'trending-up', title: 'Ganho: alto', badge: 'ganho',
+        body: 'Corta o vai e volta: sem download repetido, sem queda do motor a cada ensure, sem ruído no histórico, e o motor que funciona não é incomodado.' },
+      { icon: 'wrench', title: 'Esforço: pequeno a médio', badge: 'esforço',
+        body: 'O código é pequeno. O custo real é o orçamento de bytes do runtime do consumidor, que está a 4 bytes do teto: precisa liberar bytes ou recalibrar com nota datada.' },
+      { icon: 'recycle', title: 'Reaproveita', badge: 'reuso',
+        body: 'O ramo que já mantém a versão atual quando há versão nova, o histórico que já grava a queda (via rollback) e a checagem de versão do trust.' }
+    ],
+    say: 'Ganho, esforço e o que já existe. O ganho é alto: corta o vai e volta, sem download repetido e sem queda do motor a cada ensure. O esforço é pequeno a médio: o código é pequeno, mas o runtime do consumidor está a quatro bytes do teto, então preciso liberar bytes ou recalibrar com nota datada. E reaproveita o ramo que já mantém a versão atual, o histórico que já grava a queda e a checagem de versão.' },
+
+  { type: 'cards', title: 'O que outros fazem', columns: 2,
+    items: [
+      { icon: 'skip-forward', title: 'Sparkle (macOS): versão pulada só volta com publicação nova',
+        body: 'Quando o usuário pula uma versão, ela é pulada; o desenvolvedor só reaparece com aviso ao publicar uma atualização que opte por isso (sparkle:ignoreSkippedUpgradesBelowVersion). É o modelo da Q1: sair da quarentena por uma publicação nova.' },
+      { icon: 'pause', title: 'Google Play: lançamento pausado',
+        body: 'Ao descobrir um problema, o desenvolvedor pausa o lançamento gradual: ninguém mais recebe aquela versão, e quem já recebeu continua nela. Retomar é um ato explícito. É o modelo da Q2.' }
+    ],
+    say: 'O que outros fazem. No Sparkle, no macOS, uma versão pulada fica pulada e só reaparece quando o desenvolvedor publica uma atualização que opte por avisar de novo. É o modelo da opção um. No Google Play, o lançamento gradual pode ser pausado: ninguém mais recebe aquela versão e retomar é um ato explícito. É o modelo da opção dois.' },
+
+  { type: 'compare', title: 'As quatro opções lado a lado',
+    columns: ['Q1 · Versão nova', 'Q2 · Só --version', 'Q3 · Por tempo', 'Q4 · Como está'],
+    rows: [
+      { label: 'Quando a versão que falhou volta', cells: ['Quando o registry oferece outra, ou você pede por número', 'Só quando você pede por número', 'Depois do intervalo, sozinha', 'A cada ensure'] },
+      { label: 'Correção publicada depois', cells: ['Instalada sozinha', 'Não instala sozinha: precisa de você', 'Instalada sozinha', 'Instalada sozinha'] },
+      { label: 'Download e queda repetidos', cells: ['Não', 'Não', 'Um por intervalo', 'Um por ensure'] },
+      { label: 'Decisão extra', cells: ['Nenhuma', 'Nenhuma', 'Escolher o intervalo', 'Nenhuma'] },
+      { label: 'Esforço', cells: ['Pequeno a médio', 'Pequeno a médio', 'Médio', 'Nenhum'] }
+    ],
+    say: 'As quatro opções lado a lado. Na um, a versão volta quando o registry oferecer outra ou quando você pedir por número, e a correção publicada depois é instalada sozinha. Na dois, só volta quando você pede por número, então uma correção publicada exige ação sua. Na três, volta por tempo, o ciclo reaparece a cada intervalo e você precisa escolher o intervalo. Na quatro, tudo como está hoje.' },
+
+  { type: 'steps', title: 'Recomendação: Q1, sair da quarentena com versão nova',
+    items: [
+      { title: 'Corrige sem depender de você', body: 'Quem publica a correção publica uma versão nova; o kit a instala sozinho, como hoje.' },
+      { title: 'Você sempre tem a mão', body: 'Pedir a versão por número ignora a quarentena e tenta aquela versão na hora.' },
+      { title: 'Cabe no que já existe', body: 'A quarentena sai do histórico que o kit já grava, sem arquivo novo; o aviso aparece no ensure.' }
+    ],
+    say: 'Recomendo a opção um. Quem publica a correção publica uma versão nova, e o kit a instala sozinho, como hoje. Você sempre tem a mão: pedir a versão por número ignora a quarentena. E cabe no que já existe: a quarentena sai do histórico que o kit já grava, sem arquivo novo, e o aviso aparece no ensure. A opção dois é a mais cautelosa, mas deixa uma correção publicada esperando por você.' },
+
+  { type: 'html', html: decisaoHtml,
+    say: 'Sua decisão: quando uma versão que não subiu pode voltar a ser tentada. A recomendada é a opção um, sair da quarentena quando o registry oferecer uma versão nova, com a flag version sempre valendo. Cada opção está escrita na tela, com o que muda.' },
+
+  { type: 'table', title: 'De onde vem cada afirmação', head: ['Afirmação', 'Fonte', 'Endereço', 'Acessado em'],
+    rows: [
+      ['O ensure repete download, queda e volta', 'Medição deste quadro (três ensure seguidos)', 'docs/research/2026-11-24-board-quarentena.saida.txt', '24/11/2026'],
+      ['A volta automática e o ramo que mantém a versão atual', 'Código do kit', 'kit/index.mjs, ensureEngine', '24/11/2026'],
+      ['Versão pulada só reaparece com publicação nova', 'Documentação do Sparkle', 'https://sparkle-project.org/documentation/publishing', '24/11/2026'],
+      ['Lançamento pausado: ninguém mais recebe a versão', 'Ajuda do Google Play Console', 'https://support.google.com/googleplay/android-developer/answer/6346149', '24/11/2026'],
+      ['A versão ruim fica no bloqueio e o dono escolhe quando solta (modelo de decisão reversível, sem mover arquivo)', 'Pesquisa do skill-manager, G1', 'skill-manager/docs/research/2026-11-12-g1-bloqueio-no-lugar.md', '24/11/2026']
+    ],
+    say: 'De onde vem cada afirmação. A medição é deste quadro, o código é do kit, o modelo do Sparkle e o do Google Play vêm das documentações deles, e o princípio de uma decisão reversível que não mexe nos arquivos vem da pesquisa do skill-manager. Os endereços e as datas de acesso estão na tela.' }
+];
+
+const spec = {
+  engine: 'vxk', mode: 'board',
+  title: 'Quando uma versão que não subiu pode voltar?', slug: 'engine-registry-quarentena-da-versao-que-nao-subiu',
+  badge: 'VXK · board · engine-registry · 24/11/2026', accent: '#ffc15e',
+  language: 'pt-BR', narrate: true, voice: 'pt-BR-Chirp3-HD-Iapetus', voiceStrict: true,
+  intro: 'Uma decisão: quando a versão de um motor que não subiu pode voltar a ser tentada neste computador.',
+  labels: { explain: '▶ Apresentar', pause: '⏸ Pausar', resume: '▶ Continuar', prev: '◀ Anterior', next: 'Próximo ▶', index: '☰ Índice', indexTitle: 'Tópicos', indexClose: 'Fechar' },
+  blocks
+};
+writeFileSync(join(HERE, '2026-11-24-board-quarentena.json'), JSON.stringify(spec, null, 2) + '\n');
+console.log(`2026-11-24-board-quarentena.json: ${blocks.length} blocos`);

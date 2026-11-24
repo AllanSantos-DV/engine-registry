@@ -1,0 +1,46 @@
+motor v1.0.0 instalado e no ar; o registry passa a oferecer a v1.1.0, que não sobe.
+
+--- ensure nº 1 (versão que já falhou continua oferecida) ---
+[engine-kit] motor: instalada v1.0.0 não satisfaz o pin v1.1.0 → atualizando
+[engine-kit] baixando https://github.com/x/y/releases/download/v1.1.0/e.tgz …
+[engine-kit] motor: assinatura Ed25519 CONFERE (ed25519-sha256-raw)
+[engine-kit] motor v1.1.0 verificado em <tmp>\motor\e.tgz
+[engine-kit] motor instalado em <tmp>\motor\bin (v1.1.0)
+[engine-kit] motor disparado: C:\Program Files\nodejs\node.exe <tmp>\motor\bin\e.mjs
+[engine-kit] motor: v1.1.0 não subiu (motor: não anunciou em 3000ms) — voltei para v1.0.0
+[engine-kit] motor: fast-path (já vivo)
+resultado: available=true instalada=v1.0.0 rolledBack={"version":"1.1.0","reason":"motor: não anunciou em 3000ms"}
+downloads neste ensure: 1; 4210 ms
+
+--- ensure nº 2 (versão que já falhou continua oferecida) ---
+[engine-kit] motor: instalada v1.0.0 não satisfaz o pin v1.1.0 → atualizando
+[engine-kit] baixando https://github.com/x/y/releases/download/v1.1.0/e.tgz …
+[engine-kit] motor: assinatura Ed25519 CONFERE (ed25519-sha256-raw)
+[engine-kit] motor v1.1.0 verificado em <tmp>\motor\e.tgz
+[engine-kit] motor instalado em <tmp>\motor\bin (v1.1.0)
+[engine-kit] motor disparado: C:\Program Files\nodejs\node.exe <tmp>\motor\bin\e.mjs
+[engine-kit] motor: v1.1.0 não subiu (motor: não anunciou em 3000ms) — voltei para v1.0.0
+[engine-kit] motor: fast-path (já vivo)
+resultado: available=true instalada=v1.0.0 rolledBack={"version":"1.1.0","reason":"motor: não anunciou em 3000ms"}
+downloads neste ensure: 1; 3226 ms
+
+--- ensure nº 3 (versão que já falhou continua oferecida) ---
+[engine-kit] motor: instalada v1.0.0 não satisfaz o pin v1.1.0 → atualizando
+[engine-kit] baixando https://github.com/x/y/releases/download/v1.1.0/e.tgz …
+[engine-kit] motor: assinatura Ed25519 CONFERE (ed25519-sha256-raw)
+[engine-kit] motor v1.1.0 verificado em <tmp>\motor\e.tgz
+[engine-kit] motor instalado em <tmp>\motor\bin (v1.1.0)
+[engine-kit] motor disparado: C:\Program Files\nodejs\node.exe <tmp>\motor\bin\e.mjs
+[engine-kit] motor: v1.1.0 não subiu (motor: não anunciou em 3000ms) — voltei para v1.0.0
+[engine-kit] motor: fast-path (já vivo)
+resultado: available=true instalada=v1.0.0 rolledBack={"version":"1.1.0","reason":"motor: não anunciou em 3000ms"}
+downloads neste ensure: 1; 3669 ms
+
+history.jsonl (7 linhas):
+  motor - -> 1.0.0 via ensure
+  motor 1.0.0 -> 1.1.0 via auto-update
+  motor 1.1.0 -> 1.0.0 via rollback
+  motor 1.0.0 -> 1.1.0 via auto-update
+  motor 1.1.0 -> 1.0.0 via rollback
+  motor 1.0.0 -> 1.1.0 via auto-update
+  motor 1.1.0 -> 1.0.0 via rollback
