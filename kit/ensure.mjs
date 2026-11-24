@@ -9,7 +9,7 @@
 // Motor que não está no manifest deste pacote é recusado: sem a chave embarcada não há primeiro contato
 // verificável, e cair no TOFU calado seria justamente o buraco que o pacote fecha. Saída: atualizar o kit.
 // NUNCA lança: devolve { ok, reason } para o cli decidir o exit code.
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, createReadStream } from "node:fs";
 import { join } from "node:path";
 import { resolve, fill, target, expandHome, platformReason } from "./resolve.mjs";
 export { platformReason };
@@ -66,6 +66,25 @@ export function listCommand({ bundled, platform = target() } = {}) {
   });
   return { ok: true, platform, engines };
 }
+
+/**
+ * Fetcher de `ensureDeArquivo`: o artefato e os sidecars `<tgz>.sha256` e `<tgz>.sig` (os três assets da release) saem do disco,
+ * em vez da rede. A conferência de sha256, assinatura e versão é a de sempre: sidecar ausente é ABORT, nunca instalação sem prova.
+ * @param {string} tgz caminho do artefato.
+ * @returns {Function} no formato `fetcher(url, timeoutMs, { stream })` do `provision`.
+ */
+const fetcherDeArquivo = (tgz) => async (url, _prazo, { stream } = {}) => {
+  const arquivo = /\.sha256$/.test(url) ? `${tgz}.sha256` : /\.sig$/.test(url) ? `${tgz}.sig` : tgz;
+  return stream ? createReadStream(arquivo) : readFileSync(arquivo);
+};
+
+/**
+ * `engine-kit ensure <motor> --de-arquivo <tgz>`: o `ensureCommand` com o artefato lido do disco. O arquivo foi pedido, então troca o motor instalado mesmo com a
+ * atualização automática desligada. Mesmas opções do `ensureCommand`, menos `fetcher` e `autoUpdate`.
+ * @param {string} name motor.
+ * @param {string} tgz artefato, com `<tgz>.sha256` e `<tgz>.sig` ao lado.
+ */
+export const ensureDeArquivo = (name, tgz, opts = {}) => ensureCommand(name, { ...opts, autoUpdate: true, fetcher: fetcherDeArquivo(tgz) });
 
 /**
  * Os motores que `engine-kit ensure --instalados` atualiza: os instalados aqui que o ensure sabe atualizar (self-managed e motor de outra plataforma ficam de fora).

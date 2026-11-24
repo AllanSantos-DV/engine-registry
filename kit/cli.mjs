@@ -21,7 +21,8 @@
 // Por padrão o kit se atualiza (roda de novo como a última versão do npm) e atualiza o motor instalado.
 // ENGINE_KIT_NO_AUTO_UPDATE=1 desliga os dois e deixa só o aviso de versão nova (ver update.mjs).
 // Exit code: 0 = motor instalado (ou reusado). 1 = recusou/falhou, com o motivo na saída de erro.
-import { ensureCommand, ensureDeCommand, pinCommand, unpinCommand, stopCommand, listCommand, rollbackCommand, instaladosAtualizaveis } from "./ensure.mjs";
+import { existsSync } from "node:fs";
+import { ensureCommand, ensureDeCommand, pinCommand, unpinCommand, stopCommand, listCommand, rollbackCommand, instaladosAtualizaveis, ensureDeArquivo } from "./ensure.mjs";
 import { registerNeuralLink, unregisterNeuralLink } from "./register.mjs";
 import { fetchCommand } from "./fetch.mjs";
 import { historyCommand, checkCommand, urlCommand, updateCommand, reportCommand, trustCommand, trustRestoreCommand, pathCommand, infoCommand } from "./inspect.mjs";
@@ -30,6 +31,7 @@ import { selfUpdate, autoUpdateEnabled } from "./update.mjs";
 const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-url <url>]\n" +
   "     engine-kit update <motor> [--check] [--json]   pede ao updater do daemon vivo (motor com runtime.updatePath) que se atualize; --check só compara as versões\n" +
   "     engine-kit ensure <motor> --dry-run [--version <x.y.z>] [--registry-url <url>] [--json]   diz o que o ensure faria (instalaria, atualizaria, reusaria, manteria) sem baixar nem gravar nada; vale também com vários motores e com --de\n" +
+  "     engine-kit ensure <motor> --de-arquivo <artefato.tgz> [--version <x.y.z>] [--registry-url <url>] [--json]   instala do artefato local (com <artefato>.sha256 e <artefato>.sig ao lado, os três assets da release), sem baixá-lo; sha256, Ed25519 e versão continuam obrigatórios; troca o motor instalado mesmo com a atualização automática desligada\n" +
   "     engine-kit ensure --instalados [--dry-run] [--registry-url <url>] [--json]   atualiza, numa chamada, os motores instalados aqui (pin, quarentena e self-managed respeitados); sem nomes, sem --version\n" +
   "     engine-kit ensure <motor> <motor>... [--registry-url <url>] [--json]   vários motores numa chamada; uma falha não esconde os outros (exit 1 se algum falhou; --json devolve { ok, engines })\n" +
   "     engine-kit pin <motor> [--version <x.y.z>] [--registry-url <url>]   fixa a versão instalada (ou instala e fixa x.y.z)\n" +
@@ -60,11 +62,11 @@ const VERBS = ["ensure", "pin", "unpin", "fetch", "stop", "doctor", "list", "his
 const NOME_OPCIONAL = ["doctor", "list", "history", "trust", "mcp"];
 const [cmd, name] = args;
 const nomeOpcional = name?.startsWith("-") ? undefined : name;
-const COM_VALOR = ["--version", "--registry-url", "--dest", "--engine", "--de"];
+const COM_VALOR = ["--version", "--registry-url", "--dest", "--engine", "--de", "--de-arquivo"];
 const deManifesto = cmd === "ensure" && name === "--de";
 const instalados = cmd === "ensure" && name === "--instalados";
 const FLAGS = {
-  ensure: ["--version", "--registry-url", "--register", "--unregister", "--json", "--de", "--dry-run", "--instalados"],
+  ensure: ["--version", "--registry-url", "--register", "--unregister", "--json", "--de", "--dry-run", "--instalados", "--de-arquivo"],
   pin: ["--version", "--registry-url", "--json"],
   unpin: [],
   fetch: ["--version", "--registry-url", "--dest", "--json"],
@@ -126,7 +128,7 @@ const done = (verb, r, text) => {
   text();
 };
 const avisoCache = (r) => { if (r.staleCache) { console.log(`aviso: registry inacessível; ${name} usou o descritor em cache vencido`); } };
-const semValor = ["--dest", "--registry-url", "--engine", "--de"].find((f) => args.includes(f) && (flag(f) ?? "-").startsWith("-"));
+const semValor = ["--dest", "--registry-url", "--engine", "--de", "--de-arquivo"].find((f) => args.includes(f) && (flag(f) ?? "-").startsWith("-"));
 
 if (cmd === "--help" || cmd === "-h") {
   console.log(USAGE);
@@ -141,6 +143,12 @@ if (cmd === "--help" || cmd === "-h") {
   process.exitCode = 1;
 } else if (instalados && (posicionais().length || ["--version", "--register", "--unregister", "--de"].some((f) => args.includes(f)))) {
   console.error("--instalados não combina com nomes de motores, --version, --register, --unregister nem --de: engine-kit ensure --instalados [--dry-run] [--registry-url <url>] [--json]");
+  process.exitCode = 1;
+} else if (args.includes("--de-arquivo") && (motores.length !== 1 || deManifesto || instalados || dryRun || ["--register", "--unregister"].some((f) => args.includes(f)))) {
+  console.error("--de-arquivo vale para um motor só e não combina com --dry-run, --instalados, --de, --register nem --unregister: engine-kit ensure <motor> --de-arquivo <artefato.tgz> [--version <x.y.z>] [--registry-url <url>] [--json]");
+  process.exitCode = 1;
+} else if (args.includes("--de-arquivo") && !existsSync(flag("--de-arquivo"))) {
+  console.error(`--de-arquivo: ${flag("--de-arquivo")} não existe`);
   process.exitCode = 1;
 } else if (lista && !lista.ok) {
   console.error(`FALHOU ensure --instalados: ${lista.reason}`);
@@ -270,7 +278,8 @@ if (cmd === "--help" || cmd === "-h") {
     if (rs.some(([, r]) => !r.ok)) { process.exitCode = 1; }
   } else {
     const autoUpdate = autoUpdateEnabled();
-    const r = await ensureCommand(name, { version: flag("--version"), registryUrl: flag("--registry-url"), autoUpdate, dryRun, log });
+    const arquivo = flag("--de-arquivo"), pedido = { version: flag("--version"), registryUrl: flag("--registry-url"), autoUpdate, dryRun, log };
+    const r = arquivo ? await ensureDeArquivo(name, arquivo, pedido) : await ensureCommand(name, pedido);
     if (asJson) { done("ensure", r); }
     else if (r.ok && r.dryRun) { console.log(`PLANO ${name}: ${planoEm(r)}`); avisoCache(r); }
     else if (r.ok) {
