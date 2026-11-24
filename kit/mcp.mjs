@@ -4,6 +4,7 @@ import { createInterface } from "node:readline";
 import { listCommand } from "./ensure.mjs";
 import { historyCommand, checkCommand, trustCommand, pathCommand, urlCommand, reportCommand } from "./inspect.mjs";
 import { ownVersion } from "./update.mjs";
+import { diagnoseEngines, engineView } from "./diagnose.mjs";
 
 const VERSOES = ["2025-06-18", "2025-03-26", "2024-11-05"];
 const str = (description) => ({ type: "string", description });
@@ -17,6 +18,7 @@ export const TOOLS = [
   { name: "engine_path", description: "Caminho do executável de um motor instalado e o estado do cli.json dele.", inputSchema: esquema({ engine: str("motor") }, ["engine"]), run: (a) => pathCommand(a.engine) },
   { name: "engine_url", description: "Endereço do daemon vivo de um motor (url, versão, pid); nunca o token.", inputSchema: esquema({ engine: str("motor") }, ["engine"]), run: (a) => urlCommand(a.engine) },
   { name: "engine_trust", description: "O que o trust.json guarda por motor (só chave pública), sem gravar.", inputSchema: esquema({ engine: str("motor") }), run: (a) => trustCommand(a.engine) },
+  { name: "engine_doctor", description: "Diagnóstico de cada motor do manifest, como o `doctor --json --local`: estado, detalhe, avisos, pin, vida e ponteiro (sem rede).", inputSchema: esquema(), run: async () => { const d = await diagnoseEngines({ local: true }); return d.ok ? { ok: true, engines: await Promise.all(d.rows.map(engineView)) } : d; } },
   { name: "engine_report", description: "Texto de suporte: kit, Node, plataforma, estado de cada motor (sem rede, sem token nem chave).", inputSchema: esquema(), run: () => reportCommand({ local: true }) },
 ];
 
