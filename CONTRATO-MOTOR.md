@@ -62,6 +62,8 @@ O script faz, em ordem e com *fail-loud* em cada passo:
    do registry — o app Copilot injeta o token de uma conta de trabalho em todo processo filho, e
    sem isso o `gh` publica pela conta errada;
 2. assina cada artefato e **prova a assinatura na hora** (valida o legítimo, recusa o adulterado);
+   com `-Checar` (opcional), roda também o **pré-voo** (`kit/pre-voo.mjs`): sidecar `.sha256`, assinatura e versão do `package.json`
+   de dentro do `.tgz` conferidos com as mesmas funções da prova do passo 6, **antes** de criar a tag. Reprovou, nada foi publicado;
 3. cria a release no registry (recusa se a tag já existir — artefato assinado não se sobrescreve);
 4. espelha no repo privado, se `-SourceRepo` (falha aqui **avisa**, não aborta: não é o canônico);
 5. num worktree temporário a partir da `main` (`tools/publish-manifest.mjs`), atualiza o `manifest.json`

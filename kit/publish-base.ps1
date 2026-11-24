@@ -33,6 +33,7 @@ Uso:
   ./publish-base.ps1 -Engine vox-engine -Version 0.23.0 -Asset a.tgz,b.tgz -SourceRepo AllanSantos-DV/vox-engine
   ./publish-base.ps1 -Engine embed-house -Version 1.0.5 -Asset x.tgz -MarketplaceMirror AllanSantos-DV/copilot-marketplace
   ./publish-base.ps1 -Engine mcp-gateway -Version 0.2.0 -Asset dist/x.tgz -DryRun
+  ./publish-base.ps1 -Engine mcp-gateway -Version 0.2.0 -Asset dist/x.tgz -Checar   # pre-voo opt-in: prova sha256, assinatura e versao do .tgz antes de criar a release
 #>
 param(
     [Parameter(Mandatory = $true)][string]$Engine,
@@ -44,6 +45,7 @@ param(
     [string]$RegistryPath = "",
     [string]$Notes = "",
     [switch]$SkipManifest,
+    [switch]$Checar,
     [switch]$DryRun
 )
 
@@ -118,6 +120,12 @@ $pubKey = node -e "import('file:///' + process.argv[1].replace(/\\/g,'/')).then(
 if ($LASTEXITCODE -ne 0 -or -not $pubKey) { Fail "nao foi possivel derivar a chave publica de $keyPath" }
 $pubKey = $pubKey.Trim()
 Write-Host "    chave publica: $pubKey"
+
+if ($Checar) {
+    Step "Pre-voo: sha256, assinatura e versao do .tgz conferidos ANTES de criar a release"
+    node (Join-Path $kit "pre-voo.mjs") @assets --engine $Engine --version $Version --public-key $pubKey
+    if ($LASTEXITCODE -ne 0) { Fail "o pre-voo reprovou: nada foi publicado, conserte o artefato e rode de novo" }
+}
 
 $tag = "$Engine-v$Version"
 if ($DryRun) {

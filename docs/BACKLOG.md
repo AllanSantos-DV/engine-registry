@@ -207,3 +207,5 @@ Seis funções irmãs: **decididas e construídas** (decisão do dono, 2026-11-1
 
 - **Técnico, aberto (2026-11-22): quarentena da versão que não subiu** (candidata 1 da lente). Hoje, com auto-update ligado, cada `ensure` baixa de novo a
   versão ruim enquanto o registry a oferecer. É SUBSTITUTIVA (muda o que o `ensure` faz) e toca o runtime: decidir junto com o item acima.
+
+- **Construído (Jarvis, 2026-11-24): lente de 0.2.18, terceira rodada.** API documentada dos verbos de leitura (`engine-kit/kit/inspect.mjs`), `verify-release --all --json`, `engine-kit mcp` (MCP stdio só de leitura) e o pré-voo opt-in `publish-base.ps1 -Checar` (`kit/pre-voo.mjs`), todas aditivas, com testes e README. A quarentena da versão que não subiu segue aberta acima (substitutiva). Nota: `docs/research/2026-11-24-lente-do-0.2.18-terceira-rodada.md`.

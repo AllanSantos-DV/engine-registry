@@ -39,6 +39,18 @@ console.log("== verify-release --all ==\n");
   check("a falha de um não impede conferir os outros", linhas.filter((l) => /^ {2}OK /.test(l)).length === 2);
   const lancou = await verificarTodos(manifest, { rodar: () => { throw new Error("rede caiu"); } });
   check("conferência que lança vira falha com o motivo, sem derrubar o laço", !lancou.ok && lancou.falhas.length === 3);
+  check("entradas traz uma linha por item do manifest, com estado e o motivo só da falha",
+    JSON.stringify(r.entradas.map((x) => `${x.tipo}:${x.nome}:${x.estado}:${x.motivo ?? ""}`)) === JSON.stringify(["motor:alfa:falha:SHA256 divergente", "motor:beta:ok:", "motor:gama:pulada:", "app:app-um:ok:"]), JSON.stringify(r.entradas));
+}
+{
+  const dir = mkdtempSync(join(tmpdir(), "ee-aud-"));
+  const so = join(dir, "so-pendente.json");
+  writeFileSync(so, JSON.stringify({ engines: [{ name: "gama", version: "0.1.0", status: "pending-release" }], apps: [] }));
+  const p = spawnSync(process.execPath, ["kit/verify-release.mjs", "--all", "--json", "--manifest", so], { cwd: new URL("..", import.meta.url), encoding: "utf8", windowsHide: true });
+  let j = null; try { j = JSON.parse(p.stdout); } catch { /* o check abaixo acusa */ }
+  check("--all --json imprime só uma linha de JSON {ok,total,entradas} e sai 0", p.status === 0 && p.stdout.trim().split(/\r?\n/).length === 1 && j?.ok === true && j.total === 1 && j.entradas[0].estado === "pulada", p.stdout + p.stderr);
+  const t = spawnSync(process.execPath, ["kit/verify-release.mjs", "--all", "--manifest", so], { cwd: new URL("..", import.meta.url), encoding: "utf8", windowsHide: true });
+  check("--all sem --json segue em texto, sem JSON", t.status === 0 && /PULADO motor gama/.test(t.stdout) && !t.stdout.trimStart().startsWith("{"), t.stdout);
 }
 {
   const p = spawnSync(process.execPath, ["kit/verify-release.mjs", "--all", "--manifest", join(mkdtempSync(join(tmpdir(), "ee-aud-")), "nao-existe.json")], { cwd: new URL("..", import.meta.url), encoding: "utf8", windowsHide: true });

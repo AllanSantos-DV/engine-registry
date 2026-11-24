@@ -131,6 +131,7 @@ npx engine-kit rollback <motor> [--json]          # volta à versão anterior à
 npx engine-kit trust [motor] [--json]             # o que o trust.json guarda por motor (chave pública, origem, maior versão, pin), se bate com o manifest embarcado e o estado do .bak; só lê
 npx engine-kit trust --restaurar                  # devolve o trust.json a partir do .bak quando ele está ilegível (a cópia é validada, a troca é atômica)
 npx engine-kit path <motor> [--json]              # caminho do executável do motor instalado e o estado do cli.json; sem rede, não sobe nada
+npx engine-kit mcp                                # servidor MCP (stdio) só de leitura: engine_list, engine_history, engine_check, engine_path, engine_url, engine_trust, engine_report; não atualiza o kit
 npx engine-kit check meu-plugin/plugin.json --rede   # além do check: diz se a versão publicada satisfaz a faixa do que falta ou está fora dela
 npx engine-kit check meu-plugin/plugin.json [outro/plugin.json ...] [--json]   # confere o bloco `engines` de um ou mais manifestos de plugin contra o instalado; com vários, --json devolve { ok, manifests }
 npx engine-kit ensure --de meu-plugin/plugin.json [outro/plugin.json ...] [--registry-url <url>] [--json]   # instala ou atualiza o que o check reprova e reconfere
@@ -195,6 +196,21 @@ import { diagnoseEngines, engineView } from "engine-kit/kit/diagnose.mjs";
 const r = await diagnoseEngines({ local: true, verify: true });   // { ok: true, rows } ou { ok: false, reason }
 const json = await Promise.all(r.rows.map(engineView));          // igual ao `doctor --json`
 ```
+
+### Verbos como API
+
+Os verbos de leitura também são funções importáveis, sem subprocesso e sem parsear texto. Todas devolvem `{ ok:false, reason }` em vez de lançar; a exceção é `satisfiesRange`, que lança em faixa desconhecida.
+
+```js
+import { historyCommand, checkCommand, trustCommand, pathCommand, urlCommand, reportCommand, satisfiesRange } from "engine-kit/kit/inspect.mjs";
+historyCommand("mcp-gateway");          // { ok:true, entries:[{ ts, engine, from, to, via }] }
+await checkCommand("plugin.json");      // { ok, manifest, engines:[{ name, range, installed, state, satisfied, detail }] }
+await pathCommand("mcp-gateway");       // { ok:true, name, path, pointer } ou { ok:false, reason }
+await urlCommand("mcp-gateway");        // { ok:true, name, url, version, pid } (nunca o token)
+satisfiesRange("1.9.0", "^1.2.0");      // true
+```
+
+O mesmo conjunto é servido por `engine-kit mcp` a quem fala MCP (Copilot, Claude Code, Cursor): uma linha JSON-RPC por mensagem no stdio, só tools de leitura, e quem falha volta com `isError:true` e o motivo.
 
 `engine-kit list` lê só o manifest embarcado. `ensure` recusa antes de resolver ou baixar o motor cujo `platforms` não inclui esta máquina (`any` serve a todas). Um motor nativo cujo artefato muda por plataforma declara `install.byPlatform["<plataforma>-<arch>"] = { asset, entry }`: o kit sobrepõe esses campos ao `install` nessa máquina e as outras plataformas seguem com o `install` base (o motor de grafo traz `motor-de-grafo-linux-x64.tgz` e `bin/motor-de-grafo` para o Linux; a plataforma só entra em `platforms` quando a release com o asset dela está publicada).
 
@@ -371,6 +387,8 @@ kit/
   update-manifest.mjs # patch do manifest parseado (nunca regex em JSON); --app para apps
   verify-release.mjs  # baixa a release publicada e prova o caminho do consumidor; --app para apps, --all para o catálogo inteiro
   verify-all.mjs      # o laço do --all: um motor ou app por vez, a falha de um não esconde os outros
+  mcp.mjs             # `engine-kit mcp`: servidor MCP (stdio) só de leitura sobre os verbos de inspect.mjs
+  pre-voo.mjs         # pré-voo do publish-base `-Checar`: sha256, assinatura e versão do .tgz antes de criar a release
   publish-args.mjs    # preâmbulo comum de update-manifest e verify-release: argumentos, alvo e manifest.json
   app-release.mjs     # URLs e verificação de TODOS os assets de um app (manifest.apps)
   publish-base.ps1    # publicação de motor: identidade do gh → assina → release → manifest → prova
@@ -401,7 +419,7 @@ node tests/e2e-install.mjs <motor> --local   # qualquer motor do manifest: resol
 Para auditar o catálogo inteiro de uma vez, um motor ou app por vez (a falha de um não esconde os outros):
 
 ```sh
-node kit/verify-release.mjs --all [--manifest <caminho>]        # baixa cada release publicada e confere sha256 + assinatura; exit 1 se alguma falha
+node kit/verify-release.mjs --all [--json] [--manifest <caminho>]  # baixa cada release publicada e confere sha256 + assinatura; exit 1 se alguma falha; --json imprime uma linha { ok, total, entradas:[{ tipo, nome, versao, estado, motivo? }] }
 node tools/checar-publicacao.mjs --todos [--rede] [--json]       # o checklist do CONTRATO-MOTOR §6 de cada motor; exit 1 se algum item falha
 ```
 
@@ -437,7 +455,10 @@ node kit/gen-key.mjs <motor>          # uma vez por motor: gera a chave e imprim
 # ... o motor builda o próprio artefato ...
 pwsh kit/publish-base.ps1 -Engine <motor> -Version <x.y.z> -Asset <artefato.tgz> -DryRun
 pwsh kit/publish-base.ps1 -Engine <motor> -Version <x.y.z> -Asset <artefato.tgz>
+pwsh kit/publish-base.ps1 -Engine <motor> -Version <x.y.z> -Asset <artefato.tgz> -Checar   # pré-voo opcional: prova sha256, assinatura e versão do .tgz antes de criar a release
 ```
+
+Com `-Checar` (ou `node kit/pre-voo.mjs <asset>... --engine <motor> --version <x.y.z> --public-key <hex>`), o script confere o sidecar `.sha256`, a assinatura Ed25519 e a versão do `package.json` dentro do `.tgz` com as mesmas funções do `provision` e do `verify-release`, antes de criar a tag. Reprovou, nada foi publicado. Sem a flag o fluxo é o de sempre, e a prova final do consumidor continua obrigatória.
 
 O `publish-base.ps1` confere a identidade do `gh` (o app Copilot injeta o token de uma conta de
 trabalho nos processos filhos e o `gh` publica pela conta errada), assina, publica no registry,

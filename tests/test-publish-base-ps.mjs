@@ -44,12 +44,12 @@ const asset = path.join(assetDir, 'fake-engine.tgz');
 fs.writeFileSync(asset, 'conteudo');
 const emptyRegistry = tmp();
 
-function publish(shell, releaseState) {
+function publish(shell, releaseState, extra = []) {
   const log = path.join(tmp(), 'gh-create.log');
   const r = spawnSync(shell, [
     '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', SCRIPT,
     '-Engine', 'fake-engine', '-Version', '1.2.3', '-Asset', asset,
-    '-Registry', 'test-owner/registry', '-RegistryPath', emptyRegistry, '-SkipManifest',
+    '-Registry', 'test-owner/registry', '-RegistryPath', emptyRegistry, '-SkipManifest', ...extra,
   ], {
     encoding: 'utf8',
     windowsHide: true,
@@ -77,6 +77,11 @@ for (const shell of shells) {
     const { out, created } = publish(shell, 'absent');
     assert.doesNotMatch(out, /NativeCommandError/);
     assert.match(created, /release create fake-engine-v1\.2\.3 --repo test-owner\/registry/);
+  });
+  check(`${shell}: -Checar reprova o artefato que não é um .tgz da versão e aborta antes de criar a release`, () => {
+    const { out, created } = publish(shell, 'absent', ['-Checar']);
+    assert.match(out, /pre-voo reprovou/);
+    assert.equal(created, '');
   });
   check(`${shell}: release já existente aborta antes de criar`, () => {
     const { out, created } = publish(shell, 'exists');

@@ -126,6 +126,9 @@ const ROOT = resolvePath(KIT, "..");
 //   e nenhum código funcional foi cortado.
 //   2026-11-18 client 9800 → 10000: o `discover` passou a montar `http://127.0.0.1:<port>` quando o anúncio traz só `port` (mcp-gateway e embed-house) e a recusar porta fora de 1..65535 com erro explícito, +0.3 KB.
 //   2026-11-23 client 10000 → 10700: o `ensureHome` grava a saída do executável em `<home>/run/boot.log`, escuta `exit` e `error` do processo e devolve na hora o código de saída e as últimas linhas, em vez de esperar 60 s por um anúncio que não virá; +0.64 KB.
+//   2026-11-24 tooling 88300 → 95500: três funções irmãs aditivas da lente do 0.2.18 — `verify-release --all --json` (kit/verify-all.mjs, kit/verify-release.mjs),
+//   `engine-kit mcp` (servidor MCP stdio só de leitura, kit/mcp.mjs) e o pré-voo opt-in `-Checar` do publish-base (kit/pre-voo.mjs); +7.1 KB. Nenhum entra no fecho
+//   de kit/index.mjs: o runtime do consumidor não muda.
 //   2026-11-23 tooling 84400 → 88300: `engine-kit ensure <motor> <motor>...` (uma chamada, um selfUpdate, falha de um motor sem esconder os outros) e `engine-kit update <motor>` (aciona o `runtime.updatePath` do daemon vivo, com o token do anúncio só no cabeçalho); +3.9 KB, só em kit/cli.mjs e kit/inspect.mjs. O runtime do consumidor não muda.
 //   Nenhum código funcional foi cortado.
 //   2026-11-18 tooling 69800 → 72000: vida real do daemon no doctor (`probeHealth` e `lifeOf` em diagnose.mjs: o `/health` pelo `healthPath` do registry, os estados TRAVADO e PID-VIVO e os
@@ -150,7 +153,7 @@ const ROOT = resolvePath(KIT, "..");
 const BUDGETS = {
   runtime: { codeBytes: 38000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10700, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 88300, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 95500, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

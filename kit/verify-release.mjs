@@ -3,7 +3,7 @@
 //
 //   node kit/verify-release.mjs <motor> [--manifest <path>]
 //   node kit/verify-release.mjs --app <nome> [--manifest <path>]   # aplicativo: TODOS os assets
-//   node kit/verify-release.mjs --all [--manifest <path>]          # todos os motores e apps do catálogo, um por vez
+//   node kit/verify-release.mjs --all [--json] [--manifest <path>] # todos os motores e apps do catálogo, um por vez; --json: uma linha {ok,total,entradas}
 //
 // Baixa do release público exatamente o que um consumidor baixaria (asset + .sha256 + .sig),
 // usando as URLs montadas a partir do manifest, e confere as duas garantias:
@@ -32,7 +32,10 @@ const { appName, engineName, todos, manifest, manifestPath } = publishArgs(USAGE
 if (todos) {
   const self = fileURLToPath(import.meta.url);
   const rodar = (extra) => { const r = spawnSync(process.execPath, [self, ...extra, "--manifest", manifestPath], { encoding: "utf8", windowsHide: true }); return { ok: r.status === 0, saida: `${r.stdout}${r.stderr}` }; };
-  process.exit((await verificarTodos(manifest, { rodar, log: console.log })).ok ? 0 : 1);
+  const json = process.argv.includes("--json");
+  const r = await verificarTodos(manifest, { rodar, log: json ? () => {} : console.log });
+  if (json) { console.log(JSON.stringify({ ok: r.ok, total: r.total, entradas: r.entradas })); }
+  process.exit(r.ok ? 0 : 1);
 }
 
 // Aplicativo: não há asset único nem provision — baixa TODOS os assets da entrada, anônimo.

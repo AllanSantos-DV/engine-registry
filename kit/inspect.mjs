@@ -1,5 +1,6 @@
 // engine-kit/inspect.mjs — verbos de leitura do CLI (`history`, `check`, `url`) e o relatório do `doctor --report`.
-// Só lêem: não instalam, não sobem nem derrubam motor. Nunca lançam: devolvem `{ ok:false, reason }`.
+// Só lêem: não instalam, não sobem nem derrubam motor. Devolvem `{ ok:false, reason }` em vez de lançar; a exceção é `satisfiesRange`, que lança em faixa desconhecida.
+// Importáveis como `engine-kit/kit/inspect.mjs` (ver "Verbos como API" no README).
 import { readFileSync, existsSync, writeFileSync, renameSync } from "node:fs";
 import { basename, join } from "node:path";
 import { historyPath, cmpVer, readTrust, trustPath, embeddedManifest } from "./trust.mjs";
