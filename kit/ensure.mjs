@@ -84,7 +84,7 @@ const fetcherDeArquivo = (tgz) => async (url, _prazo, { stream } = {}) => {
  * @param {string} name motor.
  * @param {string} tgz artefato, com `<tgz>.sha256` e `<tgz>.sig` ao lado.
  */
-export const ensureDeArquivo = (name, tgz, opts = {}) => ensureCommand(name, { ...opts, autoUpdate: true, fetcher: fetcherDeArquivo(tgz) });
+export const ensureDeArquivo = (name, tgz, { log = () => {}, ...opts } = {}) => ensureCommand(name, { ...opts, autoUpdate: true, fetcher: fetcherDeArquivo(tgz), log: (m) => log(m.replace(/baixando \S+/, `lendo ${tgz} (sem baixar)`)) });
 
 /**
  * Os motores que `engine-kit ensure --instalados` atualiza: os instalados aqui que o ensure sabe atualizar (self-managed e motor de outra plataforma ficam de fora).

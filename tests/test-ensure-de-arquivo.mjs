@@ -47,6 +47,10 @@ console.log("== instala do arquivo ==");
   const novo = await doArquivo("arq-novo", reg, gravar(reg.artefatos["arq-novo"]));
   check("instala a versão do artefato, assinatura conferida, sem baixar nada", novo.ok && novo.version === "2.0.0" && novo.signed === true && instalado("arq-novo") === "2.0.0" && !reg.baixados["arq-novo"] && rede.chamadas === 0, JSON.stringify(novo));
 
+  const logs = [];
+  await doArquivo("arq-log", registry({ "arq-log": "2.0.0" }), gravar(registry({ "arq-log": "2.0.0" }).artefatos["arq-log"]), { log: (m) => logs.push(m) });
+  check("o log diz que lê do arquivo e nunca que está baixando", logs.some((l) => /lendo .*pacote\.tgz.* \(sem baixar\)/.test(l)) && !logs.some((l) => /baixando/.test(l)), logs.join(" | "));
+
   preinstalar("arq-velho", "1.0.0");
   const velho = await doArquivo("arq-velho", reg, gravar(reg.artefatos["arq-velho"]), { autoUpdate: false });
   check("motor velho é trocado pelo artefato mesmo com a atualização automática desligada, e a versão anterior sai", velho.ok && velho.previous === "1.0.0" && instalado("arq-velho") === "2.0.0", JSON.stringify(velho));
