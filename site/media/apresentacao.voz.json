@@ -1,24 +1,24 @@
 {
   "origem": "vox-engine",
   "voz": "pt-BR-Chirp3-HD-Iapetus",
-  "motor": "0.33.7",
+  "motor": "0.33.8",
   "padraoDoMotor": "pt-BR-Chirp3-HD-Iapetus",
   "pedidaPeloDono": false,
   "formato": "opus",
   "velocidade": 1,
   "sincronia": {
     "limiteMs": 120,
-    "maxMs": 29,
+    "maxMs": 40,
     "cenas": [
       {
         "id": 4,
         "derivasMs": [
-          -16,
-          -29,
-          -24,
-          -20
+          -19,
+          -20,
+          -20,
+          -19
         ],
-        "maxMs": 29,
+        "maxMs": 20,
         "ok": true
       },
       {
@@ -26,10 +26,10 @@
         "derivasMs": [
           -20,
           -20,
-          -20,
+          -40,
           -20
         ],
-        "maxMs": 20,
+        "maxMs": 40,
         "ok": true
       },
       {
@@ -44,7 +44,7 @@
     ]
   },
   "falas": 8,
-  "audioSeg": 110.7,
-  "videoSeg": 123,
-  "geradoEm": "2026-11-19T02:17:22.609Z"
+  "audioSeg": 113.53,
+  "videoSeg": 124.8,
+  "geradoEm": "2026-11-24T12:33:11.210Z"
 }

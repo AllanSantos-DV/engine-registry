@@ -157,14 +157,14 @@
           "rotulo": "conferências antes de instalar"
         },
         {
-          "valor": 38,
+          "valor": 39,
           "prefixo": "< ",
           "sufixo": " KB",
           "rotulo": "de código no instalador"
         }
       ],
-      "fala": "São dez motores. Antes de instalar, cada um passa por duas conferências, o SHA-256 e a assinatura Ed25519, e se alguma falhar, nada é instalado. O instalador tem menos de trinta e oito quilobytes de código.",
-      "fala_fonetica": "São dez motores. Antes de instalar, cada um passa por duas conferências, o ésse agá a dois cinco seis e a assinatura É dê dois cinco cinco um nove, e se alguma falhar, nada é instalado. O instalador tem menos de trinta e oito quilobytes de código."
+      "fala": "São dez motores. Antes de instalar, cada um passa por duas conferências, o SHA-256 e a assinatura Ed25519, e se alguma falhar, nada é instalado. O instalador tem menos de trinta e nove quilobytes de código.",
+      "fala_fonetica": "São dez motores. Antes de instalar, cada um passa por duas conferências, o ésse agá a dois cinco seis e a assinatura É dê dois cinco cinco um nove, e se alguma falhar, nada é instalado. O instalador tem menos de trinta e nove quilobytes de código."
     },
     {
       "cena": "fechamento",

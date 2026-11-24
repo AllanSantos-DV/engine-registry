@@ -1,0 +1,3 @@
+Transcrição pelo Vox Engine (transcribe_file, 124,8 s) da trilha do site/media/apresentacao.mp4 regerado em 2026-11-24:
+... "São 10 motores. Antes de instalar, cada um passa por duas conferências, o CHA256 e a assinatura E de 25519, e se alguma falhar, nada é instalado. O instalador tem menos de 39 KB de código." ...
+(CHA256 e "E de 25519" são a leitura letra a letra de SHA-256 e Ed25519, igual à nota de 2026-11-11.)
