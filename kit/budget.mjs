@@ -133,6 +133,9 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-11-24 tooling 96000 → 98500: `ensure --dry-run` (plano por motor, com vários motores e com `--de`, sem baixar nem gravar), em kit/ensure.mjs e kit/cli.mjs, +2.5 KB; o runtime do consumidor não muda.
 //   2026-11-24 tooling 98500 → 100000: `ensure --instalados` (instaladosAtualizaveis em kit/ensure.mjs e a ramificação no kit/cli.mjs, reusando o laço de vários motores), +1.1 KB; o runtime do consumidor não muda.
 //   2026-11-24 tooling 100000 → 102000: `engine-kit info <motor>` (infoCommand em kit/inspect.mjs, sobre `diagnoseEngines`, e o verbo no kit/cli.mjs), +1.7 KB; só lê; o runtime do consumidor não muda.
+//   2026-11-24 runtime 38700 → 39000 e tooling 103500 → 104500: retentativa de rede opt-in (`ENGINE_KIT_RETRY` ou `--retry N`, 0 a 5, desligada por padrão): `fetchBuf` repete a conexão
+//   que caiu, o 5xx e o 429 com espera crescente (kit/provision.mjs, +0.3 KB no runtime) e a flag e a validação ficam no kit/cli.mjs (+0.4 KB no ferramental). O teto do runtime fica
+//   em 39000, o que mantém a cifra de 39 KB da vitrine. Sem a opção o comportamento é o de antes; a primeira falha continua abortando.
 //   2026-11-24 tooling 102000 → 103500: `engine-kit ensure <motor> --de-arquivo <tgz>` (ensureDeArquivo e o fetcher de disco em kit/ensure.mjs, a flag e as recusas no kit/cli.mjs; a conferência de sha256, assinatura e versão é a do provision, sem caminho novo), +1.4 KB; o runtime do consumidor não muda.
 //   2026-11-23 tooling 84400 → 88300: `engine-kit ensure <motor> <motor>...` (uma chamada, um selfUpdate, falha de um motor sem esconder os outros) e `engine-kit update <motor>` (aciona o `runtime.updatePath` do daemon vivo, com o token do anúncio só no cabeçalho); +3.9 KB, só em kit/cli.mjs e kit/inspect.mjs. O runtime do consumidor não muda.
 //   Nenhum código funcional foi cortado.
@@ -159,9 +162,9 @@ const ROOT = resolvePath(KIT, "..");
 //   `history.jsonl` e o `ensureEngine` mantém a versão atual em vez de baixar, derrubar e voltar a cada `ensure` (+0.6 KB). Os cortes tentados não pagaram os bytes:
 //   o fecho já é denso e cada linha restante tem comportamento coberto por teste. O consumidor ganha um `ensure` que não derruba o motor à toa; o resto do runtime não mudou.
 const BUDGETS = {
-  runtime: { codeBytes: 38700, baseline: 24519, loc: 900 },
+  runtime: { codeBytes: 39000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10700, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 103500, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 104500, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

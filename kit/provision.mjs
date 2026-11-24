@@ -131,11 +131,25 @@ async function downloadChecked(engine, part, { log, fetcher, idleMs }) {
   return actual === expected ? { digest } : refuse(engine, `SHA256 mismatch (esperado ${expected.slice(0, 12)}…, obtido ${actual.slice(0, 12)}…) → ABORT`);
 }
 
-/** GET pequeno com prazo total. Com `stream`, devolve o `body` (iterável de pedaços) e o prazo fica a cargo de quem lê, via `signal`. */
+/** Tentativas extras de `ENGINE_KIT_RETRY` em falha transitória de rede: 0 (desligado) a 5; valor inválido vale 0. */
+export const tentativasDeRede = (env = process.env) => Math.min(Math.max(+env.ENGINE_KIT_RETRY | 0, 0), 5);
+
+/**
+ * GET pequeno com prazo total. Com `stream`, devolve o `body` (iterável de pedaços) e o prazo fica a cargo de quem lê, via `signal`.
+ * Com `ENGINE_KIT_RETRY`, repete a conexão que caiu, o 5xx e o 429 com espera crescente; 4xx e prazo estourado pelo `signal` de quem chama sobem de primeira.
+ */
 export async function fetchBuf(url, timeoutMs, { stream, signal } = {}) {
-  const res = await fetch(url, { signal: signal ?? AbortSignal.timeout(timeoutMs) });
-  if (!res.ok) { const e = new Error(`HTTP ${res.status}`); e.status = res.status; throw e; }
-  return stream ? res.body : Buffer.from(await res.arrayBuffer());
+  const extras = tentativasDeRede();
+  for (let i = 0; ; i++) {
+    try {
+      const res = await fetch(url, { signal: signal ?? AbortSignal.timeout(timeoutMs) });
+      if (!res.ok) { const e = new Error(`HTTP ${res.status}`); e.status = res.status; throw e; }
+      return stream ? res.body : Buffer.from(await res.arrayBuffer());
+    } catch (e) {
+      if (i >= extras || signal?.aborted || (e.status < 500 && e.status !== 429)) { throw e; }
+      await sleep(500 * 2 ** i);
+    }
+  }
 }
 
 /** Registro dos hashes dos arquivos extraídos, gravado dentro da pasta instalada para acompanhar o swap e o rollback. */

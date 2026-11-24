@@ -54,6 +54,7 @@ const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-ur
   "     engine-kit mcp                               servidor MCP (stdio) só de leitura: engine_list, engine_history, engine_check, engine_path, engine_url, engine_trust, engine_doctor, engine_report; não atualiza o kit\n" +
   "     engine-kit doctor [--fix|--json|--verify] [--engine <motor>] [--local] [--registry-url <url>]   diagnostica os motores instalados (--fix instala o que falta e atualiza o que está velho)\n" +
   "     engine-kit doctor --report [--engine <motor>] [--local] [--verify]   texto colável para suporte (kit, Node, plataforma, motores, sobras, hooks); sem token nem chave\n" +
+  "     (ensure, pin, fetch, check e rollback aceitam --retry <0-5>, ou ENGINE_KIT_RETRY=<0-5>: repete a conexão que caiu, o 5xx e o 429 com espera crescente; desligado por padrão, e o 404 nunca é repetido)\n" +
   "ENGINE_KIT_NO_AUTO_UPDATE=1 desliga a atualização automática do kit e dos motores (fica só o aviso).";
 
 const args = process.argv.slice(2);
@@ -62,21 +63,21 @@ const VERBS = ["ensure", "pin", "unpin", "fetch", "stop", "doctor", "list", "his
 const NOME_OPCIONAL = ["doctor", "list", "history", "trust", "mcp"];
 const [cmd, name] = args;
 const nomeOpcional = name?.startsWith("-") ? undefined : name;
-const COM_VALOR = ["--version", "--registry-url", "--dest", "--engine", "--de", "--de-arquivo"];
+const COM_VALOR = ["--version", "--registry-url", "--dest", "--engine", "--de", "--de-arquivo", "--retry"];
 const deManifesto = cmd === "ensure" && name === "--de";
 const instalados = cmd === "ensure" && name === "--instalados";
 const FLAGS = {
-  ensure: ["--version", "--registry-url", "--register", "--unregister", "--json", "--de", "--dry-run", "--instalados", "--de-arquivo"],
-  pin: ["--version", "--registry-url", "--json"],
+  ensure: ["--version", "--registry-url", "--register", "--unregister", "--json", "--de", "--dry-run", "--instalados", "--de-arquivo", "--retry"],
+  pin: ["--version", "--registry-url", "--json", "--retry"],
   unpin: [],
-  fetch: ["--version", "--registry-url", "--dest", "--json"],
+  fetch: ["--version", "--registry-url", "--dest", "--json", "--retry"],
   stop: ["--registry-url", "--json"],
   doctor: ["--fix", "--json", "--verify", "--report", "--engine", "--local", "--registry-url"],
   list: ["--json"],
   history: ["--json"],
-  check: ["--json", "--rede", "--registry-url"],
+  check: ["--json", "--rede", "--registry-url", "--retry"],
   url: ["--json"],
-  rollback: ["--registry-url", "--json"],
+  rollback: ["--registry-url", "--json", "--retry"],
   trust: ["--json", "--restaurar"],
   path: ["--json"],
   info: ["--json"],
@@ -168,12 +169,16 @@ if (cmd === "--help" || cmd === "-h") {
 } else if (args.includes("--de") && (!deManifesto || ["--version", "--register", "--unregister"].some((f) => args.includes(f)))) {
   console.error("--de substitui o nome do motor e não combina com --version, --register nem --unregister: engine-kit ensure --de <manifesto-do-plugin.json> [--registry-url <url>] [--json]");
   process.exitCode = 1;
+} else if (args.includes("--retry") && !/^[0-5]$/.test(flag("--retry") ?? "")) {
+  console.error(`--retry precisa de um número de 0 a 5 (recebi: ${flag("--retry") ?? "nada"})`);
+  process.exitCode = 1;
 } else if (args.includes("--version") && !/^\d+\.\d+\.\d+$/.test(flag("--version") ?? "")) {
   console.error(`--version precisa de x.y.z (recebi: ${flag("--version") ?? "nada"})`);
   process.exitCode = 1;
 } else if (cmd === "mcp") {
   await (await import("./mcp.mjs")).serve();
 } else {
+  if (args.includes("--retry")) { process.env.ENGINE_KIT_RETRY = flag("--retry"); }
   // Sem process.exit() depois de rede: no Windows o Node aborta com sockets ainda fechando (ver doctor.mjs).
   const u = await selfUpdate(args);
   if (u.action === "relaunched") {
