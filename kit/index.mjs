@@ -24,7 +24,7 @@ import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { provision, satisfiesPin, installedVersion, autoUpdateEnabled, renameRetry, rmTree, binDirOf } from "./provision.mjs";
 import { lifecycle, findAlive, shutdown, unavailable } from "./lifecycle.mjs";
-import { pinOf, setPin, recordSwap, embeddedManifest } from "./trust.mjs";
+import { pinOf, setPin, recordSwap, embeddedManifest, failedVersions } from "./trust.mjs";
 
 /**
  * Solta o pin do motor (`engine-kit pin`): volta a receber atualizações. Nunca lança.
@@ -91,9 +91,10 @@ export async function ensureEngine(name, opts = {}) {
   const entryPath = join(r.engine.homeDir, r.engine.install.entry);
   const bin = binDirOf(r.engine);
   const previous = existsSync(entryPath) ? installedVersion(bin) : null;
-  const keep = (!autoUpdateEnabled({ ...process.env, ...env }) || r.engine.runtime?.updatePath) && !version && !pin && previous && !satisfiesPin(previous, r.engine.version);
-  let installed = previous, updateAvailable, previousDir;
-  if (keep) { updateAvailable = r.engine.version; }
+  const ruim = !version && !pin && previous && failedVersions(name).includes(r.engine.version);
+  const keep = (!autoUpdateEnabled({ ...process.env, ...env }) || r.engine.runtime?.updatePath || ruim) && !version && !pin && previous && !satisfiesPin(previous, r.engine.version);
+  let installed = previous, updateAvailable, previousDir, quarantined;
+  if (keep) { updateAvailable = r.engine.version; if (ruim) { quarantined = { version: updateAvailable }; log(`[engine-kit] ${name}: v${updateAvailable} em quarentena (não subiu aqui); sai com versão nova ou --version ${updateAvailable}`); } }
   else {
     const antes = onBeforeReplace === undefined
       ? async () => { const s = await shutdown(r.engine, { log }); if (!s.ok) { log(`aviso: ${s.reason} — o swap pode falhar com o motor vivo`); } }
@@ -123,6 +124,6 @@ export async function ensureEngine(name, opts = {}) {
   if (!l.available) { return l; }
 
   const tofu = registryUrl && !trustedKeys?.[name];
-  return { ...l, engine: { ...r.engine, installedVersion: installed, ...(updateAvailable ? { updateAvailable } : {}), ...(rolledBack ? { rolledBack } : {}),
+  return { ...l, engine: { ...r.engine, installedVersion: installed, ...(updateAvailable ? { updateAvailable } : {}), ...(quarantined ? { quarantined } : {}), ...(rolledBack ? { rolledBack } : {}),
     ...(tofu ? { trust: "tofu", trustHint: `registry próprio sem chave fixada: a chave da 1ª instalação é gravada; passe trustedKeys: { "${name}": "<chave>" } para não depender dela` } : {}) } };
 }

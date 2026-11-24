@@ -150,8 +150,11 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-11-22 tooling 80300 → 84400: três funções irmãs aditivas da lente do 0.2.18 e a recusa do rollback após a volta automática — `engine-kit path <motor>`
 //   (pathCommand, só lê), `check --rede` (checkCommand diz se a versão publicada satisfaz a faixa) e `trust --restaurar` (trustRestoreCommand, troca atômica a partir
 //   do .bak), todas em inspect.mjs e cli.mjs, +4.1 KB. Rodadas na mão de quem instala; o fecho de imports de `index.mjs` não mudou.
+//   2026-11-24 runtime 38000 → 38700: quarentena da versão que não subiu (decisão do dono, opção Q1) — `failedVersions` em trust.mjs lê as voltas do
+//   `history.jsonl` e o `ensureEngine` mantém a versão atual em vez de baixar, derrubar e voltar a cada `ensure` (+0.6 KB). Os cortes tentados não pagaram os bytes:
+//   o fecho já é denso e cada linha restante tem comportamento coberto por teste. O consumidor ganha um `ensure` que não derruba o motor à toa; o resto do runtime não mudou.
 const BUDGETS = {
-  runtime: { codeBytes: 38000, baseline: 24519, loc: 900 },
+  runtime: { codeBytes: 38700, baseline: 24519, loc: 900 },
   client: { codeBytes: 10700, baseline: 8500, loc: 230 },
   tooling: { codeBytes: 95500, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },

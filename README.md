@@ -95,6 +95,10 @@ mesmo comando nela (o `npx` sem versão reusaria a da cache); o motor instalado 
 registry, com o aviso `motor atualizado: <motor> vA → vB`. `ENGINE_KIT_NO_AUTO_UPDATE=1` desliga as duas trocas e
 deixa só o aviso de versão nova disponível; `ensureEngine` respeita a mesma variável e devolve a versão nova em `engine.updateAvailable`. `--version` explícito sempre vale.
 
+Quarentena: a versão que o motor não conseguiu subir nesta máquina (a volta automática grava `rollback` em `history.jsonl`) fica de lado. Enquanto o registry
+oferecer só ela, o `ensure` não baixa, não derruba o motor e não troca: mantém a instalada, avisa `v<x> em quarentena` e devolve `engine.quarantined = { version }`
+(e `engine.updateAvailable`). Sai da quarentena quando o registry oferece outra versão, ou na hora com `--version <x>`.
+
 Desligar: `npx engine-kit stop <motor>` pede ao motor que se encerre pelo `shutdownPath` que o registry declara (o mesmo pedido
 que o kit faz antes de trocar a instalação); motor sem `shutdownPath` declarado é recusado com o motivo, e motor parado
 (ou com o `runtime.json` apontando para um processo que já morreu) responde que não há nada vivo. Motor ocupado (HTTP 202) é esperado por até 120 s, com um aviso. O comando só desliga: não remove arquivos nem estado do usuário.

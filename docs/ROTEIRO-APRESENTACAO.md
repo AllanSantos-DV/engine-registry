@@ -83,5 +83,5 @@ Uma fala por passo; a anotação entre parênteses diz o que aparece e não é n
 - A casa-de-embeddings é um daemon por máquina que serve /embed, /similarity e /rerank e é dona do modelo e do space_id (a identidade do espaço vetorial); nenhum produto carrega o próprio modelo.
 - O neural-link é chamado a cada evento de hook e não fica rodando em segundo plano.
 - Cada release é conferida por SHA-256 e assinatura Ed25519 antes de instalar; falhando, nada é instalado.
-- O cliente de instalação (engine-kit) tem menos de 38 KB de código.
+- O cliente de instalação (engine-kit) tem menos de 39 KB de código.
 - Sistemas: Windows, Linux e macOS, conforme o motor (embed-house cobre os três; Vox Engine e Cerne são Windows).

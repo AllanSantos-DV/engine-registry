@@ -136,6 +136,9 @@ export function recordSwap(engine, from, to, via) {
   catch (e) { console.warn(`[engine-kit] ${engine}: histórico não gravado em ${historyPath()} (${e.message})`); }
 }
 
+/** Versões do motor que não subiram aqui: o `from` de cada volta (via rollback) do histórico. Linha ilegível não conta. */
+export const failedVersions = (name) => { try { return readFileSync(historyPath(), "utf8").split("\n").flatMap((l) => { try { const e = JSON.parse(l); return e.engine === name && e.via === "rollback" ? [e.from] : []; } catch { return []; } }); } catch { return []; } };
+
 /** O manifest embarcado no pacote. Lança se for ilegível. */
 export const embeddedManifest = () => JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8"));
 

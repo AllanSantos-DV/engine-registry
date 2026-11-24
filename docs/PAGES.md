@@ -56,7 +56,7 @@ Mudar um valor: `sd_set_tokens` e `sd_build` no projeto, copiar `build/css/varia
 - **Tabela e mapa:** só afirmam ligações que estão no manifest e no README (VXK usa o Vox para narrar; o mcp-gateway reúne
   servidores MCP; embed-house e neural-link atendem o agente direto). Nova ligação entre motores: ajuste tabela, mapa,
   cenas e roteiro juntos.
-- **Números:** 10 motores, 147 MB, `< 38 KB` e 3 sistemas são conferidos contra o manifest e o limite do kill-switch do kit.
+- **Números:** 10 motores, 147 MB, `< 39 KB` e 3 sistemas são conferidos contra o manifest e o limite do kill-switch do kit.
 - **Apresentar:** cenas em `CENAS` (`site.js`), narradas pela voz padrão do Vox Engine, em áudio (`site/media/narracao/cNN-pN.mp3`, um por fala, com `narracao.voz.json`); a cena avança pelo fim real do áudio. Sem o áudio só as legendas e as setas conduzem; o site nunca usa a voz do navegador. Regerar: `node tools/gerar-audio-apresentacao.mjs` (motor no ar); medir: `node tools/medir-audio-apresentacao.mjs`. Toda fala precisa
   constar igual em `docs/ROTEIRO-APRESENTACAO.md`, que é também o roteiro do vídeo.
 - **Ordem:** cabeçalho com Apresentar; primeira tela com a promessa curta, os três caminhos (Assistir ao vídeo, Apresentar com
