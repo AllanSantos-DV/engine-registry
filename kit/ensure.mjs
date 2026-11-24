@@ -68,6 +68,15 @@ export function listCommand({ bundled, platform = target() } = {}) {
 }
 
 /**
+ * Os motores que `engine-kit ensure --instalados` atualiza: os instalados aqui que o ensure sabe atualizar (self-managed e motor de outra plataforma ficam de fora).
+ * @returns {{ok:true, names:string[]} | {ok:false, reason:string}}
+ */
+export function instaladosAtualizaveis(opts) {
+  const l = listCommand(opts);
+  return l.ok ? { ok: true, names: l.engines.filter((e) => e.installed && !e.selfManaged && e.supported).map((e) => e.name) } : l;
+}
+
+/**
  * @param {string} name motor no registry.
  * @param {object} opts
  * @param {string=} opts.version versão EXATA (default: a do registry): uma instalada diferente, maior ou menor, é trocada por ela.

@@ -21,7 +21,7 @@
 // Por padrão o kit se atualiza (roda de novo como a última versão do npm) e atualiza o motor instalado.
 // ENGINE_KIT_NO_AUTO_UPDATE=1 desliga os dois e deixa só o aviso de versão nova (ver update.mjs).
 // Exit code: 0 = motor instalado (ou reusado). 1 = recusou/falhou, com o motivo na saída de erro.
-import { ensureCommand, ensureDeCommand, pinCommand, unpinCommand, stopCommand, listCommand, rollbackCommand } from "./ensure.mjs";
+import { ensureCommand, ensureDeCommand, pinCommand, unpinCommand, stopCommand, listCommand, rollbackCommand, instaladosAtualizaveis } from "./ensure.mjs";
 import { registerNeuralLink, unregisterNeuralLink } from "./register.mjs";
 import { fetchCommand } from "./fetch.mjs";
 import { historyCommand, checkCommand, urlCommand, updateCommand, reportCommand, trustCommand, trustRestoreCommand, pathCommand } from "./inspect.mjs";
@@ -30,6 +30,7 @@ import { selfUpdate, autoUpdateEnabled } from "./update.mjs";
 const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-url <url>]\n" +
   "     engine-kit update <motor> [--check] [--json]   pede ao updater do daemon vivo (motor com runtime.updatePath) que se atualize; --check só compara as versões\n" +
   "     engine-kit ensure <motor> --dry-run [--version <x.y.z>] [--registry-url <url>] [--json]   diz o que o ensure faria (instalaria, atualizaria, reusaria, manteria) sem baixar nem gravar nada; vale também com vários motores e com --de\n" +
+  "     engine-kit ensure --instalados [--dry-run] [--registry-url <url>] [--json]   atualiza, numa chamada, os motores instalados aqui (pin, quarentena e self-managed respeitados); sem nomes, sem --version\n" +
   "     engine-kit ensure <motor> <motor>... [--registry-url <url>] [--json]   vários motores numa chamada; uma falha não esconde os outros (exit 1 se algum falhou; --json devolve { ok, engines })\n" +
   "     engine-kit pin <motor> [--version <x.y.z>] [--registry-url <url>]   fixa a versão instalada (ou instala e fixa x.y.z)\n" +
   "     engine-kit unpin <motor>                     solta o motor para voltar a atualizar\n" +
@@ -60,8 +61,9 @@ const [cmd, name] = args;
 const nomeOpcional = name?.startsWith("-") ? undefined : name;
 const COM_VALOR = ["--version", "--registry-url", "--dest", "--engine", "--de"];
 const deManifesto = cmd === "ensure" && name === "--de";
+const instalados = cmd === "ensure" && name === "--instalados";
 const FLAGS = {
-  ensure: ["--version", "--registry-url", "--register", "--unregister", "--json", "--de", "--dry-run"],
+  ensure: ["--version", "--registry-url", "--register", "--unregister", "--json", "--de", "--dry-run", "--instalados"],
   pin: ["--version", "--registry-url", "--json"],
   unpin: [],
   fetch: ["--version", "--registry-url", "--dest", "--json"],
@@ -80,7 +82,7 @@ const FLAGS = {
 /** Primeira flag que o verbo não aceita, ou argumento solto além do nome do motor. */
 const sobra = () => {
   const aceitas = FLAGS[cmd] ?? [];
-  for (let i = deManifesto || (NOME_OPCIONAL.includes(cmd) && !(["history", "trust"].includes(cmd) && nomeOpcional)) ? 1 : 2; i < args.length; i++) {
+  for (let i = deManifesto || instalados || (NOME_OPCIONAL.includes(cmd) && !(["history", "trust"].includes(cmd) && nomeOpcional)) ? 1 : 2; i < args.length; i++) {
     if (!args[i].startsWith("-")) { if (cmd === "check" || cmd === "ensure" || deManifesto) { continue; } return `argumento inesperado: ${args[i]}`; }
     if (!aceitas.includes(args[i]) && /^--(un)?register$/.test(args[i])) { return "--register e --unregister só valem para `engine-kit ensure neural-link`"; }
     if (!aceitas.includes(args[i])) { return `${args[i]} não vale para \`${cmd}\``; }
@@ -92,7 +94,8 @@ const sobra = () => {
 };
 /** Argumentos soltos depois do verbo, sem as flags nem os valores delas: os manifestos extras de `check` e `ensure --de`. */
 const posicionais = () => { const o = []; for (let i = 1; i < args.length; i++) { if (!args[i].startsWith("-")) { o.push(args[i]); } else if (COM_VALOR.includes(args[i])) { i++; } } return o; };
-const motores = cmd === "ensure" && !deManifesto ? [...new Set(posicionais())] : [];
+const motores = cmd === "ensure" && !deManifesto && !instalados ? [...new Set(posicionais())] : [];
+const lista = instalados ? instaladosAtualizaveis() : null;
 const asJson = args.includes("--json");
 const dryRun = args.includes("--dry-run");
 const planoEm = (r) => ({ instalar: `instalaria v${r.version}`, atualizar: `atualizaria v${r.installed} → v${r.version}`, reusar: `reusaria v${r.version}, já em dia`, manter: `manteria v${r.version} (v${r.available} disponível; ENGINE_KIT_NO_AUTO_UPDATE ligado)` })[r.plan];
@@ -125,7 +128,7 @@ const semValor = ["--dest", "--registry-url", "--engine", "--de"].find((f) => ar
 
 if (cmd === "--help" || cmd === "-h") {
   console.log(USAGE);
-} else if (!VERBS.includes(cmd) || (!NOME_OPCIONAL.includes(cmd) && !deManifesto && (!name || name.startsWith("-")))) {
+} else if (!VERBS.includes(cmd) || (!NOME_OPCIONAL.includes(cmd) && !deManifesto && !instalados && (!name || name.startsWith("-")))) {
   console.error(cmd && !VERBS.includes(cmd) ? `comando desconhecido: ${cmd}\n${USAGE}` : USAGE);
   process.exitCode = 1;
 } else if (semValor) {
@@ -133,6 +136,12 @@ if (cmd === "--help" || cmd === "-h") {
   process.exitCode = 1;
 } else if (sobra()) {
   console.error(sobra());
+  process.exitCode = 1;
+} else if (instalados && (posicionais().length || ["--version", "--register", "--unregister", "--de"].some((f) => args.includes(f)))) {
+  console.error("--instalados não combina com nomes de motores, --version, --register, --unregister nem --de: engine-kit ensure --instalados [--dry-run] [--registry-url <url>] [--json]");
+  process.exitCode = 1;
+} else if (lista && !lista.ok) {
+  console.error(`FALHOU ensure --instalados: ${lista.reason}`);
   process.exitCode = 1;
 } else if (motores.length > 1 && ["--version", "--register", "--unregister"].some((f) => args.includes(f))) {
   console.error("--version, --register e --unregister valem para um motor só, não para vários motores: engine-kit ensure <motor> <motor>... [--registry-url <url>] [--json]");
@@ -238,9 +247,10 @@ if (cmd === "--help" || cmd === "-h") {
   } else if (cmd === "pin") {
     const r = await pinCommand(name, { version: flag("--version"), registryUrl: flag("--registry-url"), log });
     done("pin", r, () => { console.log(`OK ${name} fixado em v${r.pinned}; a atualização automática pula este motor (engine-kit unpin ${name} solta)`); avisoCache(r); });
-  } else if (motores.length > 1) {
+  } else if (motores.length > 1 || lista) {
     const rs = [];
-    for (const m of motores) { rs.push([m, await ensureCommand(m, { registryUrl: flag("--registry-url"), autoUpdate: autoUpdateEnabled(), dryRun, log })]); }
+    if (lista && !lista.names.length) { log("nenhum motor instalado por este kit para atualizar"); }
+    for (const m of lista ? lista.names : motores) { rs.push([m, await ensureCommand(m, { registryUrl: flag("--registry-url"), autoUpdate: autoUpdateEnabled(), dryRun, log })]); }
     if (asJson) { console.log(JSON.stringify({ ok: rs.every(([, r]) => r.ok), engines: rs.map(([m, r]) => jsonOf("ensure", m, r)) }, null, 2)); }
     else { for (const [m, r] of rs) { if (r.ok && r.dryRun) { console.log(`PLANO ${m}: ${planoEm(r)}`); } else if (r.ok) { console.log(`OK ${m} v${r.version} (${r.reused ? "já instalado, reusado" : r.previous ? `atualizado de v${r.previous}` : "instalado"}) em ${r.entryPath}`); } else { console.error(`FALHOU ${m}: ${r.reason}`); } } }
     if (rs.some(([, r]) => !r.ok)) { process.exitCode = 1; }

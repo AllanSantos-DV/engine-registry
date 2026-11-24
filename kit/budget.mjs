@@ -131,6 +131,7 @@ const ROOT = resolvePath(KIT, "..");
 //   de kit/index.mjs: o runtime do consumidor não muda.
 //   2026-11-24 tooling 95500 → 96000: `engine_doctor`, tool MCP de leitura sobre `diagnoseEngines` e `engineView` (kit/mcp.mjs), +0.4 KB; o runtime do consumidor não muda.
 //   2026-11-24 tooling 96000 → 98500: `ensure --dry-run` (plano por motor, com vários motores e com `--de`, sem baixar nem gravar), em kit/ensure.mjs e kit/cli.mjs, +2.5 KB; o runtime do consumidor não muda.
+//   2026-11-24 tooling 98500 → 100000: `ensure --instalados` (instaladosAtualizaveis em kit/ensure.mjs e a ramificação no kit/cli.mjs, reusando o laço de vários motores), +1.1 KB; o runtime do consumidor não muda.
 //   2026-11-23 tooling 84400 → 88300: `engine-kit ensure <motor> <motor>...` (uma chamada, um selfUpdate, falha de um motor sem esconder os outros) e `engine-kit update <motor>` (aciona o `runtime.updatePath` do daemon vivo, com o token do anúncio só no cabeçalho); +3.9 KB, só em kit/cli.mjs e kit/inspect.mjs. O runtime do consumidor não muda.
 //   Nenhum código funcional foi cortado.
 //   2026-11-18 tooling 69800 → 72000: vida real do daemon no doctor (`probeHealth` e `lifeOf` em diagnose.mjs: o `/health` pelo `healthPath` do registry, os estados TRAVADO e PID-VIVO e os
@@ -158,7 +159,7 @@ const ROOT = resolvePath(KIT, "..");
 const BUDGETS = {
   runtime: { codeBytes: 38700, baseline: 24519, loc: 900 },
   client: { codeBytes: 10700, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 98500, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 100000, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 
