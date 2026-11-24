@@ -130,16 +130,21 @@ npx engine-kit doctor --report [--engine <motor>] # texto colável para suporte:
 npx engine-kit list [--json]                      # os motores do pacote, a plataforma de cada um e a versão instalada (sem rede)
 npx engine-kit history [motor] [--json]           # as trocas de versão gravadas nesta máquina: de → para e a origem
 npx engine-kit ensure <motor> <motor> [...] [--registry-url <url>] [--json]   # vários motores numa chamada; uma falha não esconde os outros, exit 1 se algum falhou, --json devolve { ok, engines }
+npx engine-kit ensure <motor> --dry-run [--version <x.y.z>] [--json]   # diz o que o ensure faria (instalaria, atualizaria, reusaria, manteria) sem baixar nem gravar; vale com vários motores e com --de
+npx engine-kit ensure --instalados [--dry-run] [--json]   # atualiza, numa chamada, os motores instalados aqui (pin respeitado; self-managed e motor de outra plataforma ficam de fora)
+npx engine-kit ensure <motor> --de-arquivo <artefato.tgz>   # instala do artefato local, com <artefato>.sha256 e <artefato>.sig ao lado (os três assets da release); sha256, Ed25519 e versão continuam obrigatórios
+npx engine-kit info <motor> [--json]              # descritor, versão no manifest, versão instalada, estado, pin, plataformas e release de um motor; só lê, sem rede
 npx engine-kit update <motor> [--check] [--json]       # pede ao updater do daemon vivo (motor com runtime.updatePath, como o motor-de-grafo) que se atualize; --check só compara as versões; o token do anúncio vai só no cabeçalho
 npx engine-kit rollback <motor> [--json]          # volta à versão anterior à última troca do history (sha256 + Ed25519) e fixa nela; recusa primeira instalação e self-managed
 npx engine-kit trust [motor] [--json]             # o que o trust.json guarda por motor (chave pública, origem, maior versão, pin), se bate com o manifest embarcado e o estado do .bak; só lê
 npx engine-kit trust --restaurar                  # devolve o trust.json a partir do .bak quando ele está ilegível (a cópia é validada, a troca é atômica)
 npx engine-kit path <motor> [--json]              # caminho do executável do motor instalado e o estado do cli.json; sem rede, não sobe nada
-npx engine-kit mcp                                # servidor MCP (stdio) só de leitura: engine_list, engine_history, engine_check, engine_path, engine_url, engine_trust, engine_report; não atualiza o kit
+npx engine-kit mcp                                # servidor MCP (stdio) só de leitura: engine_list, engine_history, engine_check, engine_path, engine_url, engine_trust, engine_doctor, engine_report; não atualiza o kit
 npx engine-kit check meu-plugin/plugin.json --rede   # além do check: diz se a versão publicada satisfaz a faixa do que falta ou está fora dela
 npx engine-kit check meu-plugin/plugin.json [outro/plugin.json ...] [--json]   # confere o bloco `engines` de um ou mais manifestos de plugin contra o instalado; com vários, --json devolve { ok, manifests }
 npx engine-kit ensure --de meu-plugin/plugin.json [outro/plugin.json ...] [--registry-url <url>] [--json]   # instala ou atualiza o que o check reprova e reconfere
 npx engine-kit url casa-de-embeddings [--json]    # endereço do daemon vivo (url, versão, pid); nunca imprime o token
+npx engine-kit ensure|pin|fetch|check|rollback ... --retry <0-5>   # repete a conexão que caiu, o 5xx e o 429 com espera crescente (ou ENGINE_KIT_RETRY=<0-5>); desligado por padrão
 npx engine-kit ensure|pin|fetch|stop <motor> --json   # um objeto JSON por chamada, na forma das linhas do doctor (name, ok, state, detail, warns, pin), também na falha
 ```
 
@@ -184,6 +189,14 @@ Estado atual:
   `engine-kit ensure <motor> --version x.y.z`: o kit não escolhe versão sozinho nem finge sucesso.
 - Exit 0 só se todos os motores satisfazem no fim; exit 1 caso contrário. Falha de um motor não impede os outros. `--json` devolve `{ ok, manifest, reason?, engines }`, uma linha por motor com `acao`, `state`, `satisfied`, `installed`, `version` e `previous`.
 - `--de` substitui o nome do motor e não combina com `--version`, `--register` nem `--unregister`.
+
+**Simular, atualizar tudo, instalar de arquivo e repetir a conexão.** Quatro jeitos novos que deixam o uso anterior como estava:
+- `ensure <motor> --dry-run` calcula o plano pelo mesmo caminho do `ensure` e devolve `instalar`, `atualizar`, `reusar` ou `manter` (com `installed`, `version` e `available`); nada é baixado nem gravado, nem o histórico. Lê o descritor do registry (ou do cache dele). Com `--de`, cada motor traz a ação `instalaria`, `atualizaria`, `reusado`, `mantido` ou `pulado`.
+- `ensure --instalados` roda o `ensure` em cada motor instalado aqui, no formato de vários motores (`{ ok, engines }`). Pin é respeitado; motor `self-managed`, motor de outra plataforma e motor não instalado ficam de fora, e nenhum instalado é exit 0 com uma frase dizendo isso. Não combina com nomes de motores, `--version`, `--register`, `--unregister` nem `--de`.
+- `ensure <motor> --de-arquivo <artefato.tgz>` instala do arquivo, com o `.sha256` e o `.sig` ao lado (baixe os três assets da release, ou copie-os de um espelho). A conferência é a do download: sha256, assinatura Ed25519 e a versão do artefato contra a do registry; sidecar ausente é ABORT. Troca o motor instalado mesmo com `ENGINE_KIT_NO_AUTO_UPDATE`, porque o arquivo foi pedido. O descritor ainda vem do registry (ou do cache dele): só o artefato sai do disco.
+- `--retry <0-5>` (ou `ENGINE_KIT_RETRY`) repete a conexão que caiu, o 5xx e o 429, com espera de 0,5 s que dobra a cada tentativa; 4xx como o 404 nunca é repetido. Desligado por padrão: sem a opção, a primeira falha aborta, como sempre. Vale para `ensure`, `pin`, `fetch`, `check` e `rollback`; uma queda no meio do download do artefato não é repetida, só a conexão que não chegou a abrir.
+
+`engine-kit info <motor>` junta o que o kit sabe de um motor (`list` continua como era). `engine_doctor`, no `engine-kit mcp`, é o `doctor --json --local` como tool de leitura.
 
 **Endereço do daemon.** `engine-kit url <motor>` imprime a `url`, a `version` e o `pid` que o motor anuncia (`discover`, de `kit/client.mjs`), depois de conferir que ele responde.
 O `shutdownToken` do anúncio nunca sai. Motor parado, sem anúncio ou com o anúncio apontando para um endereço morto: erro com a causa e o comando (`engine-kit ensure <motor>`), exit 1.

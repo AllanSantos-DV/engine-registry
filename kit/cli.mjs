@@ -32,7 +32,7 @@ const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-ur
   "     engine-kit update <motor> [--check] [--json]   pede ao updater do daemon vivo (motor com runtime.updatePath) que se atualize; --check só compara as versões\n" +
   "     engine-kit ensure <motor> --dry-run [--version <x.y.z>] [--registry-url <url>] [--json]   diz o que o ensure faria (instalaria, atualizaria, reusaria, manteria) sem baixar nem gravar nada; vale também com vários motores e com --de\n" +
   "     engine-kit ensure <motor> --de-arquivo <artefato.tgz> [--version <x.y.z>] [--registry-url <url>] [--json]   instala do artefato local (com <artefato>.sha256 e <artefato>.sig ao lado, os três assets da release), sem baixá-lo; sha256, Ed25519 e versão continuam obrigatórios; troca o motor instalado mesmo com a atualização automática desligada\n" +
-  "     engine-kit ensure --instalados [--dry-run] [--registry-url <url>] [--json]   atualiza, numa chamada, os motores instalados aqui (pin, quarentena e self-managed respeitados); sem nomes, sem --version\n" +
+  "     engine-kit ensure --instalados [--dry-run] [--registry-url <url>] [--json]   atualiza, numa chamada, os motores instalados aqui (pin respeitado; self-managed e motor de outra plataforma ficam de fora); sem nomes, sem --version\n" +
   "     engine-kit ensure <motor> <motor>... [--registry-url <url>] [--json]   vários motores numa chamada; uma falha não esconde os outros (exit 1 se algum falhou; --json devolve { ok, engines })\n" +
   "     engine-kit pin <motor> [--version <x.y.z>] [--registry-url <url>]   fixa a versão instalada (ou instala e fixa x.y.z)\n" +
   "     engine-kit unpin <motor>                     solta o motor para voltar a atualizar\n" +

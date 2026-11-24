@@ -1,6 +1,6 @@
 /**
- * Mede o que o `ensure` faz hoje quando o registry continua oferecendo uma versão que já falhou: três `ensure` seguidos, com a
- * v1.1.0 oferecida e sem subir. Hermético: HOME e trust.json isolados, registry local, download injetado, motor-fantasma.
+ * Mede o que o `ensure` faz quando o registry continua oferecendo uma versão que já falhou: três `ensure` seguidos, com a
+ * versão nova oferecida e sem subir. Hermético: HOME e trust.json isolados, registry local, download injetado, motor-fantasma.
  *
  *   node docs/research/2026-11-24-board-quarentena.demo.mjs > docs/research/2026-11-24-board-quarentena.saida.txt
  */
@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 
 const ROOT = mkdtempSync(join(tmpdir(), "ee-quarentena-"));
+process.on("exit", () => rmSync(ROOT, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
 Object.assign(process.env, { HOME: ROOT, USERPROFILE: ROOT, ENGINE_KIT_HOME: join(ROOT, "trust-home") });
 const kit = (f) => import(pathToFileURL(join(process.cwd(), "kit", f)).href);
 const { ensureEngine, generateKeyPairHex, signBlob } = await kit("index.mjs");
@@ -78,4 +79,3 @@ say(`history.jsonl (${hist.length} linhas):`);
 hist.forEach((l) => { const j = JSON.parse(l); say(`  ${j.engine} ${j.from ?? "-"} -> ${j.to} via ${j.via}`); });
 registry.close();
 await new Promise((r) => setTimeout(r, 300));
-rmSync(ROOT, { recursive: true, force: true });
