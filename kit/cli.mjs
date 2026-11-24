@@ -29,6 +29,7 @@ import { selfUpdate, autoUpdateEnabled } from "./update.mjs";
 
 const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-url <url>]\n" +
   "     engine-kit update <motor> [--check] [--json]   pede ao updater do daemon vivo (motor com runtime.updatePath) que se atualize; --check só compara as versões\n" +
+  "     engine-kit ensure <motor> --dry-run [--version <x.y.z>] [--registry-url <url>] [--json]   diz o que o ensure faria (instalaria, atualizaria, reusaria, manteria) sem baixar nem gravar nada; vale também com vários motores e com --de\n" +
   "     engine-kit ensure <motor> <motor>... [--registry-url <url>] [--json]   vários motores numa chamada; uma falha não esconde os outros (exit 1 se algum falhou; --json devolve { ok, engines })\n" +
   "     engine-kit pin <motor> [--version <x.y.z>] [--registry-url <url>]   fixa a versão instalada (ou instala e fixa x.y.z)\n" +
   "     engine-kit unpin <motor>                     solta o motor para voltar a atualizar\n" +
@@ -60,7 +61,7 @@ const nomeOpcional = name?.startsWith("-") ? undefined : name;
 const COM_VALOR = ["--version", "--registry-url", "--dest", "--engine", "--de"];
 const deManifesto = cmd === "ensure" && name === "--de";
 const FLAGS = {
-  ensure: ["--version", "--registry-url", "--register", "--unregister", "--json", "--de"],
+  ensure: ["--version", "--registry-url", "--register", "--unregister", "--json", "--de", "--dry-run"],
   pin: ["--version", "--registry-url", "--json"],
   unpin: [],
   fetch: ["--version", "--registry-url", "--dest", "--json"],
@@ -93,6 +94,8 @@ const sobra = () => {
 const posicionais = () => { const o = []; for (let i = 1; i < args.length; i++) { if (!args[i].startsWith("-")) { o.push(args[i]); } else if (COM_VALOR.includes(args[i])) { i++; } } return o; };
 const motores = cmd === "ensure" && !deManifesto ? [...new Set(posicionais())] : [];
 const asJson = args.includes("--json");
+const dryRun = args.includes("--dry-run");
+const planoEm = (r) => ({ instalar: `instalaria v${r.version}`, atualizar: `atualizaria v${r.installed} → v${r.version}`, reusar: `reusaria v${r.version}, já em dia`, manter: `manteria v${r.version} (v${r.available} disponível; ENGINE_KIT_NO_AUTO_UPDATE ligado)` })[r.plan];
 const log = (m) => { if (!asJson) { console.log(m); } };
 
 /** Retorno de um verbo no formato das linhas do `doctor --json` (name, state, detail, warns, pin); o resto é do verbo. */
@@ -104,6 +107,7 @@ const jsonOf = (verb, name, r) => {
     ...(r.pointer && !["OK", "AUSENTE"].includes(r.pointer.state) ? [`ponteiro cli.json ${r.pointer.state}: ${r.pointer.detail}`] : []),
   ];
   const base = { name, ok: true, warns, pin: r.pinned ?? null };
+  if (r.dryRun) { return { ...base, state: "PLANO", plan: r.plan, detail: planoEm(r), version: r.version, ...(r.installed ? { installed: r.installed } : {}), ...(r.available ? { available: r.available } : {}) }; }
   if (verb === "stop") { return { ...base, state: r.stopped ? "PARADO" : "SEM PROCESSO", detail: r.stopped ? "desligado" : "nada vivo para desligar", stopped: r.stopped }; }
   if (verb === "fetch") { return { ...base, state: "BAIXADO", detail: `v${r.version} conferido, não instalado`, version: r.version, files: r.files }; }
   if (verb === "update") { return { ...base, state: r.state, detail: r.detail, ...(r.current ? { current: r.current } : {}), ...(r.available ? { available: r.available } : {}) }; }
@@ -135,6 +139,9 @@ if (cmd === "--help" || cmd === "-h") {
   process.exitCode = 1;
 } else if (["--register", "--unregister"].some((f) => args.includes(f)) && !(cmd === "ensure" && name === "neural-link")) {
   console.error("--register e --unregister só valem para `engine-kit ensure neural-link`");
+  process.exitCode = 1;
+} else if (dryRun && ["--register", "--unregister"].some((f) => args.includes(f))) {
+  console.error("--dry-run não combina com --register nem --unregister: o plano não grava nada");
   process.exitCode = 1;
 } else if (args.includes("--register") && args.includes("--unregister")) {
   console.error("--register e --unregister não combinam");
@@ -177,7 +184,7 @@ if (cmd === "--help" || cmd === "-h") {
   } else if (cmd === "check" || deManifesto) {
     const files = deManifesto ? [flag("--de"), ...posicionais()] : posicionais();
     const rs = [];
-    for (const f of files) { rs.push(deManifesto ? await ensureDeCommand(f, { registryUrl: flag("--registry-url"), autoUpdate: autoUpdateEnabled(), log }) : await checkCommand(f, { rede: args.includes("--rede"), registryUrl: flag("--registry-url") })); }
+    for (const f of files) { rs.push(deManifesto ? await ensureDeCommand(f, { registryUrl: flag("--registry-url"), autoUpdate: autoUpdateEnabled(), dryRun, log }) : await checkCommand(f, { rede: args.includes("--rede"), registryUrl: flag("--registry-url") })); }
     if (asJson) { console.log(JSON.stringify(files.length > 1 ? { ok: rs.every((r) => r.ok), manifests: rs } : rs[0], null, 2)); }
     else {
       for (const [i, r] of rs.entries()) {
@@ -186,7 +193,7 @@ if (cmd === "--help" || cmd === "-h") {
         const w = Math.max(0, ...r.engines.map((e) => e.name.length));
         for (const e of r.engines) { console.log(`${e.satisfied ? "  OK  " : "  !!  "} ${e.name.padEnd(w)}  ${String(e.range).padEnd(10)} ${e.acao ? `[${e.acao}] ` : ""}${e.state === "OK" ? e.detail : `${e.state}: ${e.detail}`}${e.available ? ` (v${e.available} disponível; ENGINE_KIT_NO_AUTO_UPDATE ligado)` : ""}`); }
         if (r.reason) { console.error(r.reason); }
-        console.log(r.engines.length ? (r.ok ? `\n== os ${r.engines.length} motor(es) satisfazem o manifesto ==` : `\n== ${r.engines.filter((e) => !e.satisfied).length} motor(es) não satisfazem o manifesto ==`) : "nenhum motor declarado no bloco engines");
+        console.log(r.dryRun ? "\n== plano: nada foi instalado ==" : r.engines.length ? (r.ok ? `\n== os ${r.engines.length} motor(es) satisfazem o manifesto ==` : `\n== ${r.engines.filter((e) => !e.satisfied).length} motor(es) não satisfazem o manifesto ==`) : "nenhum motor declarado no bloco engines");
       }
     }
     if (rs.some((r) => !r.ok)) { process.exitCode = 1; }
@@ -233,14 +240,15 @@ if (cmd === "--help" || cmd === "-h") {
     done("pin", r, () => { console.log(`OK ${name} fixado em v${r.pinned}; a atualização automática pula este motor (engine-kit unpin ${name} solta)`); avisoCache(r); });
   } else if (motores.length > 1) {
     const rs = [];
-    for (const m of motores) { rs.push([m, await ensureCommand(m, { registryUrl: flag("--registry-url"), autoUpdate: autoUpdateEnabled(), log })]); }
+    for (const m of motores) { rs.push([m, await ensureCommand(m, { registryUrl: flag("--registry-url"), autoUpdate: autoUpdateEnabled(), dryRun, log })]); }
     if (asJson) { console.log(JSON.stringify({ ok: rs.every(([, r]) => r.ok), engines: rs.map(([m, r]) => jsonOf("ensure", m, r)) }, null, 2)); }
-    else { for (const [m, r] of rs) { if (r.ok) { console.log(`OK ${m} v${r.version} (${r.reused ? "já instalado, reusado" : r.previous ? `atualizado de v${r.previous}` : "instalado"}) em ${r.entryPath}`); } else { console.error(`FALHOU ${m}: ${r.reason}`); } } }
+    else { for (const [m, r] of rs) { if (r.ok && r.dryRun) { console.log(`PLANO ${m}: ${planoEm(r)}`); } else if (r.ok) { console.log(`OK ${m} v${r.version} (${r.reused ? "já instalado, reusado" : r.previous ? `atualizado de v${r.previous}` : "instalado"}) em ${r.entryPath}`); } else { console.error(`FALHOU ${m}: ${r.reason}`); } } }
     if (rs.some(([, r]) => !r.ok)) { process.exitCode = 1; }
   } else {
     const autoUpdate = autoUpdateEnabled();
-    const r = await ensureCommand(name, { version: flag("--version"), registryUrl: flag("--registry-url"), autoUpdate, log });
+    const r = await ensureCommand(name, { version: flag("--version"), registryUrl: flag("--registry-url"), autoUpdate, dryRun, log });
     if (asJson) { done("ensure", r); }
+    else if (r.ok && r.dryRun) { console.log(`PLANO ${name}: ${planoEm(r)}`); avisoCache(r); }
     else if (r.ok) {
       const how = r.reused ? "já instalado, reusado" : r.signed ? "assinatura Ed25519 conferida" : "SEM assinatura no registry";
       if (r.previous) { console.log(`motor atualizado: ${name} v${r.previous} → v${r.version}`); }

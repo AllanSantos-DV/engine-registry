@@ -78,11 +78,12 @@ export function listCommand({ bundled, platform = target() } = {}) {
  * @param {boolean=} opts.autoUpdate false = motor já instalado fica na versão dele e o retorno avisa a nova
  *        (`available`). Default true. Um `version` explícito sempre vale: foi pedido.
  *        Motor fixado (`engine-kit pin`) fica sempre na versão fixada; `version` diferente dela é recusado.
+ * @param {boolean=} opts.dryRun true = só diz o que faria, sem baixar nem gravar: devolve `{ ok:true, dryRun:true, plan }` com `plan` = instalar, atualizar, reusar ou manter.
  * @returns {Promise<{ok:true, entryPath:string, version:string, kind:string, reused?:boolean, signed?:boolean,
  *          previous?:string, available?:string, pinned?:string} | {ok:false, reason:string}>} `previous` = versão
  *          substituída; `pinned` = versão em que o motor está fixado.
  */
-export async function ensureCommand(name, { version, registryUrl, bundled, manifest, fetcher, autoUpdate = true, log = () => {} } = {}) {
+export async function ensureCommand(name, { version, registryUrl, bundled, manifest, fetcher, autoUpdate = true, dryRun = false, log = () => {} } = {}) {
   const { local, reason } = embarcado(bundled);
   if (!local) { return { ok: false, reason }; }
 
@@ -103,7 +104,18 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
 
   const engine = r.engine;
   const previous = installedOf(engine);
-  if ((!autoUpdate || engine.runtime?.updatePath) && !version && !pin && previous && !satisfiesPin(previous, engine.version)) {
+  const manter = (!autoUpdate || engine.runtime?.updatePath) && !version && !pin && previous && !satisfiesPin(previous, engine.version);
+  if (dryRun) {
+    if (engine.status === "pending-release") { return { ok: false, reason: `${name} ainda não publicou release (status: pending-release)` }; }
+    if (engine.status === "self-managed" && !previous) { return { ok: false, reason: `${name} é self-managed: instala pelo próprio instalador → engine-kit fetch ${name} baixa e confere` }; }
+    const serve = previous && (version || pin ? previous === engine.version : engine.runtime?.updatePath || satisfiesPin(previous, engine.version));
+    return {
+      ok: true, dryRun: true, plan: manter ? "manter" : serve ? "reusar" : previous ? "atualizar" : "instalar", kind: engine.kind,
+      version: manter || serve ? previous : engine.version,
+      ...(previous ? { installed: previous } : {}), ...(manter ? { available: engine.version } : {}), ...(pin ? { pinned: pin } : {}), ...(engine.staleCache ? { staleCache: true } : {}),
+    };
+  }
+  if (manter) {
     return {
       ok: true, entryPath: join(engine.homeDir, engine.install.entry), version: previous, kind: engine.kind, reused: true, available: engine.version,
       ...(engine.staleCache ? { staleCache: true } : {}),
@@ -159,8 +171,12 @@ export async function ensureDeCommand(file, opts = {}) {
     if (!["AUSENTE", "FORA-DA-FAIXA"].includes(e.state)) { extra[e.name] = { acao: { OK: "reusado", "NAO-VERIFICAVEL": "pulado" }[e.state] ?? "recusado" }; continue; }
     const r = await ensureCommand(e.name, opts);
     extra[e.name] = r.ok
-      ? { acao: r.previous ? "atualizado" : r.reused ? "mantido" : "instalado", version: r.version, previous: r.previous, available: r.available }
+      ? { acao: opts.dryRun ? { instalar: "instalaria", atualizar: "atualizaria" }[r.plan] ?? "mantido" : r.previous ? "atualizado" : r.reused ? "mantido" : "instalado", version: r.version, previous: r.previous ?? r.installed, available: r.available }
       : { acao: "falhou", detail: r.reason };
+  }
+  if (opts.dryRun) {
+    const engines = antes.engines.map((e) => ({ ...e, ...extra[e.name] }));
+    return { ok: engines.every((e) => !["recusado", "falhou"].includes(e.acao)), manifest: file, dryRun: true, engines };
   }
   const depois = await checkCommand(file, { manifest: opts.manifest });
   if (!depois.engines) { return depois; }
