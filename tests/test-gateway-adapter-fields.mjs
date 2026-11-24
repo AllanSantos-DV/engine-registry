@@ -89,7 +89,7 @@ console.log("\n== ensureGateway: chave do primeiro contato ==\n");
   const corpo = Buffer.from("artefato");
   const fetcher = async (u) => (u.endsWith(".sha256") ? Buffer.from(`${createHash("sha256").update(corpo).digest("hex")}  mcp-gateway.tgz`) : corpo);
   const gw = await ensureGateway({ registryUrl: url, fetcher, trustedKeys: { "mcp-gateway": "aa".repeat(32) }, bootTimeoutMs: 1500 });
-  check("chave do registry diferente da fixada: ABORT, gateway indisponível", gw.available === false && /FIXADA/.test(gw.reason), gw.reason);
+  check("chave do registry diferente da fixada: ABORT, gateway indisponível", gw.available === false && /FIXADA/.test(gw.reason), JSON.stringify({ a: gw.available, r: gw.reason }));
   otro.close();
 }
 

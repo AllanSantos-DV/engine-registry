@@ -25,6 +25,8 @@ for (const nome of readdirSync(mae)) {
 }
 mkdirSync(rodada, { recursive: true });
 process.env.TEMP = process.env.TMP = process.env.TMPDIR = rodada;
+// Um teste que precisa da atualização desligada a liga sozinho; o shell de quem roda não decide.
+delete process.env.ENGINE_KIT_NO_AUTO_UPDATE;
 
 process.on("exit", () => {
   rmSync(rodada, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
