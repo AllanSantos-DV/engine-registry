@@ -24,7 +24,7 @@
 import { ensureCommand, ensureDeCommand, pinCommand, unpinCommand, stopCommand, listCommand, rollbackCommand, instaladosAtualizaveis } from "./ensure.mjs";
 import { registerNeuralLink, unregisterNeuralLink } from "./register.mjs";
 import { fetchCommand } from "./fetch.mjs";
-import { historyCommand, checkCommand, urlCommand, updateCommand, reportCommand, trustCommand, trustRestoreCommand, pathCommand } from "./inspect.mjs";
+import { historyCommand, checkCommand, urlCommand, updateCommand, reportCommand, trustCommand, trustRestoreCommand, pathCommand, infoCommand } from "./inspect.mjs";
 import { selfUpdate, autoUpdateEnabled } from "./update.mjs";
 
 const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-url <url>]\n" +
@@ -46,6 +46,7 @@ const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-ur
   "     engine-kit rollback <motor> [--registry-url <url>] [--json]   volta à versão anterior à última troca do history (sha256 + Ed25519) e fixa nela; recusa primeira instalação e motor self-managed\n" +
   "     engine-kit trust [motor] [--json]            o que o trust.json guarda por motor (chave pública, origem, maior versão, pin) e se bate com o manifest embarcado; só lê\n" +
   "     engine-kit trust --restaurar                 devolve o trust.json a partir do .bak quando ele está ilegível (a cópia é validada; a troca é atômica)\n" +
+  "     engine-kit info <motor> [--json]             descritor, versão no manifest, versão instalada, estado, pin, plataformas e release de um motor; só lê, sem rede\n" +
   "     engine-kit path <motor> [--json]             caminho do executável do motor instalado e o estado do cli.json dele; sem rede, não sobe nada\n" +
   "     engine-kit url <motor> [--json]              endereço do daemon vivo (url, versão e pid) lido do anúncio dele; nunca imprime o token\n" +
   "     engine-kit mcp                               servidor MCP (stdio) só de leitura: engine_list, engine_history, engine_check, engine_path, engine_url, engine_trust, engine_doctor, engine_report; não atualiza o kit\n" +
@@ -55,7 +56,7 @@ const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-ur
 
 const args = process.argv.slice(2);
 const flag = (n) => { const i = args.indexOf(n); return i === -1 ? undefined : args[i + 1]; };
-const VERBS = ["ensure", "pin", "unpin", "fetch", "stop", "doctor", "list", "history", "check", "url", "rollback", "trust", "path", "update", "mcp"];
+const VERBS = ["ensure", "pin", "unpin", "fetch", "stop", "doctor", "list", "history", "check", "url", "rollback", "trust", "path", "update", "info", "mcp"];
 const NOME_OPCIONAL = ["doctor", "list", "history", "trust", "mcp"];
 const [cmd, name] = args;
 const nomeOpcional = name?.startsWith("-") ? undefined : name;
@@ -76,6 +77,7 @@ const FLAGS = {
   rollback: ["--registry-url", "--json"],
   trust: ["--json", "--restaurar"],
   path: ["--json"],
+  info: ["--json"],
   update: ["--json", "--check"],
   mcp: [],
 };
@@ -206,6 +208,18 @@ if (cmd === "--help" || cmd === "-h") {
       }
     }
     if (rs.some((r) => !r.ok)) { process.exitCode = 1; }
+  } else if (cmd === "info") {
+    const r = await infoCommand(name);
+    if (asJson) { console.log(JSON.stringify(r, null, 2)); }
+    else if (!r.ok) { console.error(`FALHOU info ${name}: ${r.reason}`); }
+    else {
+      console.log(`${r.name}  (${r.kind})  ${r.summary}`);
+      console.log(`versão no manifest: v${r.version}   instalado: ${r.installed ? `v${r.installed}` : "não instalado"}   estado: ${r.state} (${r.detail})`);
+      console.log(`pin: ${r.pin ?? "-"}   plataformas: ${r.platforms.join(",") || "todas"}${r.supported ? "" : " (esta máquina não é atendida)"}`);
+      console.log(`release: ${r.release ?? "-"}`);
+      for (const w of r.warns) { console.log(`aviso: ${w}`); }
+    }
+    if (!r.ok) { process.exitCode = 1; }
   } else if (cmd === "path") {
     const r = await pathCommand(name);
     if (asJson) { console.log(JSON.stringify(r, null, 2)); }

@@ -5,7 +5,7 @@ import { readFileSync, existsSync, writeFileSync, renameSync } from "node:fs";
 import { basename, join } from "node:path";
 import { historyPath, cmpVer, readTrust, trustPath, embeddedManifest } from "./trust.mjs";
 import { diagnoseEngines, detailLines, pointerOf } from "./diagnose.mjs";
-import { resolve } from "./resolve.mjs";
+import { resolve, fill, platformReason } from "./resolve.mjs";
 import { ownVersion } from "./update.mjs";
 import { discover } from "./client.mjs";
 
@@ -145,6 +145,28 @@ export async function pathCommand(name, { bundled } = {}) {
   if (e.status === "self-managed") { return { ok: false, reason: `${name} é self-managed: o kit não o instala nem sabe onde o próprio updater o pôs` }; }
   if (!existsSync(path)) { return { ok: false, reason: `${name} não está instalado (falta ${path}) → engine-kit ensure ${name}` }; }
   return { ok: true, name, path, pointer: pointerOf(e) };
+}
+
+/**
+ * `engine-kit info <motor>`: o que o kit sabe de um motor num lugar só — descritor do manifest embarcado, versão instalada, estado do diagnóstico, pin, plataformas e release.
+ * Sem rede e sem gravar: `version` é a do manifest deste kit, não a publicada agora (para essa, `doctor` ou `check --rede`).
+ * @param {string} name motor.
+ * @param {{bundled?:object}=} opts `bundled` = manifest embarcado (testes).
+ * @returns {Promise<{ok:true, name:string, kind:string, summary:string, version:string, installed:string|null, state:string, detail:string, pin:string|null, platforms:string[], supported:boolean, selfManaged:boolean, release:string|null, warns:string[]} | {ok:false, reason:string}>}
+ */
+export async function infoCommand(name, { bundled } = {}) {
+  let local;
+  try { local = bundled ?? embeddedManifest(); } catch (e) { return { ok: false, reason: `manifest embarcado ilegível: ${e.message}` }; }
+  if (!(local.engines ?? []).some((e) => e.name === name)) { return { ok: false, reason: `motor "${name}" não está no manifest deste engine-kit → atualize o kit (npx engine-kit@latest info ${name})` }; }
+  const d = await diagnoseEngines({ only: name, local: true, manifest: local });
+  if (!d.ok) { return d; }
+  const { state, detail, installed, pin, engine: e, warns } = d.rows[0];
+  if (!e) { return { ok: false, reason: detail }; }
+  const { repo, tag } = e.install;
+  return {
+    ok: true, name, kind: e.kind, summary: e.summary, version: e.version, installed: installed ?? null, state, detail, pin: pin || null, platforms: e.platforms ?? [],
+    supported: platformReason(e) === null, selfManaged: e.status === "self-managed", release: repo && tag ? `https://github.com/${repo}/releases/tag/${fill(tag, { version: e.version, platform: process.platform, arch: process.arch })}` : null, warns: warns ?? [],
+  };
 }
 
 /**
