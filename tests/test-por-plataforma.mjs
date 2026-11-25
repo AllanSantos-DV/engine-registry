@@ -7,7 +7,7 @@
 import "./_tmp.mjs";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { resolve } from "../kit/resolve.mjs";
+import { resolve, platformReason } from "../kit/resolve.mjs";
 import { loadSchema, manifestErrors } from "../tools/schema-check.mjs";
 
 const manifest = JSON.parse(readFileSync(join(import.meta.dirname, "..", "manifest.json"), "utf8"));
@@ -39,6 +39,10 @@ check("win32-x64: continua com motor-de-grafo.tgz e o .exe", win.ok && win.engin
 
 const mac = await comoEm("darwin", "arm64", "motor-de-grafo", "0.1.3");
 check("plataforma sem override usa o install base", mac.ok && mac.engine.assetUrl === `${BASE}/motor-de-grafo.tgz` && mac.engine.install.entry === "bin/motor-de-grafo.exe");
+
+const semBuild = (e, plat) => platformReason(e, plat);
+check("todo motor com byPlatform declara essa plataforma em platforms (o kit não recusa o que tem asset)", manifest.engines.filter((e) => e.install.byPlatform).every((e) => Object.keys(e.install.byPlatform).every((p) => (e.platforms ?? []).includes(p))), manifest.engines.filter((e) => e.install.byPlatform && !Object.keys(e.install.byPlatform).every((p) => (e.platforms ?? []).includes(p))).map((e) => e.name).join(", "));
+check("motor-de-grafo: linux-x64 não é recusado e darwin-arm64 continua recusado", semBuild(grafo, "linux-x64") === null && semBuild(grafo, "darwin-arm64") !== null);
 
 const outro = await comoEm("linux", "x64", "embed-house", "1.0.5");
 check("motor sem byPlatform não muda no Linux", outro.ok && outro.engine.assetUrl.endsWith("/embed-house-linux-x64.tgz") && outro.engine.install.entry === "bin/server.mjs");

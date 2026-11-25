@@ -365,7 +365,8 @@
         "signatureRequired": true
       },
       "platforms": [
-        "win32-x64"
+        "win32-x64",
+        "linux-x64"
       ],
       "notes": "kind=cli: o kit instala só o que está ausente; o motor atualiza por POST /api/v1/server/update (runtime.updatePath) e o kit não troca uma instalação presente. O anúncio run/daemon.json traz url, port, pid, version e shutdownToken (cabeçalho x-shutdown-token no desligamento).",
       "runtime": {
