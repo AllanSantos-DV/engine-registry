@@ -54,9 +54,11 @@ export const derrubarAntes = (engine, log) => async () => {
 
 /**
  * `engine-kit list`: os motores do manifest embarcado, a plataforma que cada um atende e o que está instalado aqui. Não usa rede. Nunca lança.
- * @returns {{ok:true, platform:string, engines:{name:string, version:string, kind:string, platforms:string[], supported:boolean, installed:string|null, selfManaged:boolean}[]} | {ok:false, reason:string}}
+ * Com `apps`, acrescenta `apps` (os de `manifest.apps`: nome, versão, resumo, plataformas, se esta máquina é atendida e o pin do trust.json); sem ela o retorno não muda.
+ * @param {{bundled?:object, platform?:string, apps?:boolean}=} opts `bundled` = manifest embarcado (testes).
+ * @returns {{ok:true, platform:string, engines:{name:string, version:string, kind:string, platforms:string[], supported:boolean, installed:string|null, selfManaged:boolean}[], apps?:{name:string, version:string, summary:string, platforms:string[], supported:boolean, pin:string|null}[]} | {ok:false, reason:string}}
  */
-export function listCommand({ bundled, platform = target() } = {}) {
+export function listCommand({ bundled, platform = target(), apps = false } = {}) {
   const { local, reason } = embarcado(bundled);
   if (!local) { return { ok: false, reason }; }
   const engines = (local.engines ?? []).map((e) => {
@@ -64,8 +66,17 @@ export function listCommand({ bundled, platform = target() } = {}) {
     try { installed = e.status !== "self-managed" && e.install.entry && e.home ? installedOf({ homeDir: expandHome(e.home), install: e.install }) : null; } catch { /* instalação ilegível = não instalado */ }
     return { name: e.name, version: e.version, kind: e.kind, platforms: e.platforms ?? [], supported: platformReason(e, platform) === null, installed, selfManaged: e.status === "self-managed" };
   });
-  return { ok: true, platform, engines };
+  if (!apps) { return { ok: true, platform, engines }; }
+  try {
+    return { ok: true, platform, engines, apps: (local.apps ?? []).map((a) => ({ name: a.name, version: a.version, summary: a.summary, platforms: a.platforms ?? [], supported: platformReason(a, platform) === null, pin: pinOf(a.name) ?? null })) };
+  } catch (e) { return { ok: false, reason: e.message }; }
 }
+
+/** O que o kit faria, em texto, a partir do retorno de `ensure`, `pin` ou `rollback` com `dryRun:true`. */
+export const planoEm = (r) => ({
+  instalar: `instalaria v${r.version}`, atualizar: `atualizaria v${r.installed} → v${r.version}`, reusar: `reusaria v${r.version}, já em dia`, manter: `manteria v${r.version} (v${r.available} disponível; ENGINE_KIT_NO_AUTO_UPDATE ligado)`,
+  fixar: `fixaria v${r.version} (já instalada)`, "instalar-e-fixar": `instalaria v${r.version} e fixaria`, "trocar-e-fixar": `trocaria v${r.installed} → v${r.version} e fixaria`, reverter: `reverteria v${r.installed} → v${r.version} e fixaria`,
+})[r.plan];
 
 /**
  * Fetcher de `ensureDeArquivo`: o artefato e os sidecars `<tgz>.sha256` e `<tgz>.sig` (os três assets da release) saem do disco,
@@ -107,11 +118,12 @@ export function instaladosAtualizaveis(opts) {
  *        (`available`). Default true. Um `version` explícito sempre vale: foi pedido.
  *        Motor fixado (`engine-kit pin`) fica sempre na versão fixada; `version` diferente dela é recusado.
  * @param {boolean=} opts.dryRun true = só diz o que faria, sem baixar nem gravar: devolve `{ ok:true, dryRun:true, plan }` com `plan` = instalar, atualizar, reusar ou manter.
+ * @param {boolean=} opts.fixar com `dryRun` e `version`: o plano de um `pin --version`, em que o pin gravado não contradiz a versão pedida porque ela é a que vai ser fixada.
  * @returns {Promise<{ok:true, entryPath:string, version:string, kind:string, reused?:boolean, signed?:boolean,
  *          previous?:string, available?:string, pinned?:string} | {ok:false, reason:string}>} `previous` = versão
  *          substituída; `pinned` = versão em que o motor está fixado.
  */
-export async function ensureCommand(name, { version, registryUrl, bundled, manifest, fetcher, autoUpdate = true, dryRun = false, log = () => {} } = {}) {
+export async function ensureCommand(name, { version, registryUrl, bundled, manifest, fetcher, autoUpdate = true, dryRun = false, fixar = false, log = () => {} } = {}) {
   const { local, reason } = embarcado(bundled);
   if (!local) { return { ok: false, reason }; }
 
@@ -124,7 +136,7 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
     return { ok: false, reason: `${name}: o manifest embarcado não traz publicKey → sem chave do primeiro contato não instalo (ABORT)` };
   }
 
-  const { pin, reason: recusa } = pinFor(name, version);
+  const { pin, reason: recusa } = dryRun && fixar ? { pin: version } : pinFor(name, version);
   if (recusa) { return { ok: false, reason: recusa }; }
   // refresh: instalar quer a verdade do registry, não um descritor de cache.
   const r = await resolve(name, { version: version ?? pin, registryUrl, refresh: true, ...(manifest ? { manifest } : {}) });
@@ -220,10 +232,18 @@ const semMotor = (local, name, verbo) => (local.apps ?? []).some((a) => a.name =
 /**
  * `engine-kit pin <motor> [--version x.y.z]`: congela UM motor. Sem `version`, fixa a versão instalada; com ela,
  * instala essa versão (sha256 + Ed25519, downgrade permitido) e fixa. A autoatualização pula só este motor.
- * Nunca lança. Opções de teste iguais às de `ensureCommand`.
+ * Com `dryRun` só devolve o plano, sem instalar, baixar nem gravar o pin: `{ ok:true, dryRun:true, plan, version, installed?, pinned }` com `plan` = fixar,
+ * instalar-e-fixar ou trocar-e-fixar; as recusas são as mesmas. Nunca lança. Opções de teste iguais às de `ensureCommand`.
  * @returns {Promise<{ok:true, version:string, pinned:string} | {ok:false, reason:string}>}
  */
 export async function pinCommand(name, { version, ...opts } = {}) {
+  if (opts.dryRun) {
+    try { pinOf(name); } catch (e) { return { ok: false, reason: e.message }; }
+  }
+  if (version && opts.dryRun) {
+    const e = await ensureCommand(name, { ...opts, version, fixar: true });
+    return e.ok ? { ...e, plan: { reusar: "fixar", atualizar: "trocar-e-fixar", instalar: "instalar-e-fixar" }[e.plan] } : e;
+  }
   if (version) {
     const s = setPin(name, version), before = s.was;
     if (!s.ok) { return s; }
@@ -243,6 +263,7 @@ export async function pinCommand(name, { version, ...opts } = {}) {
   if (!inst) {
     return { ok: false, reason: `${name} não está instalado (ou a versão é ilegível) → engine-kit pin ${name} --version <x.y.z> instala e fixa` };
   }
+  if (opts.dryRun) { return { ok: true, dryRun: true, plan: "fixar", kind: r.engine.kind, version: inst, installed: inst, pinned: inst, ...(r.engine.staleCache ? { staleCache: true } : {}) }; }
   const s = setPin(name, inst);
   return s.ok ? { ok: true, version: inst, pinned: inst, ...(r.engine.staleCache ? { staleCache: true } : {}) } : s;
 }
@@ -256,7 +277,8 @@ export function unpinCommand(name) {
 /**
  * `engine-kit rollback <motor>`: volta o motor para a versão que ele tinha antes da última troca gravada no histórico (`history`), instalando-a
  * por `pin --version` (sha256 + Ed25519, downgrade permitido) e FIXANDO: sem o pin o próximo `ensure` atualizaria de volta. Só desfaz uma troca
- * que ainda vale: a versão instalada precisa ser a que a última troca gravou. Nunca lança. Opções de teste iguais às do `pinCommand`.
+ * que ainda vale: a versão instalada precisa ser a que a última troca gravou. Com `dryRun` devolve só o plano (`plan:"reverter"`, de `installed` para `version`), sem trocar a versão nem gravar o pin.
+ * Nunca lança. Opções de teste iguais às do `pinCommand`.
  * @returns {Promise<{ok:true, version:string, pinned:string} | {ok:false, reason:string}>}
  */
 export async function rollbackCommand(name, { bundled, ...opts } = {}) {
@@ -270,7 +292,8 @@ export async function rollbackCommand(name, { bundled, ...opts } = {}) {
   if (!row) { return { ok: false, reason: `motor "${name}" não está no manifest deste engine-kit → atualize o kit (npx engine-kit@latest rollback ${name})` }; }
   if (row.selfManaged) { return { ok: false, reason: `${name} é self-managed: atualiza pelo próprio updater, o engine-kit não troca a versão dele` }; }
   if (row.installed !== last.to) { return { ok: false, reason: `instalado v${row.installed ?? "nenhuma"}, mas a última troca gravada terminou em v${last.to} → o histórico não descreve a instalação atual; use engine-kit pin ${name} --version <x.y.z>` }; }
-  return pinCommand(name, { ...opts, bundled, version: last.from });
+  const r = await pinCommand(name, { ...opts, bundled, version: last.from });
+  return r.ok && r.dryRun ? { ...r, plan: "reverter" } : r;
 }
 
 /**

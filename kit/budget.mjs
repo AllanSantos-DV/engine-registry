@@ -161,10 +161,14 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-11-24 runtime 38000 → 38700: quarentena da versão que não subiu (decisão do dono, opção Q1) — `failedVersions` em trust.mjs lê as voltas do
 //   `history.jsonl` e o `ensureEngine` mantém a versão atual em vez de baixar, derrubar e voltar a cada `ensure` (+0.6 KB). Os cortes tentados não pagaram os bytes:
 //   o fecho já é denso e cada linha restante tem comportamento coberto por teste. O consumidor ganha um `ensure` que não derruba o motor à toa; o resto do runtime não mudou.
+//   2026-11-25 tooling 104500 → 109500: três funções irmãs aditivas da lente do 0.2.19, +4.9 KB (mcp.mjs +1.5, ensure.mjs +1.5, cli.mjs +1.1, inspect.mjs +0.7). As tools `engine_info` e `engine_plan` do `engine-kit mcp` e a opção `rede`
+//   do `engine_check`, com a injeção de teste e a checagem de tipo dos argumentos; `rollback --dry-run` e `pin --dry-run` (o plano de troca de versão; o texto do plano, `planoEm`, passou do cli.mjs para o ensure.mjs para servir também ao MCP);
+//   `info <app>` e `list --apps` (o descritor do app com o pin do trust.json). Rodadas na mão de quem instala; o fecho de `kit/index.mjs` não mudou (runtime 38984/39000, a cifra de 39 KB da vitrine segue),
+//   e sem as flags e tools novas o comportamento é o de antes.
 const BUDGETS = {
   runtime: { codeBytes: 39000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10700, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 104500, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 109500, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

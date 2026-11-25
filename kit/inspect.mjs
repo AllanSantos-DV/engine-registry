@@ -3,7 +3,7 @@
 // Importáveis como `engine-kit/kit/inspect.mjs` (ver "Verbos como API" no README).
 import { readFileSync, existsSync, writeFileSync, renameSync } from "node:fs";
 import { basename, join } from "node:path";
-import { historyPath, cmpVer, readTrust, trustPath, embeddedManifest } from "./trust.mjs";
+import { historyPath, cmpVer, readTrust, trustPath, embeddedManifest, pinOf } from "./trust.mjs";
 import { diagnoseEngines, detailLines, pointerOf } from "./diagnose.mjs";
 import { resolve, fill, platformReason } from "./resolve.mjs";
 import { ownVersion } from "./update.mjs";
@@ -147,25 +147,40 @@ export async function pathCommand(name, { bundled } = {}) {
   return { ok: true, name, path, pointer: pointerOf(e) };
 }
 
+const releaseUrl = (repo, tag, version) => repo && tag ? `https://github.com/${repo}/releases/tag/${fill(tag, { version, platform: process.platform, arch: process.arch })}` : null;
+
+/** O `info` de uma entrada de `manifest.apps`: o kit não instala app (só `fetch`), então não há versão instalada nem estado de diagnóstico; `app:true` marca a diferença. */
+function infoDeApp(a) {
+  let pin;
+  try { pin = pinOf(a.name); } catch (e) { return { ok: false, reason: e.message }; }
+  return {
+    ok: true, name: a.name, kind: "app", app: true, summary: a.summary, version: a.version, installed: null, state: "APP", detail: `o kit baixa e confere, não instala → engine-kit fetch ${a.name}`, pin: pin || null,
+    platforms: a.platforms ?? [], supported: platformReason(a) === null, selfManaged: false, release: releaseUrl(a.release?.repo, a.release?.tag, a.version), warns: [],
+  };
+}
+
 /**
- * `engine-kit info <motor>`: o que o kit sabe de um motor num lugar só — descritor do manifest embarcado, versão instalada, estado do diagnóstico, pin, plataformas e release.
+ * `engine-kit info <motor|app>`: o que o kit sabe de um motor num lugar só — descritor do manifest embarcado, versão instalada, estado do diagnóstico, pin, plataformas e release.
+ * Nome de `manifest.apps` devolve o descritor do app (`kind:"app"`, `app:true`, `installed:null`, `state:"APP"`) e o pin do trust.json.
  * Sem rede e sem gravar: `version` é a do manifest deste kit, não a publicada agora (para essa, `doctor` ou `check --rede`).
- * @param {string} name motor.
+ * @param {string} name motor ou app.
  * @param {{bundled?:object}=} opts `bundled` = manifest embarcado (testes).
- * @returns {Promise<{ok:true, name:string, kind:string, summary:string, version:string, installed:string|null, state:string, detail:string, pin:string|null, platforms:string[], supported:boolean, selfManaged:boolean, release:string|null, warns:string[]} | {ok:false, reason:string}>}
+ * @returns {Promise<{ok:true, name:string, kind:string, summary:string, version:string, installed:string|null, state:string, detail:string, pin:string|null, platforms:string[], supported:boolean, selfManaged:boolean, release:string|null, warns:string[], app?:true} | {ok:false, reason:string}>}
  */
 export async function infoCommand(name, { bundled } = {}) {
   let local;
   try { local = bundled ?? embeddedManifest(); } catch (e) { return { ok: false, reason: `manifest embarcado ilegível: ${e.message}` }; }
-  if (!(local.engines ?? []).some((e) => e.name === name)) { return { ok: false, reason: `motor "${name}" não está no manifest deste engine-kit → atualize o kit (npx engine-kit@latest info ${name})` }; }
+  if (!(local.engines ?? []).some((e) => e.name === name)) {
+    const app = (local.apps ?? []).find((a) => a.name === name);
+    return app ? infoDeApp(app) : { ok: false, reason: `motor "${name}" não está no manifest deste engine-kit → atualize o kit (npx engine-kit@latest info ${name})` };
+  }
   const d = await diagnoseEngines({ only: name, local: true, manifest: local });
   if (!d.ok) { return d; }
   const { state, detail, installed, pin, engine: e, warns } = d.rows[0];
   if (!e) { return { ok: false, reason: detail }; }
-  const { repo, tag } = e.install;
   return {
     ok: true, name, kind: e.kind, summary: e.summary, version: e.version, installed: installed ?? null, state, detail, pin: pin || null, platforms: e.platforms ?? [],
-    supported: platformReason(e) === null, selfManaged: e.status === "self-managed", release: repo && tag ? `https://github.com/${repo}/releases/tag/${fill(tag, { version: e.version, platform: process.platform, arch: process.arch })}` : null, warns: warns ?? [],
+    supported: platformReason(e) === null, selfManaged: e.status === "self-managed", release: releaseUrl(e.install.repo, e.install.tag, e.version), warns: warns ?? [],
   };
 }
 

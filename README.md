@@ -127,19 +127,21 @@ npx engine-kit doctor --fix [--engine <motor>]    # aplica e limpa as sobras de 
 npx engine-kit doctor --json [--engine <motor>]   # mesmo diagnóstico em JSON, para agentes e hooks
 npx engine-kit doctor --verify [--engine <motor>] # confere o sha256 de cada arquivo instalado: alterado ou ausente = ADULTERADO
 npx engine-kit doctor --report [--engine <motor>] # texto colável para suporte: kit, Node, plataforma, variáveis, motores, sobras e hooks; sem token nem chave
-npx engine-kit list [--json]                      # os motores do pacote, a plataforma de cada um e a versão instalada (sem rede)
+npx engine-kit list [--json] [--apps]             # os motores do pacote, a plataforma de cada um e a versão instalada (sem rede); --apps acrescenta os apps de manifest.apps, com a plataforma e o pin de cada um
 npx engine-kit history [motor] [--json]           # as trocas de versão gravadas nesta máquina: de → para e a origem
 npx engine-kit ensure <motor> <motor> [...] [--registry-url <url>] [--json]   # vários motores numa chamada; uma falha não esconde os outros, exit 1 se algum falhou, --json devolve { ok, engines }
 npx engine-kit ensure <motor> --dry-run [--version <x.y.z>] [--json]   # diz o que o ensure faria (instalaria, atualizaria, reusaria, manteria) sem baixar nem gravar; vale com vários motores e com --de
 npx engine-kit ensure --instalados [--dry-run] [--json]   # atualiza, numa chamada, os motores instalados aqui (pin respeitado; self-managed e motor de outra plataforma ficam de fora)
 npx engine-kit ensure <motor> --de-arquivo <artefato.tgz>   # instala do artefato local, com <artefato>.sha256 e <artefato>.sig ao lado (os três assets da release); sha256, Ed25519 e versão continuam obrigatórios
-npx engine-kit info <motor> [--json]              # descritor, versão no manifest, versão instalada, estado, pin, plataformas e release de um motor; só lê, sem rede
+npx engine-kit info <motor|app> [--json]          # descritor, versão no manifest, versão instalada, estado, pin, plataformas e release de um motor (de um app: o descritor e o pin, sem versão instalada); só lê, sem rede
 npx engine-kit update <motor> [--check] [--json]       # pede ao updater do daemon vivo (motor com runtime.updatePath, como o motor-de-grafo) que se atualize; --check só compara as versões; o token do anúncio vai só no cabeçalho
 npx engine-kit rollback <motor> [--json]          # volta à versão anterior à última troca do history (sha256 + Ed25519) e fixa nela; recusa primeira instalação e self-managed
+npx engine-kit rollback <motor> --dry-run [--json]   # diz de qual versão para qual voltaria e que fixaria nela, sem trocar a versão nem gravar o pin; as mesmas recusas
+npx engine-kit pin <motor> --version <x.y.z> --dry-run [--json]   # diz o que o pin faria (fixaria, instalaria e fixaria, trocaria e fixaria) sem instalar nem gravar o pin; sem --version, o plano é fixar a versão instalada
 npx engine-kit trust [motor] [--json]             # o que o trust.json guarda por motor (chave pública, origem, maior versão, pin), se bate com o manifest embarcado e o estado do .bak; só lê
 npx engine-kit trust --restaurar                  # devolve o trust.json a partir do .bak quando ele está ilegível (a cópia é validada, a troca é atômica)
 npx engine-kit path <motor> [--json]              # caminho do executável do motor instalado e o estado do cli.json; sem rede, não sobe nada
-npx engine-kit mcp                                # servidor MCP (stdio) só de leitura: engine_list, engine_history, engine_check, engine_path, engine_url, engine_trust, engine_doctor, engine_report; não atualiza o kit
+npx engine-kit mcp                                # servidor MCP (stdio) que não instala nem fixa nada: engine_list, engine_history, engine_check, engine_path, engine_url, engine_trust, engine_doctor, engine_info, engine_report e, com rede, engine_plan e engine_check com rede:true; não atualiza o kit
 npx engine-kit check meu-plugin/plugin.json --rede   # além do check: diz se a versão publicada satisfaz a faixa do que falta ou está fora dela
 npx engine-kit check meu-plugin/plugin.json [outro/plugin.json ...] [--json]   # confere o bloco `engines` de um ou mais manifestos de plugin contra o instalado; com vários, --json devolve { ok, manifests }
 npx engine-kit ensure --de meu-plugin/plugin.json [outro/plugin.json ...] [--registry-url <url>] [--json]   # instala ou atualiza o que o check reprova e reconfere
@@ -198,6 +200,11 @@ Estado atual:
 
 `engine-kit info <motor>` junta o que o kit sabe de um motor (`list` continua como era). `engine_doctor`, no `engine-kit mcp`, é o `doctor --json --local` como tool de leitura.
 
+**Plano de troca, apps e tools de plano.** Três jeitos aditivos; sem a flag ou a tool nova o comportamento é o de antes:
+- `rollback <motor> --dry-run` e `pin <motor> [--version <x.y.z>] --dry-run` devolvem o plano sem trocar versão nem gravar o pin, no formato do plano do `ensure` (`PLANO <motor>: ...` em texto; em `--json`, `state: "PLANO"`, `plan`, `detail`, `version`, `installed` e `pin`). O plano do rollback é `reverter` (de `installed` para `version`, e fixaria nela); o do `pin --version` é `fixar` (a versão já está instalada), `trocar-e-fixar` ou `instalar-e-fixar`; sem `--version`, `fixar` a versão instalada. Todas as recusas de antes valem no plano (sem troca gravada, primeira instalação, instalação que o histórico não descreve, self-managed, motor desconhecido, `trust.json` ilegível). Como o `ensure --dry-run`, o plano consulta o registry e pode atualizar o cache do descritor; não baixa artefato e não confere se o asset da versão existe.
+- `engine-kit info <app>` e `engine-kit list --apps` mostram os apps de `manifest.apps`. `info` de app devolve `kind: "app"`, `app: true`, `version`, `summary`, `platforms`, `supported`, `release`, `pin` (o do `trust.json`), `installed: null` e `state: "APP"` com o caminho do `fetch`: o kit não instala app nem lê a versão instalada dele. `list --apps` acrescenta o campo `apps` (`name`, `version`, `summary`, `platforms`, `supported`, `pin`) e, em texto, uma seção `apps:` depois das linhas de sempre; sem `--apps` as chaves e as colunas do `list` são as de antes. `trust.json` ilegível recusa `list --apps` e `info <app>` com o motivo.
+- No `engine-kit mcp`, `engine_info` (o `info`, sem rede) e `engine_plan` (o `ensure --dry-run` de um motor) entram como tools novas, e `engine_check` ganha a opção `rede`. `engine_plan` e `engine_check` com `rede: true` falam com o registry: além de ler, gravam o cache do descritor em `~/.engine-kit` (é a única escrita; nenhum artefato é baixado e nada é instalado, fixado nem registrado no histórico). As demais tools seguem sem rede e sem gravar nada.
+
 **Endereço do daemon.** `engine-kit url <motor>` imprime a `url`, a `version` e o `pid` que o motor anuncia (`discover`, de `kit/client.mjs`), depois de conferir que ele responde.
 O `shutdownToken` do anúncio nunca sai. Motor parado, sem anúncio ou com o anúncio apontando para um endereço morto: erro com a causa e o comando (`engine-kit ensure <motor>`), exit 1.
 Vale para os motores que anunciam `url` no `runtime.json` (a casa de embeddings e o motor de grafo).
@@ -227,7 +234,7 @@ await urlCommand("mcp-gateway");        // { ok:true, name, url, version, pid } 
 satisfiesRange("1.9.0", "^1.2.0");      // true
 ```
 
-O mesmo conjunto é servido por `engine-kit mcp` a quem fala MCP (Copilot, Claude Code, Cursor): uma linha JSON-RPC por mensagem no stdio, só tools de leitura, e quem falha volta com `isError:true` e o motivo.
+O mesmo conjunto é servido por `engine-kit mcp` a quem fala MCP (Copilot, Claude Code, Cursor): uma linha JSON-RPC por mensagem no stdio, sem nenhuma tool que instale, fixe ou reverta, e quem falha volta com `isError:true` e o motivo.
 
 `engine-kit list` lê só o manifest embarcado. `ensure` recusa antes de resolver ou baixar o motor cujo `platforms` não inclui esta máquina (`any` serve a todas). Um motor nativo cujo artefato muda por plataforma declara `install.byPlatform["<plataforma>-<arch>"] = { asset, entry }`: o kit sobrepõe esses campos ao `install` nessa máquina e as outras plataformas seguem com o `install` base (o motor de grafo traz `motor-de-grafo-linux-x64.tgz` e `bin/motor-de-grafo` para o Linux; a plataforma só entra em `platforms` quando a release com o asset dela está publicada).
 
@@ -404,7 +411,7 @@ kit/
   update-manifest.mjs # patch do manifest parseado (nunca regex em JSON); --app para apps
   verify-release.mjs  # baixa a release publicada e prova o caminho do consumidor; --app para apps, --all para o catálogo inteiro
   verify-all.mjs      # o laço do --all: um motor ou app por vez, a falha de um não esconde os outros
-  mcp.mjs             # `engine-kit mcp`: servidor MCP (stdio) só de leitura sobre os verbos de inspect.mjs
+  mcp.mjs             # `engine-kit mcp`: servidor MCP (stdio) sobre os verbos de leitura de inspect.mjs e o plano do ensure; não instala, não fixa e não reverte
   pre-voo.mjs         # pré-voo do publish-base `-Checar`: sha256, assinatura e versão do .tgz antes de criar a release
   publish-args.mjs    # preâmbulo comum de update-manifest e verify-release: argumentos, alvo e manifest.json
   app-release.mjs     # URLs e verificação de TODOS os assets de um app (manifest.apps)

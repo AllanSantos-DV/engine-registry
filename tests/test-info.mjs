@@ -69,7 +69,7 @@ console.log("\n== pelo CLI ==");
   const t = cli("info", "vxk");
   check("em texto: nome, versão no manifest, estado e release", t.status === 0 && /vxk/.test(t.stdout) && /versão no manifest/.test(t.stdout) && /release: https:\/\/github\.com\//.test(t.stdout), t.stdout + t.stderr);
   const sem = cli("info");
-  check("sem o nome do motor: uso e exit 1", sem.status === 1 && /engine-kit info <motor>/.test(sem.stderr), sem.stderr.slice(0, 120));
+  check("sem o nome do motor: uso e exit 1", sem.status === 1 && /engine-kit info <motor|app>/.test(sem.stderr), sem.stderr.slice(0, 120));
   const ruim = cli("info", "vxk", "--registry-url", "http://x");
   check("flag que o verbo não tem é recusada", ruim.status === 1 && /--registry-url não vale/.test(ruim.stderr), ruim.stderr);
   const desc = cli("info", "motor-que-nao-existe");

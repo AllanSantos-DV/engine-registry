@@ -7,7 +7,7 @@
 //   npx engine-kit pin <motor> [--version <x.y.z>]   # congela UM motor; a atualização automática pula só ele
 //   npx engine-kit unpin <motor>                     # o motor volta a receber atualizações
 //   npx engine-kit fetch <motor|app> [--dest <pasta>] # baixa e confere sha256 + Ed25519 SEM instalar
-//   npx engine-kit list [--json]                      # motores do pacote, plataformas que atendem e o que está instalado aqui
+//   npx engine-kit list [--json] [--apps]             # motores do pacote, plataformas que atendem e o que está instalado aqui
 //   npx engine-kit doctor [--fix|--verify] [--engine <motor>]  # concilia os motores instalados com o registry
 //   npx engine-kit doctor --report                    # texto colável para suporte, sem token nem chave
 //   npx engine-kit history [motor] [--json]           # trocas de versão gravadas nesta máquina
@@ -22,7 +22,7 @@
 // ENGINE_KIT_NO_AUTO_UPDATE=1 desliga os dois e deixa só o aviso de versão nova (ver update.mjs).
 // Exit code: 0 = motor instalado (ou reusado). 1 = recusou/falhou, com o motivo na saída de erro.
 import { existsSync } from "node:fs";
-import { ensureCommand, ensureDeCommand, pinCommand, unpinCommand, stopCommand, listCommand, rollbackCommand, instaladosAtualizaveis, ensureDeArquivo } from "./ensure.mjs";
+import { ensureCommand, ensureDeCommand, pinCommand, unpinCommand, stopCommand, listCommand, rollbackCommand, instaladosAtualizaveis, ensureDeArquivo, planoEm } from "./ensure.mjs";
 import { registerNeuralLink, unregisterNeuralLink } from "./register.mjs";
 import { fetchCommand } from "./fetch.mjs";
 import { historyCommand, checkCommand, urlCommand, updateCommand, reportCommand, trustCommand, trustRestoreCommand, pathCommand, infoCommand } from "./inspect.mjs";
@@ -35,23 +35,25 @@ const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-ur
   "     engine-kit ensure --instalados [--dry-run] [--registry-url <url>] [--json]   atualiza, numa chamada, os motores instalados aqui (pin respeitado; self-managed e motor de outra plataforma ficam de fora); sem nomes, sem --version\n" +
   "     engine-kit ensure <motor> <motor>... [--registry-url <url>] [--json]   vários motores numa chamada; uma falha não esconde os outros (exit 1 se algum falhou; --json devolve { ok, engines })\n" +
   "     engine-kit pin <motor> [--version <x.y.z>] [--registry-url <url>]   fixa a versão instalada (ou instala e fixa x.y.z)\n" +
+  "     engine-kit pin <motor> --version <x.y.z> --dry-run [--registry-url <url>] [--json]   diz o que o pin faria (fixaria, instalaria e fixaria, trocaria e fixaria) sem instalar nem gravar o pin; sem --version, o plano é fixar a versão instalada\n" +
   "     engine-kit unpin <motor>                     solta o motor para voltar a atualizar\n" +
   "     engine-kit fetch <motor|app> [--version <x.y.z>] [--dest <pasta>] [--registry-url <url>]   baixa e confere (sha256 + Ed25519) sem instalar\n" +
   "     (ensure, pin, fetch e stop aceitam --json: um objeto JSON no formato das linhas do doctor --json, também na falha)\n" +
   "     engine-kit stop <motor> [--registry-url <url>]   desliga o motor pelo shutdownPath que o registry declara\n" +
   "     engine-kit ensure neural-link --register     além de instalar, registra os hooks no config global do usuário\n" +
   "     engine-kit ensure neural-link --unregister   além de instalar, desfaz esse registro (precisa de um neural-link que exponha uninstall)\n" +
-  "     engine-kit list [--json]                     motores do pacote, a plataforma de cada um e a versão instalada (sem rede)\n" +
+  "     engine-kit list [--json] [--apps]            motores do pacote, a plataforma de cada um e a versão instalada (sem rede); --apps acrescenta os apps de manifest.apps, com a plataforma e o pin de cada um\n" +
   "     engine-kit history [motor] [--json]          trocas de versão gravadas nesta máquina (de → para e a origem: ensure, auto-update, version, rollback)\n" +
   "     engine-kit check <manifesto-do-plugin.json>... [--rede] [--registry-url <url>] [--json]   confere o bloco engines de um ou mais manifestos (faixas >=, >, <=, <, =, ^x.y.z) contra o instalado; exit 1 se algum não satisfaz; com vários, --json devolve { ok, manifests }; --rede diz, para o que falta ou está fora da faixa, se a versão publicada satisfaz\n" +
   "     engine-kit ensure --de <manifesto-do-plugin.json>... [--registry-url <url>] [--json]   instala ou atualiza cada motor que o check reprova (ausente, fora da faixa) e reconfere; self-managed é pulado; faixa inválida aborta antes de instalar; exit 1 se algum não satisfaz no fim\n" +
   "     engine-kit rollback <motor> [--registry-url <url>] [--json]   volta à versão anterior à última troca do history (sha256 + Ed25519) e fixa nela; recusa primeira instalação e motor self-managed\n" +
+  "     engine-kit rollback <motor> --dry-run [--registry-url <url>] [--json]   diz de qual versão para qual voltaria e que fixaria nela, sem trocar a versão nem gravar o pin; as mesmas recusas\n" +
   "     engine-kit trust [motor] [--json]            o que o trust.json guarda por motor (chave pública, origem, maior versão, pin) e se bate com o manifest embarcado; só lê\n" +
   "     engine-kit trust --restaurar                 devolve o trust.json a partir do .bak quando ele está ilegível (a cópia é validada; a troca é atômica)\n" +
-  "     engine-kit info <motor> [--json]             descritor, versão no manifest, versão instalada, estado, pin, plataformas e release de um motor; só lê, sem rede\n" +
+  "     engine-kit info <motor|app> [--json]         descritor, versão no manifest, versão instalada, estado, pin, plataformas e release de um motor (de um app: o descritor e o pin, sem versão instalada); só lê, sem rede\n" +
   "     engine-kit path <motor> [--json]             caminho do executável do motor instalado e o estado do cli.json dele; sem rede, não sobe nada\n" +
   "     engine-kit url <motor> [--json]              endereço do daemon vivo (url, versão e pid) lido do anúncio dele; nunca imprime o token\n" +
-  "     engine-kit mcp                               servidor MCP (stdio) só de leitura: engine_list, engine_history, engine_check, engine_path, engine_url, engine_trust, engine_doctor, engine_report; não atualiza o kit\n" +
+  "     engine-kit mcp                               servidor MCP (stdio) que não instala nem fixa nada: engine_list, engine_history, engine_check, engine_path, engine_url, engine_trust, engine_doctor, engine_info, engine_report e, com rede, engine_plan e engine_check com rede:true (atualizam só o cache do descritor); não atualiza o kit\n" +
   "     engine-kit doctor [--fix|--json|--verify] [--engine <motor>] [--local] [--registry-url <url>]   diagnostica os motores instalados (--fix instala o que falta e atualiza o que está velho)\n" +
   "     engine-kit doctor --report [--engine <motor>] [--local] [--verify]   texto colável para suporte (kit, Node, plataforma, motores, sobras, hooks); sem token nem chave\n" +
   "     (ensure, pin, fetch, check e rollback aceitam --retry <0-5>, ou ENGINE_KIT_RETRY=<0-5>: repete a conexão que caiu, o 5xx e o 429 com espera crescente; desligado por padrão, e o 404 nunca é repetido)\n" +
@@ -68,16 +70,16 @@ const deManifesto = cmd === "ensure" && name === "--de";
 const instalados = cmd === "ensure" && name === "--instalados";
 const FLAGS = {
   ensure: ["--version", "--registry-url", "--register", "--unregister", "--json", "--de", "--dry-run", "--instalados", "--de-arquivo", "--retry"],
-  pin: ["--version", "--registry-url", "--json", "--retry"],
+  pin: ["--version", "--registry-url", "--json", "--retry", "--dry-run"],
   unpin: [],
   fetch: ["--version", "--registry-url", "--dest", "--json", "--retry"],
   stop: ["--registry-url", "--json"],
   doctor: ["--fix", "--json", "--verify", "--report", "--engine", "--local", "--registry-url"],
-  list: ["--json"],
+  list: ["--json", "--apps"],
   history: ["--json"],
   check: ["--json", "--rede", "--registry-url", "--retry"],
   url: ["--json"],
-  rollback: ["--registry-url", "--json", "--retry"],
+  rollback: ["--registry-url", "--json", "--retry", "--dry-run"],
   trust: ["--json", "--restaurar"],
   path: ["--json"],
   info: ["--json"],
@@ -103,7 +105,6 @@ const motores = cmd === "ensure" && !deManifesto && !instalados ? [...new Set(po
 const lista = instalados ? instaladosAtualizaveis() : null;
 const asJson = args.includes("--json");
 const dryRun = args.includes("--dry-run");
-const planoEm = (r) => ({ instalar: `instalaria v${r.version}`, atualizar: `atualizaria v${r.installed} → v${r.version}`, reusar: `reusaria v${r.version}, já em dia`, manter: `manteria v${r.version} (v${r.available} disponível; ENGINE_KIT_NO_AUTO_UPDATE ligado)` })[r.plan];
 const log = (m) => { if (!asJson) { console.log(m); } };
 
 /** Retorno de um verbo no formato das linhas do `doctor --json` (name, state, detail, warns, pin); o resto é do verbo. */
@@ -189,12 +190,17 @@ if (cmd === "--help" || cmd === "-h") {
   } else if (cmd === "doctor") {
     await import("./doctor.mjs");
   } else if (cmd === "list") {
-    const r = listCommand();
+    const r = listCommand({ apps: args.includes("--apps") });
     if (!r.ok) { console.error(`FALHOU list: ${r.reason}`); process.exitCode = 1; }
     else if (asJson) { console.log(JSON.stringify(r, null, 2)); }
     else {
       const w = Math.max(...r.engines.map((e) => e.name.length));
       for (const e of r.engines) { console.log(`${e.supported ? "  ok  " : " fora "} ${e.name.padEnd(w)}  v${e.version.padEnd(8)} ${e.platforms.join(",")}${e.supported ? "" : ` (esta máquina: ${r.platform})`}  ${e.selfManaged ? "instala pelo próprio updater" : e.installed ? `instalado v${e.installed}` : "não instalado"}`); }
+      if (r.apps) {
+        const wa = Math.max(0, ...r.apps.map((a) => a.name.length));
+        console.log("apps:");
+        for (const a of r.apps) { console.log(`${a.supported ? "  ok  " : " fora "} ${a.name.padEnd(wa)}  v${a.version.padEnd(8)} ${a.platforms.join(",")}${a.supported ? "" : ` (esta máquina: ${r.platform})`}  app: engine-kit fetch ${a.name}${a.pin ? `; fixado v${a.pin}` : ""}`); }
+      }
     }
   } else if (cmd === "update") {
     const r = await updateCommand(name, { check: args.includes("--check") });
@@ -227,7 +233,7 @@ if (cmd === "--help" || cmd === "-h") {
     else if (!r.ok) { console.error(`FALHOU info ${name}: ${r.reason}`); }
     else {
       console.log(`${r.name}  (${r.kind})  ${r.summary}`);
-      console.log(`versão no manifest: v${r.version}   instalado: ${r.installed ? `v${r.installed}` : "não instalado"}   estado: ${r.state} (${r.detail})`);
+      console.log(`versão no manifest: v${r.version}   instalado: ${r.app ? "fora do alcance do kit" : r.installed ? `v${r.installed}` : "não instalado"}   estado: ${r.state} (${r.detail})`);
       console.log(`pin: ${r.pin ?? "-"}   plataformas: ${r.platforms.join(",") || "todas"}${r.supported ? "" : " (esta máquina não é atendida)"}`);
       console.log(`release: ${r.release ?? "-"}`);
       for (const w of r.warns) { console.log(`aviso: ${w}`); }
@@ -253,8 +259,8 @@ if (cmd === "--help" || cmd === "-h") {
     }
     if (!r.ok) { process.exitCode = 1; }
   } else if (cmd === "rollback") {
-    const r = await rollbackCommand(name, { registryUrl: flag("--registry-url"), log });
-    done("rollback", r, () => { console.log(`motor revertido: ${name} v${r.previous} → v${r.version}; fixado em v${r.pinned} (engine-kit unpin ${name} volta a atualizar)`); avisoCache(r); });
+    const r = await rollbackCommand(name, { registryUrl: flag("--registry-url"), dryRun, log });
+    done("rollback", r, () => { if (r.dryRun) { console.log(`PLANO ${name}: ${planoEm(r)}`); return avisoCache(r); } console.log(`motor revertido: ${name} v${r.previous} → v${r.version}; fixado em v${r.pinned} (engine-kit unpin ${name} volta a atualizar)`); avisoCache(r); });
   } else if (cmd === "history") {
     const r = historyCommand(nomeOpcional);
     if (!r.ok) { console.error(`FALHOU history: ${r.reason}`); process.exitCode = 1; }
@@ -272,8 +278,8 @@ if (cmd === "--help" || cmd === "-h") {
     const r = await fetchCommand(name, { version: flag("--version"), registryUrl: flag("--registry-url"), destDir: flag("--dest"), log });
     done("fetch", r, () => { for (const f of r.files) { console.log(`OK ${name} v${r.version} (${f.signed ? "assinatura Ed25519 conferida" : "SEM assinatura no registry"}), não instalado: ${f.path}`); } avisoCache(r); });
   } else if (cmd === "pin") {
-    const r = await pinCommand(name, { version: flag("--version"), registryUrl: flag("--registry-url"), log });
-    done("pin", r, () => { console.log(`OK ${name} fixado em v${r.pinned}; a atualização automática pula este motor (engine-kit unpin ${name} solta)`); avisoCache(r); });
+    const r = await pinCommand(name, { version: flag("--version"), registryUrl: flag("--registry-url"), dryRun, log });
+    done("pin", r, () => { if (r.dryRun) { console.log(`PLANO ${name}: ${planoEm(r)}`); return avisoCache(r); } console.log(`OK ${name} fixado em v${r.pinned}; a atualização automática pula este motor (engine-kit unpin ${name} solta)`); avisoCache(r); });
   } else if (motores.length > 1 || lista) {
     const rs = [];
     if (lista && !lista.names.length) { log("nenhum motor instalado por este kit para atualizar"); }

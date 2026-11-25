@@ -5,7 +5,7 @@
 //   • nenhum artefato é baixado, nada é gravado no motor nem no histórico, e o motor instalado continua na versão em que estava;
 //   • motor self-managed e entrada sem release são recusados com o motivo, como no ensure;
 //   • `--de` traz uma ação por motor (instalaria, atualizaria, reusado, pulado) e não instala nenhum;
-//   • sem a flag o ensure se comporta como sempre, e a flag só vale para o ensure, sem `--register` nem `--unregister`.
+//   • sem a flag o ensure se comporta como sempre, e a flag não combina com `--register` nem `--unregister` e não vale para os verbos sem plano.
 // Hermético: registry e downloads de memória (o .tgz é real), HOME e ENGINE_KIT_HOME isolados, nenhum daemon.
 //
 //   node tests/test-ensure-dry-run.mjs
@@ -87,8 +87,8 @@ console.log("\n== pelo CLI ==");
   const cli = (...a) => spawnSync(process.execPath, ["kit/cli.mjs", ...a], { cwd: new URL("..", import.meta.url), env, encoding: "utf8", windowsHide: true });
   const reg = cli("ensure", "neural-link", "--dry-run", "--register");
   check("--dry-run com --register é recusado (exit 1)", reg.status === 1 && /--dry-run/.test(reg.stderr) && /--register/.test(reg.stderr), reg.stderr);
-  const pin = cli("pin", "vxk", "--dry-run");
-  check("--dry-run só vale para o ensure", pin.status === 1 && /--dry-run não vale/.test(pin.stderr), pin.stderr);
+  const stop = cli("stop", "vxk", "--dry-run");
+  check("--dry-run não vale para os verbos que não têm plano (stop)", stop.status === 1 && /--dry-run não vale/.test(stop.stderr), stop.stderr);
   check("o uso documenta a flag", /--dry-run/.test(cli("--help").stdout));
 }
 
