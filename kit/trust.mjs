@@ -115,7 +115,7 @@ export function checkTrust(engineName, publicKey, { trustedKeys, rotation } = {}
     return grava((e) => (e?.publicKey === known ? { ...e, publicKey, rotatedFrom: known, rotatedAt: new Date().toISOString() } : e), { ok: true, tofu: false, rotated: true });
   }
   if (known) return { ok: true, tofu: false };
-  return grava((e) => (e?.publicKey ? e : { publicKey, firstSeen: new Date().toISOString(), source: pinned ? "pinned" : "tofu" }), { ok: true, tofu: true });
+  return grava((e) => (e?.publicKey ? e : { ...e, publicKey, firstSeen: new Date().toISOString(), source: pinned ? "pinned" : "tofu" }), { ok: true, tofu: true });
 }
 
 export const trustPath = trustFile;

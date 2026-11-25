@@ -165,10 +165,18 @@ const ROOT = resolvePath(KIT, "..");
 //   do `engine_check`, com a injeção de teste e a checagem de tipo dos argumentos; `rollback --dry-run` e `pin --dry-run` (o plano de troca de versão; o texto do plano, `planoEm`, passou do cli.mjs para o ensure.mjs para servir também ao MCP);
 //   `info <app>` e `list --apps` (o descritor do app com o pin do trust.json). Rodadas na mão de quem instala; o fecho de `kit/index.mjs` não mudou (runtime 38984/39000, a cifra de 39 KB da vitrine segue),
 //   e sem as flags e tools novas o comportamento é o de antes.
+//   2026-11-25 tooling 109500 → 113000: `engine-kit fetch <motor>... --com-assinaturas`, +3.5 KB (kit/fetch.mjs +2.1, kit/cli.mjs +1.5). `salvarSidecars` confere e grava ao lado do .tgz o `.sha256` e o `.sig`
+//   (sha256 do sidecar = hash do artefato gravado, Ed25519 com a chave do manifest embarcado; .part e rename; falha apaga o que gravou) e o `fetchCommand` captura os sidecars que o `fetchArtifact` já conferiu,
+//   sem segundo download; o CLI aceita vários motores com a flag. Tudo no ferramental, reusando `fetchArtifact`, `verifyDigest` e `dropFile` como já são exportados: provision, resolve, trust e index não mudaram
+//   (runtime 38990/39000, a cifra de 39 KB da vitrine segue). Sem a flag o comportamento é o de antes.
+//   2026-11-25 tooling 113000 → 119000: `engine-kit export [arquivo]` e `engine-kit import <arquivo> [--dry-run]`, +5.9 KB (kit/export-import.mjs +3.9, kit/cli.mjs +2.0). O export grava (ou imprime) só nome, versão
+//   instalada e pin por motor, mais a versão do kit; o import valida o formato (chaves conhecidas, nome e versão x.y.z, sem repetido nem `__proto__`) antes de instalar qualquer coisa e então reusa `ensureCommand`
+//   com `version` (sha256, Ed25519 e chave do manifest embarcado), `pinCommand` e o plano do `ensure --dry-run`. O validador é a maior parte dos bytes: o documento vem de fora e não pode poluir nada. Tudo no ferramental, fora do
+//   fecho de `kit/index.mjs` (runtime 38990/39000, a cifra de 39 KB da vitrine segue). Sem os verbos novos o comportamento é o de antes.
 const BUDGETS = {
   runtime: { codeBytes: 39000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10700, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 109500, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 119000, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 
