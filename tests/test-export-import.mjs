@@ -2,6 +2,8 @@
 //
 // O que precisa ser verdade:
 //   • o export diz, por motor instalado, o nome, a versão instalada e o pin do trust.json, mais a versão do kit; motor não instalado fica de fora;
+//   • pin diferente da versão instalada não derruba o export: o motor sai sem pin, listado em `pinOmitido`, e o CLI avisa em uma linha no stderr;
+//   • o motor cujo entry muda por plataforma (`install.byPlatform`) conta como instalado na plataforma dele, no export e na trava de rebaixamento do import;
 //   • o documento nunca leva chave pública, assinatura, caminho local, usuário nem máquina: só as chaves conhecidas, com os valores no formato esperado;
 //   • sem arquivo o export imprime o JSON; com arquivo grava por .part e rename e nunca deixa metade;
 //   • o import instala a versão REGISTRADA (não a do registry), pelo ensure (sha256 + Ed25519 + chave do manifest embarcado), e fixa só quem estava fixado;
@@ -25,7 +27,7 @@ Object.assign(process.env, { HOME: RUN, USERPROFILE: RUN, ENGINE_KIT_HOME: KIT_H
 const { criarRegistroFalso } = await import("./_registro-falso.mjs");
 const { criarCliOffline } = await import("./_kit-copiado.mjs");
 const mod = await import("../kit/export-import.mjs").catch((e) => ({ erro: e }));
-const { ensureCommand, pinCommand, planoEm } = await import("../kit/ensure.mjs");
+const { ensureCommand, listCommand, pinCommand, planoEm } = await import("../kit/ensure.mjs");
 const { pinOf, trustPath, historyPath } = await import("../kit/trust.mjs");
 const { ownVersion } = await import("../kit/update.mjs");
 const { homeOf, registry, instalado, preinstalar, owner } = await criarRegistroFalso(RUN);
@@ -106,6 +108,24 @@ let DOC;
 
   const vazio = await exportar(undefined, { bundled: registry({ "ei-nada": "1.0.0" }).manifest });
   check("sem motor instalado: documento válido com a lista vazia", vazio.ok && JSON.stringify(vazio.doc.engines) === "[]", JSON.stringify(vazio));
+}
+
+console.log("\n== export: pin diferente da versão instalada ==");
+{
+  const pn = registry({ "pn-solto": "1.0.0", "pn-ok": "1.0.0" });
+  await ensureCommand("pn-solto", pn.opts);
+  await ensureCommand("pn-ok", pn.opts);
+  await pinCommand("pn-solto", pn.opts);
+  await pinCommand("pn-ok", pn.opts);
+  preinstalar("pn-solto", "1.1.0");
+  const r = await exportar(undefined, { bundled: pn.manifest });
+  check("o export sai ok: o motor com pin desatualizado vai sem pin e o outro sai normal, com o pin dele", r.ok && JSON.stringify(r.doc?.engines) === JSON.stringify([{ name: "pn-solto", version: "1.1.0" }, { name: "pn-ok", version: "1.0.0", pin: "1.0.0" }]), JSON.stringify(r));
+  check("o resultado diz quais motores tiveram o pin omitido", JSON.stringify(r.pinOmitido) === JSON.stringify(["pn-solto"]), JSON.stringify(r));
+  check("o trust.json local não é alterado pelo export", pinOf("pn-solto") === "1.0.0" && pinOf("pn-ok") === "1.0.0");
+  const em_dia = await exportar(undefined, { bundled: registry({ "pn-ok": "1.0.0" }).manifest });
+  check("sem pin omitido o retorno não traz o campo", em_dia.ok && em_dia.pinOmitido === undefined, JSON.stringify(em_dia));
+  rmSync(homeOf("pn-solto"), { recursive: true, force: true });
+  rmSync(homeOf("pn-ok"), { recursive: true, force: true });
 }
 
 console.log("\n== import: a versão registrada, pelo ensure ==");
@@ -238,6 +258,7 @@ console.log("\n== pelo CLI, offline ==");
   const { cli } = await criarCliOffline(RUN, { manifest: reg.manifest, artefatos: reg.artefatos });
   const kitHome = join(RUN, "kit-home-cli");
   const json = (s) => { try { return JSON.parse(s); } catch { return null; } };
+  const avisos = (r) => r.stderr.split("\n").filter((l) => l.startsWith("aviso:"));
   const uso = cli("--help").stdout;
   check("o uso documenta export e import", /engine-kit export \[arquivo\]/.test(uso) && /engine-kit import <arquivo> .*--dry-run/.test(uso), uso.slice(0, 200));
 
@@ -253,6 +274,15 @@ console.log("\n== pelo CLI, offline ==");
   const arq = join(RUN, "cli-doc.json");
   const gr = cli("export", arq);
   check("export com arquivo: grava, diz quantos motores e o stdout não traz o JSON", gr.status === 0 && /2 motor\(es\)/.test(gr.stdout) && JSON.stringify(ler(arq)) === JSON.stringify(d) && !gr.stdout.includes('"formato"'), gr.stdout + gr.stderr);
+
+  preinstalar("cli-a", "2.1.0");
+  const solto = cli("export");
+  const ds = json(solto.stdout);
+  check("export com pin desatualizado: exit 0, o documento sem o pin do motor e um aviso em uma linha no stderr", solto.status === 0 && JSON.stringify(ds?.engines) === JSON.stringify([{ name: "cli-a", version: "2.1.0" }, { name: "cli-b", version: "2.0.0" }]) && avisos(solto).length === 1 && /cli-a/.test(avisos(solto)[0]) && !/cli-b/.test(solto.stderr), solto.stdout + solto.stderr);
+  const soltoArq = cli("export", join(RUN, "cli-solto.json"));
+  check("o mesmo aviso sai quando o destino é um arquivo", soltoArq.status === 0 && avisos(soltoArq).length === 1 && /cli-a/.test(avisos(soltoArq)[0]) && /2 motor\(es\)/.test(soltoArq.stdout), soltoArq.stdout + soltoArq.stderr);
+  preinstalar("cli-a", "2.0.0");
+  check("sem pin omitido o export não avisa", avisos(cli("export")).length === 0);
 
   limparEm(kitHome, ["cli-a", "cli-b"]);
   const plano = cli("import", arq, "--dry-run");
@@ -299,6 +329,35 @@ console.log("\n== pin do documento e rebaixamento ==");
   check("no --dry-run o rebaixamento aparece como recusa, não como 'atualizaria'", seco.ok === false && /rebaix/.test(linha(seco, "ei-livre")?.reason ?? ""), JSON.stringify(seco));
   const aceito = await importar(pedido, { ...v1.opts, permitirRebaixar: true });
   check("com permitirRebaixar o import instala a versão do documento", aceito.ok === true && instalado("ei-livre") === "1.0.0", JSON.stringify(aceito));
+}
+
+console.log("\n== motor cujo entry muda por plataforma ==");
+{
+  const comoEm = async (platform, arch, fn) => {
+    const real = { platform: process.platform, arch: process.arch };
+    Object.defineProperty(process, "platform", { value: platform });
+    Object.defineProperty(process, "arch", { value: arch });
+    try { return await fn(); }
+    finally { Object.defineProperty(process, "platform", { value: real.platform }); Object.defineProperty(process, "arch", { value: real.arch }); }
+  };
+  const pl = registry({ "pl-grafo": "1.1.0" });
+  const m = pl.manifest.engines[0];
+  m.platforms = ["win32-x64", "linux-x64"];
+  m.install.entry = "bin/pl-grafo.exe";
+  m.install.byPlatform = { "linux-x64": { entry: "bin/pl-grafo" } };
+  mkdirSync(join(homeOf("pl-grafo"), "bin"), { recursive: true });
+  writeFileSync(join(homeOf("pl-grafo"), "bin", "package.json"), JSON.stringify({ name: "pl-grafo", version: "1.1.0" }));
+  writeFileSync(join(homeOf("pl-grafo"), "bin", "pl-grafo"), "");
+  const instaladaEm = async (platform, arch) => (await comoEm(platform, arch, () => listCommand({ bundled: pl.manifest }))).engines.find((e) => e.name === "pl-grafo").installed;
+
+  check("linux-x64: o list acha instalado o motor cujo entry é o do byPlatform", await instaladaEm("linux", "x64") === "1.1.0");
+  check("win32-x64: o entry do base não existe no disco, então o list diz não instalado", await instaladaEm("win32", "x64") === null);
+  const ex = await comoEm("linux", "x64", () => exportar(undefined, { bundled: pl.manifest }));
+  check("o export no linux-x64 inclui o motor", ex.ok && JSON.stringify(ex.doc.engines) === JSON.stringify([{ name: "pl-grafo", version: "1.1.0" }]), JSON.stringify(ex));
+  const pedido = gravar(doc([{ name: "pl-grafo", version: "1.0.0" }]));
+  const imp = await comoEm("linux", "x64", () => importar(pedido, pl.opts));
+  check("o import no linux-x64 recusa o rebaixamento sem --permitir-rebaixar e a instalada fica", imp.ok === false && /rebaix/.test(linha(imp, "pl-grafo")?.reason ?? "") && instalado("pl-grafo") === "1.1.0", JSON.stringify(imp));
+  rmSync(homeOf("pl-grafo"), { recursive: true, force: true });
 }
 
 rmSync(RUN, { recursive: true, force: true });

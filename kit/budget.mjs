@@ -174,10 +174,11 @@ const ROOT = resolvePath(KIT, "..");
 //   com `version` (sha256, Ed25519 e chave do manifest embarcado), `pinCommand` e o plano do `ensure --dry-run`. O validador é a maior parte dos bytes: o documento vem de fora e não pode poluir nada. Tudo no ferramental, fora do
 //   fecho de `kit/index.mjs` (runtime 38990/39000, a cifra de 39 KB da vitrine segue). Sem os verbos novos o comportamento é o de antes.
 //   2026-11-25 tooling 119000 → 119500: correções da revisão independente dos verbos novos, +71 bytes — o `fetch --com-assinaturas` confere os sidecars com a chave que o `fetchArtifact` aceitou (rotação legítima), o `import` recusa documento com `pin` diferente da versão e só rebaixa com `--permitir-rebaixar`. O runtime não mudou (38990/39000).
+//   2026-11-25 tooling 119500 → 120000: segunda rodada da revisão independente, +545 bytes (kit/ensure.mjs +214, kit/export-import.mjs +177, kit/cli.mjs +154) — o `list` aplica o `install.byPlatform` da plataforma atual ao achar o motor instalado (o export e a trava de rebaixamento do `import` passam a enxergá-lo), o `export` omite o pin que difere da versão instalada e devolve `pinOmitido` (o CLI avisa em stderr), e o `pin --version --dry-run` recusa motor self-managed como o pin de verdade. O runtime não mudou (38990/39000).
 const BUDGETS = {
   runtime: { codeBytes: 39000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10700, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 119500, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 120000, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

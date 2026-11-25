@@ -46,6 +46,15 @@ export function pinFor(name, version) {
     : { pin };
 }
 
+const AUTO_GERIDO = "é self-managed: instala e atualiza pelo próprio updater, não pelo engine-kit";
+
+/** Recusa de motor self-managed com o caminho do instalador dele: a página da release e o `fetch`, que baixa e confere sem instalar. */
+const instaladorProprio = (engine, motivo) => {
+  const { repo, tag } = engine.install;
+  const release = `https://github.com/${repo}/releases/tag/${fill(tag, { version: engine.version, platform: process.platform, arch: process.arch })}`;
+  return `${motivo} → instalador da v${engine.version}: ${release}; engine-kit fetch ${engine.name} baixa e confere hash e assinatura sem instalar`;
+};
+
 /** `onBeforeReplace` do `provision`: derruba o daemon pelo `shutdownPath` que o registry declara, porque no Windows arquivo em uso não se sobrescreve. */
 export const derrubarAntes = (engine, log) => async () => {
   const s = await shutdown(engine, { log });
@@ -63,7 +72,8 @@ export function listCommand({ bundled, platform = target(), apps = false } = {})
   if (!local) { return { ok: false, reason }; }
   const engines = (local.engines ?? []).map((e) => {
     let installed = null;
-    try { installed = e.status !== "self-managed" && e.install.entry && e.home ? installedOf({ homeDir: expandHome(e.home), install: e.install }) : null; } catch { /* instalação ilegível = não instalado */ }
+    const install = { ...e.install, ...e.install?.byPlatform?.[platform] };
+    try { installed = e.status !== "self-managed" && install.entry && e.home ? installedOf({ homeDir: expandHome(e.home), install }) : null; } catch { /* instalação ilegível = não instalado */ }
     return { name: e.name, version: e.version, kind: e.kind, platforms: e.platforms ?? [], supported: platformReason(e, platform) === null, installed, selfManaged: e.status === "self-managed" };
   });
   if (!apps) { return { ok: true, platform, engines }; }
@@ -147,8 +157,8 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
   const manter = (!autoUpdate || engine.runtime?.updatePath) && !version && !pin && previous && !satisfiesPin(previous, engine.version);
   if (dryRun) {
     if (engine.status === "pending-release") { return { ok: false, reason: `${name} ainda não publicou release (status: pending-release)` }; }
-    if (engine.status === "self-managed" && !previous) { return { ok: false, reason: `${name} é self-managed: instala pelo próprio instalador → engine-kit fetch ${name} baixa e confere` }; }
     const serve = previous && (version || pin ? previous === engine.version : engine.runtime?.updatePath || satisfiesPin(previous, engine.version));
+    if (engine.status === "self-managed" && !serve && !manter) { return { ok: false, reason: instaladorProprio(engine, `${name}: ${AUTO_GERIDO}`) }; }
     return {
       ok: true, dryRun: true, plan: manter ? "manter" : serve ? "reusar" : previous ? "atualizar" : "instalar", kind: engine.kind,
       version: manter || serve ? previous : engine.version,
@@ -171,11 +181,7 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
     ...(fetcher ? { fetcher } : {}),
     onBeforeReplace: derrubarAntes(r.engine, log),
   });
-  if (!p.ok && engine.status === "self-managed") {
-    const { repo, tag } = engine.install;
-    const release = `https://github.com/${repo}/releases/tag/${fill(tag, { version: engine.version, platform: process.platform, arch: process.arch })}`;
-    return { ok: false, reason: `${p.reason} → instalador da v${engine.version}: ${release}; engine-kit fetch ${name} baixa e confere hash e assinatura sem instalar` };
-  }
+  if (!p.ok && engine.status === "self-managed") { return { ok: false, reason: instaladorProprio(engine, p.reason) }; }
   if (!p.ok) {
     // Rotação legítima de chave chega ao registry antes de chegar a este pacote: a saída é o kit novo.
     const hint = /FIXADA|não declara publicKey/.test(p.reason) ? ` — se a chave foi rotacionada de propósito, rode npx engine-kit@latest ensure ${name}` : "";

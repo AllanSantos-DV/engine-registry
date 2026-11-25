@@ -5,6 +5,7 @@
 //   • o plano do `pin --version` é instalar-e-fixar, trocar-e-fixar ou fixar, conforme o que está instalado, inclusive com outro pin já gravado;
 //   • nada é baixado, nenhum pin é gravado ou solto, o histórico não cresce e o motor instalado continua na versão em que estava;
 //   • as recusas do comando valem também no plano (sem troca gravada, primeira instalação, instalação que o histórico não descreve, self-managed, motor desconhecido, trust.json ilegível);
+//   • motor self-managed já instalado: `pin --version` de outra versão é recusado igual no plano e de verdade, e a mesma versão da instalada é aceita nos dois;
 //   • sem a flag o `pin --version` instala e fixa de verdade;
 //   • pelo CLI o plano sai em texto (PLANO <motor>: ...) e em --json no formato do plano do ensure, e o uso documenta a flag.
 // Hermético: registry e downloads de memória (o .tgz é real) e um servidor em 127.0.0.1 para o CLI; HOME e ENGINE_KIT_HOME isolados, nenhum daemon.
@@ -121,6 +122,24 @@ console.log("\n== pin --dry-run: as recusas de antes valem ==");
   const ilegivel = await dry("pr-motor", { version: "1.0.0" });
   rmSync(arquivo, { force: true });
   check("trust.json ilegível: recusado com o motivo, como o pin de verdade", ilegivel.ok === false && /ilegível/.test(ilegivel.reason), JSON.stringify(ilegivel));
+}
+
+console.log("\n== pin --version --dry-run: self-managed já instalado ==");
+{
+  const reg = registry({ "sm-troca": "1.1.0", "sm-igual": "1.0.0" });
+  for (const e of reg.manifest.engines) { e.status = "self-managed"; }
+  preinstalar("sm-troca", "1.0.0");
+  preinstalar("sm-igual", "1.0.0");
+  const historico = existsSync(historyPath()) ? readFileSync(historyPath(), "utf8") : "";
+  const seco = await pinCommand("sm-troca", { ...reg.opts, version: "1.1.0", dryRun: true });
+  const real = await pinCommand("sm-troca", { ...reg.opts, version: "1.1.0" });
+  check("versão diferente da instalada: o pin de verdade recusa e não aplica o pin", real.ok === false && /self-managed/.test(real.reason) && pinOf("sm-troca") === undefined && instalado("sm-troca") === "1.0.0", JSON.stringify(real));
+  check("o --dry-run recusa com a mesma razão do pin de verdade, em vez de planejar a troca", seco.ok === false && real.reason.startsWith(seco.reason), JSON.stringify(seco));
+  check("a recusa do plano não fixou nada nem mexeu no histórico", pinOf("sm-troca") === undefined && (existsSync(historyPath()) ? readFileSync(historyPath(), "utf8") : "") === historico);
+
+  const secoIgual = await pinCommand("sm-igual", { ...reg.opts, version: "1.0.0", dryRun: true });
+  const realIgual = await pinCommand("sm-igual", { ...reg.opts, version: "1.0.0" });
+  check("versão igual à instalada: o pin de verdade aceita e o plano diz fixar", realIgual.ok === true && realIgual.pinned === "1.0.0" && secoIgual.ok === true && secoIgual.plan === "fixar", JSON.stringify([realIgual, secoIgual]));
 }
 
 console.log("\n== sem a flag nada muda ==");

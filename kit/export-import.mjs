@@ -49,16 +49,22 @@ export function validarDocumento(doc) {
 /**
  * `engine-kit export [arquivo]`: o documento com, por motor instalado aqui, nome, versão instalada e pin do `trust.json`, mais a versão do kit.
  * Com `file`, grava por .part e rename; sem ele, só devolve o documento. Não usa rede. O documento sai pelo mesmo validador do `import`.
+ * O pin diferente da versão instalada não entra no documento (ele só descreve o que instala) e o motor aparece em `pinOmitido`.
  * @param {string=} file onde gravar.
  * @param {{bundled?:object}=} opts `bundled` = manifest embarcado (testes).
- * @returns {{ok:true, doc:{formato:number, kit:string, engines:{name:string, version:string, pin?:string}[]}, file?:string} | {ok:false, reason:string}}
+ * @returns {{ok:true, doc:{formato:number, kit:string, engines:{name:string, version:string, pin?:string}[]}, file?:string, pinOmitido?:string[]} | {ok:false, reason:string}}
  */
 export function exportCommand(file, { bundled } = {}) {
   const l = listCommand({ bundled });
   if (!l.ok) { return l; }
   let engines;
+  const pinOmitido = [];
   try {
-    engines = l.engines.filter((e) => e.installed).map((e) => { const pin = pinOf(e.name); return { name: e.name, version: e.installed, ...(pin ? { pin } : {}) }; });
+    engines = l.engines.filter((e) => e.installed).map((e) => {
+      const pin = pinOf(e.name);
+      if (pin && pin !== e.installed) { pinOmitido.push(e.name); }
+      return { name: e.name, version: e.installed, ...(pin && pin === e.installed ? { pin } : {}) };
+    });
   } catch (e) { return { ok: false, reason: e.message }; }
   const doc = { formato: FORMATO, kit: ownVersion(), engines };
   const v = validarDocumento(doc);
@@ -67,7 +73,7 @@ export function exportCommand(file, { bundled } = {}) {
     try { writeFileSync(`${file}.part`, `${JSON.stringify(doc, null, 2)}\n`); renameSync(`${file}.part`, file); }
     catch (e) { dropFile(`${file}.part`); return { ok: false, reason: `não consegui gravar ${file}: ${e.message}` }; }
   }
-  return { ok: true, doc, ...(file ? { file } : {}) };
+  return { ok: true, doc, ...(file ? { file } : {}), ...(pinOmitido.length ? { pinOmitido } : {}) };
 }
 
 /**

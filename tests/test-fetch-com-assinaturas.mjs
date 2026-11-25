@@ -6,6 +6,7 @@
 //   • os sidecars gravados foram conferidos: o sha256 é o do artefato gravado e a assinatura Ed25519 confere com a chave do manifest embarcado;
 //   • a pasta resultante é aceita por `ensure <motor> --de-arquivo` (que exige os três), em HOME isolado, e o fetch em si não instala nada;
 //   • sidecar adulterado (sha256 de outro conteúdo, assinatura de outra chave, assinatura truncada) recusa e não deixa nenhum arquivo;
+//   • registry que não declara a chave do motor: recusa fechada, pasta sem arquivos;
 //   • falha ao gravar um sidecar apaga o que já tinha sido gravado, inclusive o artefato, e não deixa .part;
 //   • vários motores numa chamada: uma falha não esconde os outros, exit 1 se algum falhou, --json devolve { ok, engines };
 //   • `--dest` dentro do home do motor continua recusado, app não aceita a flag, --version não vale para vários motores.
@@ -131,6 +132,16 @@ console.log("\n== falha ao gravar o sidecar apaga o artefato ==");
   const r = await fetchComFlag("sig-preso", reg, d);
   check("recusa com o motor no motivo", r.ok === false && /sig-preso/.test(r.reason), JSON.stringify(r));
   check("o artefato, o .sha256 e qualquer .part somem; só a pasta que já estava lá fica", JSON.stringify(lista(d)) === JSON.stringify(["sig-preso.tgz.sig"]), lista(d).join(", "));
+}
+
+console.log("\n== registry que não assina o motor ==");
+{
+  const reg = registry({ "sig-nao": "2.0.0" }), d = pasta();
+  const semChave = structuredClone(reg.manifest);
+  delete semChave.engines[0].install.publicKey;
+  const r = await fetchCommand("sig-nao", { bundled: reg.manifest, manifest: semChave, fetcher: reg.fetcher, destDir: d, comAssinaturas: true });
+  check("recusa dizendo que o registry não declara a chave, sem falar de .sig vazio", r.ok === false && /não declara publicKey/.test(r.reason) && !/0 bytes/.test(r.reason), JSON.stringify(r));
+  check("a recusa continua fechada: a pasta fica sem artefato nem sidecar", lista(d).length === 0, lista(d).join(", "));
 }
 
 console.log("\n== as recusas de antes valem ==");

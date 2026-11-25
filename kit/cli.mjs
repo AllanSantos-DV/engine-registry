@@ -277,7 +277,10 @@ if (cmd === "--help" || cmd === "-h") {
   } else if (cmd === "export") {
     const r = exportCommand(nomeOpcional);
     if (!r.ok) { console.error(`FALHOU export: ${r.reason}`); process.exitCode = 1; }
-    else { console.log(r.file ? `OK ${r.doc.engines.length} motor(es) exportado(s) para ${r.file}` : JSON.stringify(r.doc, null, 2)); }
+    else {
+      console.log(r.file ? `OK ${r.doc.engines.length} motor(es) exportado(s) para ${r.file}` : JSON.stringify(r.doc, null, 2));
+      if (r.pinOmitido) { console.error(`aviso: pin omitido de ${r.pinOmitido.join(", ")}: o pin gravado é diferente da versão instalada`); }
+    }
   } else if (cmd === "import") {
     const r = await importCommand(name, { registryUrl: flag("--registry-url"), dryRun, permitirRebaixar: args.includes("--permitir-rebaixar"), log });
     if (!r.engines) { if (asJson) { console.log(JSON.stringify(jsonOf("import", name, r), null, 2)); } else { console.error(`FALHOU import: ${r.reason}`); } }
