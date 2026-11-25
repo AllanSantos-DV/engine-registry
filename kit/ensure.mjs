@@ -156,8 +156,8 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
   const previous = installedOf(engine);
   const manter = (!autoUpdate || engine.runtime?.updatePath) && !version && !pin && previous && !satisfiesPin(previous, engine.version);
   if (dryRun) {
-    if (engine.status === "pending-release") { return { ok: false, reason: `${name} ainda não publicou release (status: pending-release)` }; }
     const serve = previous && (version || pin ? previous === engine.version : engine.runtime?.updatePath || satisfiesPin(previous, engine.version));
+    if (engine.status === "pending-release" && !serve && !manter) { return { ok: false, reason: `${name}: ainda não publicou release (status: pending-release)` }; }
     if (engine.status === "self-managed" && !serve && !manter) { return { ok: false, reason: instaladorProprio(engine, `${name}: ${AUTO_GERIDO}`) }; }
     return {
       ok: true, dryRun: true, plan: manter ? "manter" : serve ? "reusar" : previous ? "atualizar" : "instalar", kind: engine.kind,

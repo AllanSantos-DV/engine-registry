@@ -4,6 +4,7 @@
 //   • o plano (instalar, atualizar, reusar, manter) sai do mesmo cálculo do ensure: rodar o ensure de verdade depois entrega o que o plano disse;
 //   • nenhum artefato é baixado, nada é gravado no motor nem no histórico, e o motor instalado continua na versão em que estava;
 //   • motor self-managed e entrada sem release são recusados com o motivo, como no ensure;
+//   • motor em pending-release com instalada que serve: plano reusar, como o ensure; sem instalada que sirva, a mesma recusa e a mesma razão;
 //   • `--de` traz uma ação por motor (instalaria, atualizaria, reusado, pulado) e não instala nenhum;
 //   • sem a flag o ensure instala de verdade, e a flag não combina com `--register` nem `--unregister` e não vale para os verbos sem plano.
 // Hermético: registry e downloads de memória (o .tgz é real), HOME e ENGINE_KIT_HOME isolados, nenhum daemon.
@@ -66,6 +67,34 @@ console.log("\n== recusas iguais às do ensure ==");
   const sr = await ensureCommand("motor-sem-release", opts);
   check("entrada sem release: recusada com o motivo", sr.ok === false && /pending-release/.test(sr.reason), JSON.stringify(sr));
   check("as recusas não baixaram nada", baixou.length === 0, baixou.join());
+}
+
+console.log("\n== motor em pending-release: o plano reusa a instalada que serve, como o ensure ==");
+{
+  preinstalar("pr-igual", "1.0.0");
+  preinstalar("pr-mais-nova", "1.2.0");
+  preinstalar("pr-velha", "1.0.0");
+  const reg = registry({ "pr-igual": "1.0.0", "pr-mais-nova": "1.1.0", "pr-velha": "1.1.0", "pr-ausente": "1.0.0" });
+  for (const e of reg.manifest.engines) { e.status = "pending-release"; }
+  const dry = (nome) => ensureCommand(nome, { ...reg.opts, dryRun: true });
+
+  const planoIgual = await dry("pr-igual");
+  const realIgual = await ensureCommand("pr-igual", reg.opts);
+  check("instalada na versão do registry: plano reusar e o ensure real reusa a mesma versão", planoIgual.ok && planoIgual.plan === "reusar" && realIgual.ok && realIgual.reused === true && realIgual.version === planoIgual.version, JSON.stringify({ planoIgual, realIgual }));
+
+  const planoNova = await dry("pr-mais-nova");
+  const realNova = await ensureCommand("pr-mais-nova", reg.opts);
+  check("instalada mais nova do mesmo major: plano reusar e o ensure real reusa a instalada", planoNova.ok && planoNova.plan === "reusar" && planoNova.version === "1.2.0" && realNova.ok && realNova.reused === true && realNova.version === planoNova.version, JSON.stringify({ planoNova, realNova }));
+
+  const planoVelha = await dry("pr-velha");
+  const realVelha = await ensureCommand("pr-velha", reg.opts);
+  check("instalada que não serve: plano e ensure real recusam com a mesma razão", planoVelha.ok === false && /pending-release/.test(planoVelha.reason) && realVelha.ok === false && planoVelha.reason === realVelha.reason, JSON.stringify({ planoVelha, realVelha }));
+
+  const planoAusente = await dry("pr-ausente");
+  const realAusente = await ensureCommand("pr-ausente", reg.opts);
+  check("sem instalada: plano e ensure real recusam com a mesma razão", planoAusente.ok === false && /pending-release/.test(planoAusente.reason) && realAusente.ok === false && planoAusente.reason === realAusente.reason, JSON.stringify({ planoAusente, realAusente }));
+
+  check("nada foi baixado e a instalada velha segue na 1.0.0", Object.keys(reg.baixados).length === 0 && instalado("pr-velha") === "1.0.0" && !existsSync(homeOf("pr-ausente")), JSON.stringify(reg.baixados));
 }
 
 console.log("\n== ensure --de --dry-run ==");
