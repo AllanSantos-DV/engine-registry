@@ -1,7 +1,7 @@
 // test-mcp-info-plan.mjs — `engine-kit mcp` ganha engine_info, engine_plan e a opção `rede` do engine_check, sem instalar nada.
 //
 // O que precisa ser verdade:
-//   • engine_info, engine_plan e o campo `rede` de engine_check aparecem no tools/list, e as tools de antes continuam todas lá;
+//   • engine_info, engine_plan e o campo `rede` de engine_check aparecem no tools/list, junto com as outras tools de leitura;
 //   • engine_info devolve o que o `info` devolve (estado, versão instalada, pin) e recusa motor fora do manifest com o motivo;
 //   • engine_plan diz instalar, atualizar, reusar ou manter pelo mesmo cálculo do `ensure --dry-run`, sem baixar artefato, sem gravar histórico e sem trocar versão;
 //   • engine_plan e engine_check com `rede` falam com o registry e gravam só o cache do descritor; as demais tools não criam nem o cache;

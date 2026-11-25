@@ -1,11 +1,11 @@
 // test-pin-rollback-dry-run.mjs — `engine-kit rollback <motor> --dry-run` e `pin <motor> [--version <x.y.z>] --dry-run` devolvem o plano, sem trocar versão nem gravar pin.
 //
 // O que precisa ser verdade:
-//   • o plano do rollback é reverter (de v1.1.0 para v1.0.0, e fixaria nela) e o rollback de verdade depois entrega o que o plano disse;
+//   • o plano do rollback é reverter à versão anterior registrada (e fixar nela), e o rollback de verdade depois entrega o que o plano disse;
 //   • o plano do `pin --version` é instalar-e-fixar, trocar-e-fixar ou fixar, conforme o que está instalado, inclusive com outro pin já gravado;
 //   • nada é baixado, nenhum pin é gravado ou solto, o histórico não cresce e o motor instalado continua na versão em que estava;
-//   • todas as recusas de antes valem no plano (sem troca gravada, primeira instalação, instalação que o histórico não descreve, self-managed, motor desconhecido, trust.json ilegível);
-//   • sem a flag o `pin --version` instala e fixa como sempre;
+//   • as recusas do comando valem também no plano (sem troca gravada, primeira instalação, instalação que o histórico não descreve, self-managed, motor desconhecido, trust.json ilegível);
+//   • sem a flag o `pin --version` instala e fixa de verdade;
 //   • pelo CLI o plano sai em texto (PLANO <motor>: ...) e em --json no formato do plano do ensure, e o uso documenta a flag.
 // Hermético: registry e downloads de memória (o .tgz é real) e um servidor em 127.0.0.1 para o CLI; HOME e ENGINE_KIT_HOME isolados, nenhum daemon.
 //

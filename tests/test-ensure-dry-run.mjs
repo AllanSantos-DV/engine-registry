@@ -5,7 +5,7 @@
 //   • nenhum artefato é baixado, nada é gravado no motor nem no histórico, e o motor instalado continua na versão em que estava;
 //   • motor self-managed e entrada sem release são recusados com o motivo, como no ensure;
 //   • `--de` traz uma ação por motor (instalaria, atualizaria, reusado, pulado) e não instala nenhum;
-//   • sem a flag o ensure se comporta como sempre, e a flag não combina com `--register` nem `--unregister` e não vale para os verbos sem plano.
+//   • sem a flag o ensure instala de verdade, e a flag não combina com `--register` nem `--unregister` e não vale para os verbos sem plano.
 // Hermético: registry e downloads de memória (o .tgz é real), HOME e ENGINE_KIT_HOME isolados, nenhum daemon.
 //
 //   node tests/test-ensure-dry-run.mjs

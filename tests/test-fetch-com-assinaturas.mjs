@@ -1,7 +1,7 @@
 // test-fetch-com-assinaturas.mjs — `engine-kit fetch <motor...> --com-assinaturas` grava, ao lado do .tgz conferido, o `.sha256` e o `.sig` da release.
 //
 // O que precisa ser verdade:
-//   • sem a flag o `fetch` grava só o artefato, como sempre, e dois motores continuam sendo argumento inesperado;
+//   • sem a flag o `fetch` grava só o artefato, e dois motores continuam sendo argumento inesperado;
 //   • com a flag a pasta tem os três arquivos, byte a byte os da release, e o resultado (texto e --json) lista os três;
 //   • os sidecars gravados foram conferidos: o sha256 é o do artefato gravado e a assinatura Ed25519 confere com a chave do manifest embarcado;
 //   • a pasta resultante é aceita por `ensure <motor> --de-arquivo` (que exige os três), em HOME isolado, e o fetch em si não instala nada;

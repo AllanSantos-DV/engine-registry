@@ -1,10 +1,10 @@
 // test-apps-info-list.mjs — `engine-kit info <app>` e `engine-kit list --apps` mostram os apps de `manifest.apps` e o pin de cada um.
 //
 // O que precisa ser verdade:
-//   • `list --apps` acrescenta o campo `apps` (nome, versão, resumo, plataformas, se esta máquina é atendida, pin) e `list` sem a flag fica com as mesmas chaves e as mesmas linhas de antes;
+//   • `list --apps` acrescenta o campo `apps` (nome, versão, resumo, plataformas, se esta máquina é atendida, pin) e `list` sem a flag não traz o campo `apps` nem as linhas de apps;
 //   • o pin de cada app vem do trust.json, e um trust.json ilegível é recusado com o motivo só quando os apps são pedidos;
 //   • `info <app>` devolve o descritor do app (versão, resumo, plataformas, release, pin) com `kind:"app"` e `app:true`, sem versão instalada inventada, e aponta o `fetch`;
-//   • `info <motor>` segue como era, e nome que não é motor nem app é recusado como antes;
+//   • `info <motor>` mostra o motor, e nome que não é motor nem app é recusado;
 //   • só lê: sem rede, sem gravar histórico, sem criar pasta de app;
 //   • pelo CLI: `list --apps` em texto e em --json, `info <app>` em texto e em --json, `--apps` recusado nos outros verbos, e o uso documenta a flag; o MCP `engine_info` responde para app também.
 // Hermético: manifest embarcado injetado, HOME e ENGINE_KIT_HOME isolados, nenhum daemon, sem rede.
