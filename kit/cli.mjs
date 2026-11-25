@@ -59,7 +59,7 @@ const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-ur
   "     engine-kit path <motor> [--json]             caminho do executável do motor instalado e o estado do cli.json dele; sem rede, não sobe nada\n" +
   "     engine-kit url <motor> [--json]              endereço do daemon vivo (url, versão e pid) lido do anúncio dele; nunca imprime o token\n" +
   "     engine-kit export [arquivo]                  grava (ou imprime, sem arquivo) um JSON com, por motor instalado aqui, o nome, a versão instalada e o pin; nunca leva chave, assinatura, caminho, usuário nem máquina\n" +
-  "     engine-kit import <arquivo> [--dry-run] [--registry-url <url>] [--json]   instala a versão registrada de cada motor do documento do export (sha256 + Ed25519 como no ensure) e fixa o que estava fixado; --dry-run mostra só o plano; documento inválido é recusado inteiro, um motor recusado não impede os outros (exit 1 se algum falhou)\n" +
+  "     engine-kit import <arquivo> [--dry-run] [--permitir-rebaixar] [--registry-url <url>] [--json]   instala a versão registrada de cada motor do documento do export (sha256 + Ed25519 como no ensure) e fixa o que estava fixado; --dry-run mostra só o plano; documento inválido é recusado inteiro, um motor recusado não impede os outros (exit 1 se algum falhou)\n" +
   "     engine-kit mcp                               servidor MCP (stdio) que não instala nem fixa nada: engine_list, engine_history, engine_check, engine_path, engine_url, engine_trust, engine_doctor, engine_info, engine_report e, com rede, engine_plan e engine_check com rede:true (atualizam só o cache do descritor); não atualiza o kit\n" +
   "     engine-kit doctor [--fix|--json|--verify] [--engine <motor>] [--local] [--registry-url <url>]   diagnostica os motores instalados (--fix instala o que falta e atualiza o que está velho)\n" +
   "     engine-kit doctor --report [--engine <motor>] [--local] [--verify]   texto colável para suporte (kit, Node, plataforma, motores, sobras, hooks); sem token nem chave\n" +
@@ -91,7 +91,7 @@ const FLAGS = {
   path: ["--json"],
   info: ["--json"],
   export: [],
-  import: ["--json", "--dry-run", "--registry-url", "--retry"],
+  import: ["--json", "--dry-run", "--registry-url", "--retry", "--permitir-rebaixar"],
   update: ["--json", "--check"],
   mcp: [],
 };
@@ -279,7 +279,7 @@ if (cmd === "--help" || cmd === "-h") {
     if (!r.ok) { console.error(`FALHOU export: ${r.reason}`); process.exitCode = 1; }
     else { console.log(r.file ? `OK ${r.doc.engines.length} motor(es) exportado(s) para ${r.file}` : JSON.stringify(r.doc, null, 2)); }
   } else if (cmd === "import") {
-    const r = await importCommand(name, { registryUrl: flag("--registry-url"), dryRun, log });
+    const r = await importCommand(name, { registryUrl: flag("--registry-url"), dryRun, permitirRebaixar: args.includes("--permitir-rebaixar"), log });
     if (!r.engines) { if (asJson) { console.log(JSON.stringify(jsonOf("import", name, r), null, 2)); } else { console.error(`FALHOU import: ${r.reason}`); } }
     else if (asJson) { console.log(JSON.stringify({ ok: r.ok, ...(r.dryRun ? { dryRun: true } : {}), engines: r.engines.map(([m, e]) => jsonOf("ensure", m, e)) }, null, 2)); }
     else {

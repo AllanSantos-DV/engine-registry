@@ -5,7 +5,7 @@
 // NUNCA lança: devolve { ok, reason }.
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { ensureCommand, listCommand, pinCommand } from "./ensure.mjs";
-import { dropFile, pinOf } from "./trust.mjs";
+import { cmpVer, dropFile, pinOf } from "./trust.mjs";
 import { ownVersion } from "./update.mjs";
 
 const FORMATO = 1;
@@ -41,6 +41,7 @@ export function validarDocumento(doc) {
     for (const campo of ["version", ...("pin" in e ? ["pin"] : [])]) {
       if (typeof e[campo] !== "string" || !VERSAO.test(e[campo])) { return falha(`${onde}.${campo} precisa ser x.y.z, recebi ${JSON.stringify(e[campo])?.slice(0, 40)} (${e.name})`); }
     }
+    if (e.pin !== undefined && e.pin !== e.version) { return falha(`${onde}.pin (${e.pin}) precisa ser a versão do motor (${e.version}) (${e.name})`); }
   }
   return { ok: true };
 }
@@ -84,7 +85,14 @@ export async function importCommand(file, opts = {}) {
   const v = validarDocumento(doc);
   if (!v.ok) { return v; }
   const engines = [];
+  const l = listCommand({ bundled: opts.bundled });
+  const aqui = new Map(l.ok ? l.engines.map((e) => [e.name, e.installed]) : []);
   for (const { name, version, pin } of doc.engines) {
+    const inst = aqui.get(name);
+    if (inst && cmpVer(version, inst) < 0 && !opts.permitirRebaixar) {
+      engines.push([name, { ok: false, reason: `${name}: o documento pede v${version}, abaixo da v${inst} instalada → rebaixar exige --permitir-rebaixar` }]);
+      continue;
+    }
     let r = await ensureCommand(name, { ...opts, version });
     if (r.ok && pin && opts.dryRun) { r = { ...r, plan: PLANO_COM_PIN[r.plan], pinned: pin }; }
     else if (r.ok && pin) {

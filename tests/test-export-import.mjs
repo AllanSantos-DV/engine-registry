@@ -285,6 +285,22 @@ console.log("\n== pelo CLI, offline ==");
   check("import com dois arquivos: recusado, exit 1", doisArquivos.status === 1 && /argumento inesperado/.test(doisArquivos.stderr), doisArquivos.stderr);
 }
 
+console.log("\n== pin do documento e rebaixamento ==");
+{
+  const pinDiferente = await importar(gravar(doc([{ name: "ei-livre", version: "1.0.0", pin: "1.1.0" }])));
+  check("documento com pin diferente da versão é recusado inteiro, com o motor na mensagem", pinDiferente.ok === false && /pin/.test(pinDiferente.reason) && /ei-livre/.test(pinDiferente.reason), JSON.stringify(pinDiferente));
+
+  limpar("ei-livre");
+  await ensureCommand("ei-livre", v2.opts);
+  const pedido = gravar(doc([{ name: "ei-livre", version: "1.0.0" }]));
+  const real = await importar(pedido, { ...v1.opts });
+  check("documento com versão abaixo da instalada: o import recusa o motor e nada muda", real.ok === false && /rebaix/.test(linha(real, "ei-livre")?.reason ?? "") && instalado("ei-livre") === "1.1.0", JSON.stringify(real));
+  const seco = await importar(pedido, { ...v1.opts, dryRun: true });
+  check("no --dry-run o rebaixamento aparece como recusa, não como 'atualizaria'", seco.ok === false && /rebaix/.test(linha(seco, "ei-livre")?.reason ?? ""), JSON.stringify(seco));
+  const aceito = await importar(pedido, { ...v1.opts, permitirRebaixar: true });
+  check("com permitirRebaixar o import instala a versão do documento", aceito.ok === true && instalado("ei-livre") === "1.0.0", JSON.stringify(aceito));
+}
+
 rmSync(RUN, { recursive: true, force: true });
 console.log(`\n== ${failures === 0 ? "TUDO VERDE" : `${failures} FALHA(S)`} ==`);
 process.exit(failures === 0 ? 0 : 1);

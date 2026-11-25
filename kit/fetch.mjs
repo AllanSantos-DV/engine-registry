@@ -110,7 +110,7 @@ export async function fetchCommand(name, { version, registryUrl, destDir = proce
     if (dif) { rmSync(f.path, { force: true }); return { ok: false, reason: dif }; }
     const files = [{ path: f.path, signed: f.signed }];
     if (comAssinaturas) {
-      const s = await salvarSidecars(f.path, { sha256: vistos[r.engine.checksumUrl], sig: vistos[r.engine.signatureUrl], publicKey, algorithm: r.engine.install?.signatureAlgorithm });
+      const s = await salvarSidecars(f.path, { sha256: vistos[r.engine.checksumUrl], sig: vistos[r.engine.signatureUrl], publicKey: r.engine.install?.publicKey ?? publicKey, algorithm: r.engine.install?.signatureAlgorithm });
       if (!s.ok) { rmSync(f.path, { force: true }); return { ok: false, reason: `${name}: ${s.reason}` }; }
       files.push(...s.paths.map((path, i) => ({ path, sidecar: ["sha256", "sig"][i] })));
     }

@@ -145,7 +145,7 @@ npx engine-kit trust [motor] [--json]             # o que o trust.json guarda po
 npx engine-kit trust --restaurar                  # devolve o trust.json a partir do .bak quando ele está ilegível (a cópia é validada, a troca é atômica)
 npx engine-kit path <motor> [--json]              # caminho do executável do motor instalado e o estado do cli.json; sem rede, não sobe nada
 npx engine-kit export [arquivo]                   # os motores instalados aqui (nome, versão instalada e pin) num JSON, gravado em arquivo ou impresso; nunca leva chave, assinatura, caminho, usuário nem máquina
-npx engine-kit import <arquivo> [--dry-run] [--json]   # instala a versão registrada de cada motor do documento (sha256 + Ed25519) e fixa o que estava fixado; --dry-run mostra só o plano
+npx engine-kit import <arquivo> [--dry-run] [--permitir-rebaixar] [--json]   # instala a versão registrada de cada motor do documento (sha256 + Ed25519) e fixa o que estava fixado; --dry-run mostra só o plano; versão abaixo da instalada só com --permitir-rebaixar
 npx engine-kit mcp                                # servidor MCP (stdio) que não instala nem fixa nada: engine_list, engine_history, engine_check, engine_path, engine_url, engine_trust, engine_doctor, engine_info, engine_report e, com rede, engine_plan e engine_check com rede:true; não atualiza o kit
 npx engine-kit check meu-plugin/plugin.json --rede   # além do check: diz se a versão publicada satisfaz a faixa do que falta ou está fora dela
 npx engine-kit check meu-plugin/plugin.json [outro/plugin.json ...] [--json]   # confere o bloco `engines` de um ou mais manifestos de plugin contra o instalado; com vários, --json devolve { ok, manifests }

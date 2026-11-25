@@ -193,6 +193,19 @@ console.log("\n== pelo CLI, offline ==");
   check("a pasta do fetch é aceita pelo ensure --de-arquivo no CLI (exit 0, instalado)", aceito.status === 0 && instalado("cli-a") === "2.0.0", aceito.stdout + aceito.stderr);
 }
 
+console.log("\n== chave rotacionada pelo registry ==");
+{
+  const { rotationBlob } = await import("../kit/trust.mjs");
+  const antiga = generateKeyPairHex();
+  const reg = registry({ "sig-rot": "2.0.0" }), d = pasta();
+  const embarcado = structuredClone(reg.manifest);
+  embarcado.engines[0].install.publicKey = antiga.publicKeyHex;
+  const doRegistry = structuredClone(reg.manifest);
+  doRegistry.engines[0].install.rotation = { from: antiga.publicKeyHex, signature: signBlob(rotationBlob("sig-rot", owner.publicKeyHex), antiga.privateKeyHex).toString("hex") };
+  const r = await fetchCommand("sig-rot", { bundled: embarcado, manifest: doRegistry, fetcher: reg.fetcher, destDir: d, comAssinaturas: true });
+  check("com a rotação assinada pela chave embarcada, o fetch --com-assinaturas confere os sidecars com a chave rotacionada", r.ok === true && JSON.stringify(lista(d)) === JSON.stringify(["sig-rot.tgz", "sig-rot.tgz.sha256", "sig-rot.tgz.sig"]), JSON.stringify([r, lista(d)]));
+}
+
 rmSync(RUN, { recursive: true, force: true });
 console.log(`\n== ${failures === 0 ? "TUDO VERDE" : `${failures} FALHA(S)`} ==`);
 process.exit(failures === 0 ? 0 : 1);

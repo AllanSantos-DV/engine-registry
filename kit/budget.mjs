@@ -173,10 +173,11 @@ const ROOT = resolvePath(KIT, "..");
 //   instalada e pin por motor, mais a versão do kit; o import valida o formato (chaves conhecidas, nome e versão x.y.z, sem repetido nem `__proto__`) antes de instalar qualquer coisa e então reusa `ensureCommand`
 //   com `version` (sha256, Ed25519 e chave do manifest embarcado), `pinCommand` e o plano do `ensure --dry-run`. O validador é a maior parte dos bytes: o documento vem de fora e não pode poluir nada. Tudo no ferramental, fora do
 //   fecho de `kit/index.mjs` (runtime 38990/39000, a cifra de 39 KB da vitrine segue). Sem os verbos novos o comportamento é o de antes.
+//   2026-11-25 tooling 119000 → 119500: correções da revisão independente dos verbos novos, +71 bytes — o `fetch --com-assinaturas` confere os sidecars com a chave que o `fetchArtifact` aceitou (rotação legítima), o `import` recusa documento com `pin` diferente da versão e só rebaixa com `--permitir-rebaixar`. O runtime não mudou (38990/39000).
 const BUDGETS = {
   runtime: { codeBytes: 39000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10700, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 119000, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 119500, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 
