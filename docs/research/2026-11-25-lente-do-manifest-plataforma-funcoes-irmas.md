@@ -25,3 +25,16 @@ Fontes: `README.md`, `kit/`, `manifest.json`, `docs/BACKLOG.md`, `docs/research/
 ## Orçamento
 
 O runtime ficou em 38990 de 39000 (a cifra de 39 KB da vitrine não muda). O ferramental subiu de 104042 para 118346 bytes e o teto foi recalibrado para 119000, com nota datada em `kit/budget.mjs`.
+
+## Revisão adversarial independente (tip revisado 393ecba)
+
+Um revisor só com o diff e o projeto não achou P0 nem P1; quatro P2:
+
+| # | Achado | Destino |
+|---|---|---|
+| 1 | `fetch --com-assinaturas` conferia os sidecars com a chave embarcada e recusava uma rotação legítima | corrigido: usa a chave que o `fetchArtifact` aceitou; `test-fetch-com-assinaturas.mjs` (caso de rotação) falhava antes |
+| 2 | `import` ignorava o valor de `pin` do documento | corrigido: documento com `pin` diferente da versão é recusado inteiro, com o motor na mensagem; teste falhava antes |
+| 3 | `import` rebaixava versão em silêncio | corrigido: recusa, no `--dry-run` também, e só rebaixa com `--permitir-rebaixar`; teste falhava antes |
+| 4 | `export` falha por inteiro com versão fora de `x.y.z` | mantido: falha alto, com o motor na mensagem |
+
+Conferidos como seguros: path traversal pelo documento, poluição de protótipo, sidecar adulterado, escrita não atômica, dado pessoal no export, `engine_plan` e `engine_check` com rede, contrato sem as flags novas. O ferramental ficou em 119071 e o teto subiu para 119500 com nota datada.
