@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* tests/test-pages-branch.mjs — a publicação do Pages pela branch gh-pages falha alto em configuração inválida, leva o
-   manifest.json da raiz junto com o site, o workflow não usa artefato do Actions, só roda por disparo manual ou por mudança
-   do manifest na main e a conferência da página no ar lê a URL de verdade (servidor local; nada é publicado).
+   manifest.json e o schema.json da raiz junto com o site, o workflow não usa artefato do Actions, só roda por disparo manual ou
+   por mudança do site, do manifest ou do schema na main e a conferência da página no ar lê a URL de verdade (servidor local; nada é publicado).
      node tests/test-pages-branch.mjs */
 import "./_tmp.mjs";
 import assert from 'node:assert/strict';
@@ -43,11 +43,19 @@ function bareRemote() {
 }
 const gitOut = (remote, ...args) => spawnSync('git', ['--git-dir', remote, ...args], { encoding: 'utf8', windowsHide: true }).stdout.trim();
 const gitBytes = (remote, ...args) => spawnSync('git', ['--git-dir', remote, ...args], { windowsHide: true }).stdout;
-async function live(index, { manifest = MANIFEST, manifestStatus = 200, status = 200 } = {}) {
+const SCHEMA = '{\n  "$id": "https://exemplo.test/schema.json",\n  "type": "object"\n}\n';
+function makeSchema(text = SCHEMA) {
+  const file = path.join(tmp(), 'schema.json');
+  fs.writeFileSync(file, text);
+  return file;
+}
+const SCHEMA_DA_RAIZ = fs.readFileSync(path.join(ROOT, 'schema.json'), 'utf8').replace(/\r\n/g, '\n');
+async function live(index, { manifest = MANIFEST, manifestStatus = 200, schema = SCHEMA_DA_RAIZ, schemaStatus = 200, status = 200 } = {}) {
   const server = http.createServer((req, res) => {
-    const isManifest = new URL(req.url, 'http://x').pathname.endsWith('/manifest.json');
-    res.writeHead(isManifest ? manifestStatus : status);
-    res.end(isManifest ? manifest : index);
+    const name = new URL(req.url, 'http://x').pathname.split('/').pop();
+    const [code, body] = name === 'manifest.json' ? [manifestStatus, manifest] : name === 'schema.json' ? [schemaStatus, schema] : [status, index];
+    res.writeHead(code);
+    res.end(body);
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   return { url: `http://127.0.0.1:${server.address().port}/`, close: () => new Promise((resolve) => server.close(resolve)) };
@@ -69,9 +77,9 @@ await ok('chave de deploy, sem GITHUB_TOKEN, com contents: read', () => {
   assert.ok(WORKFLOW.includes('contents: read'));
 });
 const GATILHOS = WORKFLOW.match(/^on:\n((?:[ \t]+.*\n|\n)*)/m)?.[1] ?? '';
-await ok('gatilhos: disparo manual e push na main só quando o site ou o manifest.json mudam; sem cron nem pull request', () => {
+await ok('gatilhos: disparo manual e push na main só quando o site, o manifest.json ou o schema.json mudam; sem cron nem pull request', () => {
   assert.match(GATILHOS, /^ {2}workflow_dispatch:/m);
-  assert.match(GATILHOS, /^ {2}push:\n {4}branches: \[main\]\n {4}paths: \['site\/\*\*', 'manifest\.json'\]\n/m);
+  assert.match(GATILHOS, /^ {2}push:\n {4}branches: \[main\]\n {4}paths: \['site\/\*\*', 'manifest\.json', 'schema\.json'\]\n/m);
   assert.ok(!/^ {2}(schedule|pull_request|pull_request_target|release):/m.test(GATILHOS), 'só o dono e a mudança do manifest na main publicam');
 });
 await ok('a publicação só roda a partir da main: o manifest publicado é o da main', () => {
@@ -112,13 +120,13 @@ await ok('nenhum workflow do registry usa runner Windows/macOS nem roda a suíte
     assert.ok(!/npm (run )?test\s*$/m.test(code), `${file}: roda a suíte no runner hospedado`);
   }
 });
-await ok('publica commit órfão com .nojekyll, manifest.json e arquivos "_"', () => {
+await ok('publica commit órfão com .nojekyll, manifest.json, schema.json e arquivos "_"', () => {
   const remote = bareRemote(); const site = makeSite(); const manifest = makeManifest();
   const sha = pages.publish(site, remote, 'gh-pages', 'p', '', manifest);
   assert.equal(gitOut(remote, 'rev-parse', 'gh-pages'), sha);
   assert.equal(gitOut(remote, 'rev-list', '--count', 'gh-pages'), '1');
   const tree = gitOut(remote, 'ls-tree', '-r', '--name-only', 'gh-pages').split('\n').sort();
-  assert.deepEqual(tree, ['.nojekyll', 'index.html', 'manifest.json', 'media/_x.bin']);
+  assert.deepEqual(tree, ['.nojekyll', 'index.html', 'manifest.json', 'media/_x.bin', 'schema.json']);
   pages.publish(site, remote, 'gh-pages', 'p2', '', manifest);
   assert.equal(gitOut(remote, 'rev-list', '--count', 'gh-pages'), '1', 'segunda publicação refaz o commit órfão');
 });
@@ -208,6 +216,77 @@ await ok('verify falha quando o manifest publicado não é JSON válido', async 
 await ok('verify recusa antes de ler a URL se o manifest local falta', async () => {
   const server = await live(INDEX);
   try { await assert.rejects(() => pages.verify(server.url, makeSite(), 1, 0, 'a', path.join(tmp(), 'manifest.json')), /manifest\.json/); } finally { await server.close(); }
+});
+const lerSchema = (remote) => gitBytes(remote, 'show', 'gh-pages:schema.json');
+await ok('a árvore publicada leva o schema.json idêntico ao informado, na raiz', () => {
+  const remote = bareRemote(); const schema = makeSchema();
+  pages.publish(makeSite(), remote, 'gh-pages', 'p', '', makeManifest(), schema);
+  assert.ok(lerSchema(remote).equals(fs.readFileSync(schema)));
+});
+await ok('sem --schema publica o schema.json da raiz do repositório, com o $id intacto', () => {
+  const remote = bareRemote();
+  pages.publish(makeSite(), remote, 'gh-pages', 'p', '');
+  assert.equal(lerSchema(remote).toString('utf8'), SCHEMA_DA_RAIZ);
+  assert.match(SCHEMA_DA_RAIZ, /"\$id": "https:\/\/raw\.githubusercontent\.com\/AllanSantos-DV\/engine-registry\/main\/schema\.json"/);
+});
+await ok('o schema da raiz prevalece sobre um schema.json dentro da pasta do site', () => {
+  const remote = bareRemote(); const site = makeSite();
+  fs.writeFileSync(path.join(site, 'schema.json'), '{"velho":true}');
+  pages.publish(site, remote, 'gh-pages', 'p', '', makeManifest(), makeSchema());
+  assert.equal(lerSchema(remote).toString('utf8'), SCHEMA);
+});
+await ok('schema com CRLF no checkout é publicado com LF', () => {
+  const remote = bareRemote();
+  pages.publish(makeSite(), remote, 'gh-pages', 'p', '', makeManifest(), makeSchema(SCHEMA.replace(/\n/g, '\r\n')));
+  const blob = lerSchema(remote);
+  assert.ok(!blob.includes(0x0d), 'o blob publicado não pode ter CR');
+  assert.equal(blob.toString('utf8'), SCHEMA);
+});
+await ok('schema ausente recusa a publicação e não publica nada', () => {
+  const remote = bareRemote();
+  assert.throws(() => pages.publish(makeSite(), remote, 'gh-pages', 'p', '', makeManifest(), path.join(tmp(), 'schema.json')), (e) => e instanceof pages.PagesError && /schema\.json/.test(e.message));
+  assert.equal(gitOut(remote, 'branch', '--list'), '');
+});
+await ok('schema que não é JSON válido recusa a publicação e não publica nada', () => {
+  const remote = bareRemote();
+  assert.throws(() => pages.publish(makeSite(), remote, 'gh-pages', 'p', '', makeManifest(), makeSchema('{"type": ')), (e) => e instanceof pages.PagesError && /schema\.json.*não é JSON válido/.test(e.message));
+  assert.equal(gitOut(remote, 'branch', '--list'), '');
+});
+await ok('a linha de comando publica o --schema informado na raiz', () => {
+  const remote = bareRemote();
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'tools', 'pages-branch.mjs'), 'publish', '--site', makeSite(), '--remote', remote, '--schema', makeSchema()], { encoding: 'utf8', windowsHide: true });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(lerSchema(remote).toString('utf8'), SCHEMA);
+});
+await ok('a linha de comando recusa --schema ausente com código 1 e a causa no erro padrão', () => {
+  const remote = bareRemote();
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'tools', 'pages-branch.mjs'), 'publish', '--site', makeSite(), '--remote', remote, '--schema', path.join(tmp(), 'nada-schema.json')], { encoding: 'utf8', windowsHide: true });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /nada-schema\.json/);
+  assert.equal(gitOut(remote, 'branch', '--list'), '');
+});
+await ok('verify passa quando o schema é servido igual, mesmo com CRLF no checkout local', async () => {
+  const site = makeSite(); const server = await live(INDEX, { schema: SCHEMA });
+  try {
+    await pages.verify(server.url, site, 1, 0, 'a', makeManifest(), makeSchema());
+    await pages.verify(server.url, site, 1, 0, 'a', makeManifest(), makeSchema(SCHEMA.replace(/\n/g, '\r\n')));
+  } finally { await server.close(); }
+});
+await ok('verify falha com a causa quando o schema publicado dá 404', async () => {
+  const server = await live(INDEX, { schema: SCHEMA, schemaStatus: 404 });
+  try { await assert.rejects(() => pages.verify(server.url, makeSite(), 1, 0, 'a', makeManifest(), makeSchema()), /schema\.json.*HTTP 404/); } finally { await server.close(); }
+});
+await ok('verify falha quando o schema publicado difere do local', async () => {
+  const server = await live(INDEX, { schema: SCHEMA.replace('object', 'array') });
+  try { await assert.rejects(() => pages.verify(server.url, makeSite(), 1, 0, 'a', makeManifest(), makeSchema()), /o schema publicado difere do local/); } finally { await server.close(); }
+});
+await ok('verify falha quando o schema publicado não é JSON válido', async () => {
+  const server = await live(INDEX, { schema: '<html>404</html>' });
+  try { await assert.rejects(() => pages.verify(server.url, makeSite(), 1, 0, 'a', makeManifest(), makeSchema()), /schema publicado não é JSON válido/); } finally { await server.close(); }
+});
+await ok('verify recusa antes de ler a URL se o schema local falta', async () => {
+  const server = await live(INDEX);
+  try { await assert.rejects(() => pages.verify(server.url, makeSite(), 1, 0, 'a', makeManifest(), path.join(tmp(), 'schema.json')), /schema\.json/); } finally { await server.close(); }
 });
 const sha = (b) => createHash('sha256').update(b).digest('hex');
 const MP4 = Buffer.from('mp4-de-teste-com-alguns-bytes');

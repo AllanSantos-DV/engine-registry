@@ -70,7 +70,10 @@ npx engine-kit ensure vxk                     # instala ou atualiza; reusa se j�
 npx engine-kit ensure vxk --version 0.23.0    # versão exata (downgrade permitido)
 npx engine-kit pin vxk                        # congela o vxk na versão instalada
 npx engine-kit pin vxk --version 0.22.0       # instala essa versão (assinatura conferida) e congela
+npx engine-kit pin vxk skill-engine           # congela vários motores de uma vez, cada um na versão instalada
+npx engine-kit pin --instalados               # congela todo motor instalado aqui que o ensure --instalados atualiza
 npx engine-kit unpin vxk                      # o vxk volta a receber atualizações
+npx engine-kit unpin --todos                  # solta todos os pins gravados
 npx engine-kit stop vxk                       # pede ao vxk que se encerre pelo shutdownPath do registry
 npx engine-kit ensure neural-link --register  # instala e também registra os hooks (config global do usuário)
 npx engine-kit ensure neural-link --unregister  # instala e desfaz esse registro (precisa de um neural-link com uninstall())
@@ -126,7 +129,7 @@ Pin por motor: `engine-kit pin <motor>` grava a versão fixada só desse motor n
 atualização automática (o `ensure`, o `doctor --fix` e o `ensureEngine` dos consumidores) pula os motores fixados e
 continua atualizando os outros. Um `ensure --version` diferente da versão fixada é recusado com a saída (trocar o pin
 ou `unpin`); um consumidor que exige versão maior que a fixada recebe `available:false` explicando o `unpin`. Motores
-`self-managed` não são fixados pelo kit.
+`self-managed` não são fixados pelo kit. Com vários motores (`pin vxk skill-engine`) ou com `--instalados` (todo motor instalado que o `ensure --instalados` atualiza, sem self-managed nem motor de outra plataforma), o `pin` sai no formato de vários motores do `ensure` (`--json` devolve `{ ok, engines }`; no texto, uma linha por motor): uma falha não esconde os outros e dá exit 1, `--dry-run` só mostra o plano, e `--version` não vale nesses modos. `unpin --todos` solta de uma vez todo pin gravado, e `--todos` só existe no `unpin`.
 
 Publicar o kit: tag `engine-kit-v<versão do package.json>` criada na `main`; o workflow `.github/workflows/publish.yml`
 publica por OIDC (sem token guardado; a suíte roda no pré-check local, nunca no runner hospedado). Conferir a proveniência: `npm audit signatures` num projeto
@@ -150,7 +153,7 @@ npx engine-kit info <motor|app> [--json]          # descritor, versão no manife
 npx engine-kit update <motor> [--check] [--json]       # pede ao updater do daemon vivo (motor com runtime.updatePath, como o motor-de-grafo) que se atualize; --check só compara as versões; o token do anúncio vai só no cabeçalho
 npx engine-kit rollback <motor> [--json]          # volta à versão anterior à última troca do history (sha256 + Ed25519) e fixa nela; recusa primeira instalação e self-managed
 npx engine-kit rollback <motor> --dry-run [--json]   # diz de qual versão para qual voltaria e que fixaria nela, sem trocar a versão nem gravar o pin; as mesmas recusas
-npx engine-kit pin <motor> --version <x.y.z> --dry-run [--json]   # diz o que o pin faria (fixaria, instalaria e fixaria, trocaria e fixaria) sem instalar nem gravar o pin; sem --version, o plano é fixar a versão instalada
+npx engine-kit pin <motor> --version <x.y.z> --dry-run [--json]   # diz o que o pin faria (fixaria, instalaria e fixaria, trocaria e fixaria) sem instalar nem gravar o pin; sem --version, o plano é fixar a versão instalada; vale também com vários motores e com --instalados
 npx engine-kit trust [motor] [--json]             # o que o trust.json guarda por motor (chave pública, origem, maior versão, pin), se bate com o manifest embarcado e o estado do .bak; só lê
 npx engine-kit trust --restaurar                  # devolve o trust.json a partir do .bak quando ele está ilegível (a cópia é validada, a troca é atômica)
 npx engine-kit path <motor> [--json]              # caminho do executável do motor instalado e o estado do cli.json; sem rede, não sobe nada
@@ -297,7 +300,7 @@ O `check` sai com exit 1 quando um motor da faixa `engines` do plugin está ause
 { "scripts": { "postinstall": "engine-kit ensure vxk" } }
 ```
 
-`engine-kit ensure vxk` é idempotente: com o motor em dia só reusa, sem baixar; senão instala ou atualiza conferindo sha256 e Ed25519. Falha (rede fora, artefato adulterado, plataforma sem build) é exit 1 com o motivo, e o `postinstall` falha junto: não há instalação calada pela metade. Na primeira execução do seu programa o comando é o mesmo; `ENGINE_KIT_NO_AUTO_UPDATE=1` mantém a versão instalada.
+`engine-kit ensure vxk` é idempotente: com o motor em dia só reusa, sem baixar; senão instala ou atualiza conferindo sha256 e Ed25519. Falha (rede fora, artefato adulterado, plataforma sem build) é exit 1 com o motivo, e o `postinstall` falha junto: não há instalação calada pela metade. Na primeira execução do seu programa o comando é o mesmo; `ENGINE_KIT_NO_AUTO_UPDATE=1` mantém a versão instalada. Para congelar tudo o que ficou instalado, `engine-kit pin --instalados`; `engine-kit unpin --todos` solta de volta.
 
 ### Levar o ambiente para outra máquina
 

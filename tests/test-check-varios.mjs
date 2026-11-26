@@ -83,7 +83,7 @@ console.log("== engine-kit check com vários manifestos ==\n");
   const de = await cli("ensure", "--de", voz, modo, "--json");
   const o = json(de);
   check("ensure --de com vários: reusa o que satisfaz e devolve um item por manifesto", de.code === 0 && o?.ok === true && o.manifests?.length === 2 && o.manifests.every((m) => m.engines.every((e) => e.acao === "reusado")), de.out.slice(0, 400));
-  const solto = await cli("pin", "vxk", "outro");
+  const solto = await cli("unpin", "vxk", "outro");
   check("os outros verbos continuam recusando argumento solto", solto.code === 1 && /argumento inesperado: outro/.test(solto.err), solto.err);
   const flagSolta = await cli("check", voz, "--dest", RUN);
   check("flag que o verbo não aceita continua recusada", flagSolta.code === 1 && /--dest não vale para `check`/.test(flagSolta.err), flagSolta.err);

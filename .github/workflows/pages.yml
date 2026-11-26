@@ -1,9 +1,9 @@
-# Site do engine-registry (pasta site/, estático, sem build) mais o manifest.json da raiz: publica na branch gh-pages e
-# confere a página e o manifest no ar.
+# Site do engine-registry (pasta site/, estático, sem build) mais o manifest.json e o schema.json da raiz: publica na branch
+# gh-pages e confere a página, o manifest e o schema no ar.
 # Fonte do Pages = "Deploy from a branch", gh-pages, "/": sem artefato do Actions (a cota mensal de armazenamento da conta
 # bloqueia o deploy-pages). O push usa a chave de deploy PAGES_DEPLOY_KEY (push com GITHUB_TOKEN não dispara a
-# publicação). Roda por disparo manual (decisão do dono) e a cada push na main que muda site/ ou o manifest.json, para o site e
-# o manifest no ar acompanharem a main; o publish republica o site inteiro da main. Processo e reversão: docs/PAGES.md.
+# publicação). Roda por disparo manual (decisão do dono) e a cada push na main que muda site/, o manifest.json ou o schema.json, para o site,
+# o manifest e o schema no ar acompanharem a main; o publish republica o site inteiro da main. Processo e reversão: docs/PAGES.md.
 # Runner Linux hospedado, ou o local com CI_RUNNER=local (docs/billing-fallback.md). Hospedado nunca roda teste: a conferência
 # do site completo (--require-media) só roda no runner local; a suíte roda na checagem local antes do disparo.
 
@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['site/**', 'manifest.json']
+    paths: ['site/**', 'manifest.json', 'schema.json']
 
 permissions:
   contents: read
@@ -61,5 +61,5 @@ jobs:
           }
           node tools/pages-branch.mjs publish --message "Site engine-registry ${GITHUB_SHA::7}"
 
-      - name: A página no ar serve este site e o manifest.json do repositório
+      - name: A página no ar serve este site, o manifest.json e o schema.json do repositório
         run: node tools/pages-branch.mjs verify --stamp "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"

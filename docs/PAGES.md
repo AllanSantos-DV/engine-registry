@@ -22,8 +22,9 @@ tests/test-site-tokens.mjs    # nenhuma cor literal fora de tokens.css; tokens c
 tests/test-comparar-capturas.mjs  # o comparador de capturas (PNG sintéticos, tolerância, falha alta)
 tests/test-pages-branch.mjs   # publicador e workflow (remoto bare e servidor local; nada é publicado)
 docs/ROTEIRO-APRESENTACAO.md  # cenas e falas, e o que o vídeo deve mostrar
-.github/workflows/pages.yml   # publicação, por disparo manual e a cada push na main que muda site/ ou o manifest.json
+.github/workflows/pages.yml   # publicação, por disparo manual e a cada push na main que muda site/, o manifest.json ou o schema.json
 manifest.json                 # fora de site/: o publish o copia para a raiz do site publicado
+schema.json                   # idem: o publish o copia para a raiz, onde o manifest publicado o referencia (`$schema: ./schema.json`)
 ```
 
 O site abre direto do disco (`site/index.html`); não há servidor, bundler nem dependência. A CSP da página só aceita
@@ -80,14 +81,14 @@ npm test                                  # suíte inteira (inclui o site e o pu
 
 Fonte do Pages: **Deploy from a branch** (`gh-pages`, `/`), sem artefato do Actions (a cota de armazenamento do Actions da
 conta bloqueia o `deploy-pages`). `.github/workflows/pages.yml` roda por disparo manual (decisão do dono) e, na `main`,
-a cada push que muda o site ou o manifesto (`push` com `paths: ['site/**', 'manifest.json']`); só roda a partir da `main` (um passo
+a cada push que muda o site ou o manifesto (`push` com `paths: ['site/**', 'manifest.json', 'schema.json']`); só roda a partir da `main` (um passo
 falha cedo em qualquer outra branch); executa, em ordem: o vídeo da apresentação,
 `tests/test-site.mjs --require-media` (só no runner local), `tools/pages-branch.mjs publish` e `tools/pages-branch.mjs verify`.
-O `publish` monta um commit órfão só com o conteúdo de `site/`, o `manifest.json` da raiz do repositório e `.nojekyll`, e o envia
+O `publish` monta um commit órfão só com o conteúdo de `site/`, o `manifest.json` e o `schema.json` da raiz do repositório e `.nojekyll`, e o envia
 com push forçado a `gh-pages` pela chave de deploy do secret `PAGES_DEPLOY_KEY`; o `verify` lê a URL pública até ela servir o
-`index.html` do site e o `manifest.json` do repositório, e falha se não servir. Roda no runner `ubuntu-latest`; a suíte
+`index.html` do site, o `manifest.json` e o `schema.json` do repositório, e falha se não servir. Roda no runner `ubuntu-latest`; a suíte
 (`npm test`) roda antes, na checagem local. Uma publicação sempre refaz o site inteiro da `main`, venha do disparo manual ou
-de um push que muda o site ou o manifest.
+de um push que muda o site, o manifest ou o schema.
 
 ### O manifest.json na raiz do site
 
@@ -101,8 +102,21 @@ de um push que muda o site ou o manifest.
 - **Como se verifica:** o `verify` também lê `manifest.json?v=<stamp>` e exige HTTP 200, JSON válido e os mesmos bytes do
   manifest local (mesma normalização), com as mesmas tentativas e o mesmo intervalo do `index.html`. Falha com a causa:
   `HTTP 404`, ou `o manifest publicado difere do da main`.
-- **Quando republica:** a cada push na `main` que mude `site/` ou o `manifest.json` (a publicação de um motor novo, por exemplo), além
+- **Quando republica:** a cada push na `main` que mude `site/`, o `manifest.json` ou o `schema.json` (a publicação de um motor novo, por exemplo), além
   do disparo manual. O workflow recusa rodar fora da `main`, para o manifest no ar ser sempre o da `main`.
+
+### O schema.json na raiz do site
+
+O manifest publicado traz `$schema: ./schema.json`; sem o arquivo ao lado, esse caminho dava 404 no Pages.
+`https://allansantos-dv.github.io/engine-registry/schema.json` responde 200 com o mesmo JSON do `schema.json` da `main`.
+
+- **De onde vem:** `tools/pages-branch.mjs publish` copia `<repo>/schema.json` (ou o caminho de `--schema`) para a raiz da árvore
+  publicada, com o mesmo tratamento do manifest: CRLF para LF como única normalização, fora de `site/`, e arquivo ausente ou que
+  não é JSON válido recusa a publicação (erro, código 1, nada é enviado). O `$id` do schema não muda (continua apontando para o
+  raw da `main`).
+- **Como se verifica:** o `verify` também lê `schema.json?v=<stamp>` e exige HTTP 200, JSON válido e os mesmos bytes do schema
+  local (`--schema` muda o caminho), com as mesmas tentativas e o mesmo intervalo. Falha com a causa: `HTTP 404`, ou
+  `o schema publicado difere do local`.
 
 Antes da primeira publicação, uma vez:
 
@@ -127,7 +141,7 @@ gh api -X DELETE repos/AllanSantos-DV/engine-registry/pages   # tira o site do a
 git push origin --delete gh-pages                              # apaga a branch publicada
 ```
 
-O conteúdo editável continua em `site/` no `main`, e o manifest em `manifest.json`. Para tirar só o manifest do ar sem
-derrubar o site: reverter a mudança de `tools/pages-branch.mjs` e do `pages.yml` e disparar o workflow; a `gh-pages` é
-refeita sem o `manifest.json`. Para impedir que uma mudança do site ou do manifest publique sozinha, remover o gatilho `push` do
+O conteúdo editável continua em `site/` no `main`, o manifest em `manifest.json` e o schema em `schema.json`. Para tirar só o
+manifest ou o schema do ar sem derrubar o site: reverter a mudança de `tools/pages-branch.mjs` e do `pages.yml` e disparar o
+workflow; a `gh-pages` é refeita sem o arquivo. Para impedir que uma mudança do site, do manifest ou do schema publique sozinha, remover o gatilho `push` do
 `pages.yml` (o disparo manual continua).
