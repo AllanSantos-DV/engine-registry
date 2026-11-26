@@ -6,7 +6,7 @@
 //   • engine_doctor com `verify:true` confere a integridade da pasta instalada (ADULTERADO, com `integrity`); sem `verify` o mesmo motor não é conferido;
 //   • engine_list com `apps:true` acrescenta os apps do manifest; sem ele não há o campo `apps`;
 //   • engine_export devolve o documento que `export` imprimiria (o mesmo que `import -` aceita), sem gravar arquivo, e não aceita argumento;
-//   • argumento do tipo errado é recusado, e nenhuma dessas leituras grava nada no ENGINE_KIT_HOME nem na pasta de trabalho.
+//   • argumento do tipo errado é recusado; chave herdada do Object.prototype (`__proto__`, `constructor`) cai em `argumento desconhecido`; `engine` vazio é recusado; e nenhuma dessas leituras grava nada no ENGINE_KIT_HOME nem na pasta de trabalho.
 // Hermético: HOME e ENGINE_KIT_HOME isolados, registry e downloads de memória (o .tgz é real e assinado), sem rede.
 //
 //   node tests/test-mcp-doctor-lista-export.mjs
@@ -114,6 +114,14 @@ console.log("\n== tipos e escrita ==");
     const r = await chama(tool, args, injetado);
     check(`${tool}: \`${campo}\` do tipo errado é recusado com isError:true`, r.result?.isError === true && new RegExp(campo).test(corpo(r)), corpo(r));
   }
+  for (const chave of ["__proto__", "constructor"]) {
+    const r = await chama("engine_doctor", JSON.parse(`{"${chave}":"x"}`), injetado);
+    check(`chave herdada \`${chave}\` cai em "argumento desconhecido"`, r.result?.isError === true && corpo(r) === `argumento desconhecido: ${chave}`, corpo(r));
+  }
+  const vazio = await chama("engine_doctor", { engine: "" }, injetado);
+  check("engine_doctor com `engine` vazio: isError:true dizendo que não pode ser vazio, sem listar os motores", vazio.result?.isError === true && /engine.*vazi/.test(corpo(vazio)) && !("engines" in json(vazio)), corpo(vazio).slice(0, 300));
+  const todos = await chama("engine_doctor", {}, injetado);
+  check("engine_doctor sem `engine` segue devolvendo todos os motores", todos.result?.isError === false && json(todos).engines?.length === 2, corpo(todos).slice(0, 200));
   check("nenhuma leitura gravou arquivo no ENGINE_KIT_HOME nem na pasta de trabalho", foto() === antes, `${antes} ≠ ${foto()}`);
 }
 

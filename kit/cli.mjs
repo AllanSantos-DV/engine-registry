@@ -288,6 +288,9 @@ if (cmd === "--help" || cmd === "-h") {
       console.log(r.file ? `OK ${r.doc.engines.length} motor(es) exportado(s) para ${r.file}` : JSON.stringify(r.doc, null, 2));
       if (r.pinOmitido) { console.error(`aviso: pin omitido de ${r.pinOmitido.join(", ")}: o pin gravado é diferente da versão instalada`); }
     }
+  } else if (cmd === "import" && name === "-" && process.stdin.isTTY) {
+    console.error("import - lê o documento do stdin: use um pipe, ex.: engine-kit export | engine-kit import -");
+    process.exitCode = 1;
   } else if (cmd === "import") {
     const r = await importCommand(name, { registryUrl: flag("--registry-url"), dryRun, permitirRebaixar: args.includes("--permitir-rebaixar"), log });
     if (!r.engines) { if (asJson) { console.log(JSON.stringify(jsonOf("import", name, r), null, 2)); } else { console.error(`FALHOU import: ${r.reason}`); } }

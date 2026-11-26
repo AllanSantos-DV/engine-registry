@@ -5,6 +5,7 @@
 //   • `import - --dry-run` mostra o plano a partir da entrada padrão sem baixar, instalar nem fixar, e `--json` devolve o mesmo formato do import de arquivo;
 //   • documento inválido na entrada é recusado inteiro, com exit 1, sem instalar nada; entrada vazia ou que não é JSON também, dizendo que veio da entrada padrão;
 //   • com um arquivo no argumento a entrada padrão é ignorada, e `import` sem argumento segue recusado com o uso;
+//   • com a entrada padrão em um terminal, `import -` é recusado com uma linha de uso e exit 1, sem ficar esperando; arquivo no argumento segue valendo;
 //   • o uso documenta `import <arquivo|->`.
 // Hermético: HOME e ENGINE_KIT_HOME isolados, registry e downloads de memória (o .tgz é real e assinado), o CLI roda numa cópia do kit, sem rede.
 //
@@ -33,6 +34,7 @@ const pinGravado = (n) => { try { return JSON.parse(readFileSync(join(KIT_HOME, 
 
 const reg = registry({ "is-a": "2.0.0", "is-b": "2.0.0" });
 const { cli, comEntrada } = await criarCliOffline(RUN, { manifest: reg.manifest, artefatos: reg.artefatos });
+const { comEntrada: noTerminal } = await criarCliOffline(RUN, { manifest: reg.manifest, artefatos: reg.artefatos, env: { STDIN_TTY_FALSO: "1" } });
 
 console.log("== export | import - ==");
 let DOC;
@@ -84,6 +86,13 @@ console.log("\n== arquivo, sem argumento e uso ==");
   check("import sem argumento segue recusado com o uso, mesmo com entrada", sem.status === 1 && /uso: engine-kit/.test(sem.stderr), sem.stderr);
   const dois = comEntrada(DOC, "import", "-", arq);
   check("`-` e um arquivo juntos: recusado como argumento inesperado", dois.status === 1 && /argumento inesperado/.test(dois.stderr), dois.stderr);
+  limpar("is-a", "is-b");
+  const tty = noTerminal(DOC, "import", "-");
+  check("entrada padrão em terminal: `import -` recusado com a linha de uso, exit 1, nada instalado", tty.status === 1 && /import - lê o documento do stdin: use um pipe, ex\.: engine-kit export \| engine-kit import -/.test(tty.stderr) && !/FALHOU|PLANO|OK /.test(tty.stdout) && instalado("is-a") === null, tty.stdout + tty.stderr);
+  const ttyDry = noTerminal(DOC, "import", "-", "--dry-run");
+  check("entrada padrão em terminal: também recusado com --dry-run", ttyDry.status === 1 && /use um pipe/.test(ttyDry.stderr), ttyDry.stdout + ttyDry.stderr);
+  const ttyArq = noTerminal("", "import", arq);
+  check("entrada padrão em terminal não atrapalha `import <arquivo>`", ttyArq.status === 0 && instalado("is-a") === "2.0.0", ttyArq.stdout + ttyArq.stderr);
   const uso = cli("--help").stdout;
   check("o uso documenta import <arquivo|->", /engine-kit import <arquivo\|-> /.test(uso), uso.slice(0, 200));
 }
