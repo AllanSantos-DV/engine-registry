@@ -43,11 +43,11 @@ export async function discover(name, { manifest = bundledManifest() } = {}) {
   return { ok: true, url, shutdownToken: rt[r.engine.runtime?.shutdownTokenField], version: rt.version, pid: rt.pid, engine: r.engine };
 }
 
-/** Sobe o executável instalado (com `args`, p.ex. o script que o node executa), sem janela, com a saída em `log`; devolve `{pid, dead}`, e `dead` ganha a causa se o processo morrer. */
-export const launchDetached = (entryPath, log, args = []) => {
+/** Sobe o executável instalado (com `args`, p.ex. o script que o node executa; `opts` são opções do `spawn`, como `cwd` e `env`), sem janela, com a saída em `log`; devolve `{pid, dead}`, e `dead` ganha a causa se o processo morrer. */
+export const launchDetached = (entryPath, log, args = [], opts) => {
   mkdirSync(join(log, ".."), { recursive: true });
   const fd = openSync(log, "w");
-  const c = spawn(entryPath, args, { detached: true, stdio: ["ignore", fd, fd], windowsHide: true });
+  const c = spawn(entryPath, args, { detached: true, stdio: ["ignore", fd, fd], windowsHide: true, ...opts });
   const boot = { pid: c.pid };
   c.once("exit", (code, signal) => { boot.dead = { code, signal }; }).once("error", (e) => { boot.dead = { error: message(e) }; });
   closeSync(fd);

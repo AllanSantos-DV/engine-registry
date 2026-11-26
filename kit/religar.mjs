@@ -4,9 +4,10 @@
 // continua sem verbo para subir motor. A subida reaproveita a do cliente compartilhado (`launchDetached`: sem janela, saída em <home>/run/boot.log)
 // e a espera pelo anúncio é a do `discover`. Ferramental do CLI: o runtime do consumidor não importa este arquivo.
 import { readFileSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { CASA, GRAFO, discover, launchDetached } from "./client.mjs";
-import { lifeOf } from "./diagnose.mjs";
+import { alive, lifeOf } from "./diagnose.mjs";
+import { readRuntime } from "./lifecycle.mjs";
 import { sleep, say } from "./provision.mjs";
 import { derrubarAntes } from "./ensure.mjs";
 
@@ -16,10 +17,11 @@ export const PRAZO_RELIGAR_MS = 60000;
 /**
  * Motor que o ensure sabe religar: declara runtime (arquivo, health e shutdown) e o executável instalado é o próprio daemon, isto é, `kind: daemon` (menos o mcp-gateway, que tem lançador próprio no `ensureGateway`)
  * ou os dois motores que o cliente compartilhado sobe (a casa e o grafo, `kind: cli`). O vxk é `cli` com daemon próprio: o executável dele é um shim stdio.
+ * Fora também o motor que se relança sozinho ao desligar (`shutdownPath` com `relaunch=1`): o kit lançaria um segundo.
  */
 export const religavel = (engine) => {
   const r = engine.runtime;
-  return Boolean(r?.runtimeFile && r.healthPath && r.shutdownPath) && engine.name !== "mcp-gateway" && (engine.kind === "daemon" || [CASA, GRAFO].includes(engine.name));
+  return Boolean(r?.runtimeFile && r.healthPath && r.shutdownPath) && !/[?&]relaunch=1(&|$)/.test(r.shutdownPath) && engine.name !== "mcp-gateway" && (engine.kind === "daemon" || [CASA, GRAFO].includes(engine.name));
 };
 
 /** O motor é religável e tem daemon VIVO agora (pid existe e `/health` responde). */
@@ -27,19 +29,36 @@ export const vivoParaReligar = async (engine) => religavel(engine) && (await lif
 
 const fimDoLog = (log) => { try { return readFileSync(log, "utf8").trim().split("\n").slice(-5).join(" | "); } catch { return ""; } };
 
-/** Sobe o executável novo e espera o anúncio; no prazo, ou se o processo morre, devolve a causa e o `bootLog`. */
+const foraDoHome = (home, p) => { const r = relative(home, resolve(home, p)); return /^\.\.([\\/]|$)/.test(r) || isAbsolute(r); };
+
+/**
+ * Sobe o executável e espera o anúncio da `versao`; no prazo, ou se o processo morre, devolve a causa e o `bootLog`.
+ * Daemon já no ar na `versao` (outro consumidor subiu durante a troca) é devolvido sem lançar nada; o anúncio de um pid vivo nunca é apagado.
+ */
 async function subir(engine, versao, prazoMs) {
-  const entry = join(engine.homeDir, engine.install.entry);
-  const bootLog = join(engine.homeDir, "run", "boot.log");
+  const { homeDir, install, runtime } = engine;
+  const entry = join(homeDir, install.entry);
+  const bootLog = join(homeDir, "run", "boot.log");
   const manifest = { engines: [engine] };
   const falha = (reason, pid) => ({ ok: false, reason, bootLog, ...(pid ? { pid } : {}) });
-  rmSync(join(engine.homeDir, engine.runtime.runtimeFile), { force: true });
+  const fora = [install.entry, runtime.runtimeFile].find((p) => foraDoHome(homeDir, p));
+  if (fora) { return falha(`${fora} fica fora do home ${homeDir}: não lancei nem apaguei nada`); }
+  const noAr = async (boot) => {
+    const d = await discover(engine.name, { manifest });
+    const version = String(d.version ?? versao ?? "").replace(/^v/, "");
+    return d.ok && (!versao || version === versao) ? { ok: true, pid: d.pid ?? boot?.pid, version, bootLog } : null;
+  };
+  const ja = await noAr();
+  if (ja) { return ja; }
+  const anuncio = readRuntime(engine);
+  if (!(anuncio?.pid && alive(anuncio.pid))) { rmSync(join(homeDir, runtime.runtimeFile), { force: true }); }
+  const opts = { cwd: dirname(entry), env: { ...process.env, NODE_OPTIONS: "", COPILOT_SDK_PATH: "" } };
   let boot;
-  try { boot = /\.[cm]?js$/.test(entry) ? launchDetached(process.execPath, bootLog, [entry]) : launchDetached(entry, bootLog); }
+  try { boot = /\.[cm]?js$/.test(entry) ? launchDetached(process.execPath, bootLog, [entry], opts) : launchDetached(entry, bootLog, [], opts); }
   catch (e) { return falha(`não consegui subir ${entry} (${e?.message ?? e})`); }
-  let d = await discover(engine.name, { manifest });
-  for (const fim = Date.now() + prazoMs; !d.ok && !boot.dead && Date.now() < fim; d = await discover(engine.name, { manifest })) { await sleep(250); }
-  if (d.ok) { return { ok: true, pid: d.pid ?? boot.pid, version: String(d.version ?? versao).replace(/^v/, ""), bootLog }; }
+  let up = await noAr(boot);
+  for (const fim = Date.now() + prazoMs; !up && !boot.dead && Date.now() < fim; up = await noAr(boot)) { await sleep(250); }
+  if (up || (boot.dead && (up = await noAr(boot)))) { return up; }
   if (boot.dead) {
     const { code, signal, error } = boot.dead;
     return falha(`${entry} saiu ao subir (${error ?? (signal ? `sinal ${signal}` : `código ${code}`)}); últimas linhas: ${fimDoLog(bootLog) || "(vazio)"}`, boot.pid);

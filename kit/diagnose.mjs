@@ -9,7 +9,7 @@ import { resolve, platformReason } from "./resolve.mjs";
 import { satisfiesPin, installedVersion, hashTree, FILES_MANIFEST, LOCK_STALE_MS } from "./provision.mjs";
 import { pinOf, readTrust, firstContactKeys } from "./trust.mjs";
 
-const alive = (pid) => {
+export const alive = (pid) => {
   try { process.kill(pid, 0); return true; } catch (e) { return e.code === "EPERM"; }
 };
 

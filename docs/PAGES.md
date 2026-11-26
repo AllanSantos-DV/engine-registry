@@ -112,6 +112,12 @@ Antes da primeira publicação, uma vez:
 3. Rodar o workflow `pages` (Actions → pages → Run workflow). Depois do primeiro push, apontar Settings → Pages para a
    branch `gh-pages`, `/`; se a página não subir, `gh api -X POST repos/AllanSantos-DV/engine-registry/pages/builds`.
 
+O passo de publicar só segue se o commit da execução for a ponta atual da `main` (`git ls-remote origin refs/heads/main` igual a
+`$GITHUB_SHA`): o re-run de uma execução antiga, ou de um workflow editado em outra branch, falha com "o commit desta execução não é a
+ponta da main; dispare de novo". Isso não protege a chave: quem consegue rodar um workflow editado ainda lê o secret. Proteger de verdade
+a `PAGES_DEPLOY_KEY` exige um Environment restrito à `main` (Settings → Environments, Deployment branches) com o secret guardado nele e o
+job apontando para esse Environment; é configuração do repositório, fora do código.
+
 Nunca edite a `gh-pages` à mão: ela é refeita a cada publicação.
 
 ### Reverter

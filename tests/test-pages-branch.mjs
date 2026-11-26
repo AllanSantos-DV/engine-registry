@@ -81,6 +81,17 @@ await ok('a publicação só roda a partir da main: o manifest publicado é o da
   assert.match(passos.slice(guarda, guarda + 4).join('\n'), /exit 1/);
   assert.ok(guarda < passos.findIndex((l) => l.includes('tools/pages-branch.mjs publish')), 'a guarda vem antes de publicar');
 });
+await ok('só publica o commit que é a ponta atual da main: a conferência está no passo de publicar, antes do publish', () => {
+  const linhas = WORKFLOW.split('\n');
+  const confere = linhas.findIndex((l) => l.includes('git ls-remote origin refs/heads/main'));
+  const publica = linhas.findIndex((l) => l.includes('tools/pages-branch.mjs publish'));
+  assert.ok(confere > 0, 'sem a conferência, o re-run de uma execução antiga republica um commit que já não é a main');
+  assert.ok(confere < publica, 'a conferência vem antes de publicar');
+  assert.ok(!linhas.slice(confere, publica).some((l) => /^\s*- name:/.test(l)), 'a conferência e o publish são o mesmo passo');
+  assert.match(linhas[confere], /test "\$\(git ls-remote origin refs\/heads\/main \| cut -f1\)" = "\$GITHUB_SHA"/);
+  assert.match(linhas.slice(confere, publica).join('\n'), /o commit desta execução não é a ponta da main; dispare de novo[\s\S]*exit 1/);
+  assert.match(fs.readFileSync(path.join(ROOT, 'docs', 'PAGES.md'), 'utf8'), /Environment[^\n]*main/, 'docs/PAGES.md diz que proteger a chave exige um Environment restrito à main');
+});
 await ok('runner Linux hospedado por padrão, local só com CI_RUNNER=local, sem Windows nem macOS', () => {
   const runsOn = WORKFLOW.split('\n').find((l) => l.includes('runs-on:')) ?? '';
   assert.ok(runsOn.includes('ubuntu-latest') && runsOn.includes("vars.CI_RUNNER == 'local'"));

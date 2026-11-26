@@ -179,10 +179,14 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-11-26 tooling 122000 → 122500: correções da revisão independente, +367 bytes medidos, 121803 → 122170 — `import -` recusa a entrada padrão em terminal com uma linha de uso (kit/cli.mjs), a validação de argumentos do MCP só aceita chaves próprias do esquema (`Object.hasOwn`, kit/mcp.mjs) e `engine_doctor` recusa `engine` vazio. O runtime não mudou (38990/39000).
 //   no CLI, `--falhar-se-desatualizado` no `ensure --dry-run` e no `ensure --instalados --dry-run` (exit 1 se algum motor teria plano diferente de reusar), `import -` (lê o documento da entrada padrão, a validação é a do `importCommand`) e o `pin` de cada motor no `list --json`; o texto do uso cresceu junto. A seção Receitas do README não pesa aqui. Tudo no ferramental, fora do fecho de `kit/index.mjs` (runtime 38990/39000, a cifra de 39 KB da vitrine segue). Sem as flags, argumentos e tools novos o comportamento é o de antes, salvo o `list --json`: com o trust.json ilegível ele agora falha com exit 1 (em vez de listar) e cada motor ganha o campo `pin`.
 //   2026-11-26 tooling 122500 → 126000: o `ensure` religa o daemon vivo que ele próprio derrubou para trocar a instalação, +3.64 KB medidos, 122170 → 125808 (kit/religar.mjs novo +2.80, kit/ensure.mjs +0.70, kit/cli.mjs +0.14): `religador` (ganchos `antes` e `religar` sobre o `derrubarAntes`), `religavel`, subida e espera do anúncio reusando `launchDetached` e `discover` do cliente, `restarted` no retorno e no `--json`, `religaria` no plano do `--dry-run`. O runtime não mudou (38990/39000, a cifra de 39 KB da vitrine segue); o cliente compartilhado ficou em 10670/10700 (+32 bytes: `launchDetached` exportada, aceita `args` e devolve o `pid`), teto mantido.
+//   2026-11-26 tooling 126000 → 127500: correções da revisão independente do religar, +1.30 KB medidos, 125841 → 127139 (kit/religar.mjs +0.94, kit/ensure.mjs +0.35, kit/diagnose.mjs +0.01). O `subir` reconhece o daemon novo que outro consumidor já pôs no ar
+//   (sem lançar nem apagar o anúncio de um pid vivo, e com um segundo `discover` se o lançado sai), recusa `entry` e `runtimeFile` fora do home e sobe na pasta do executável, sem `NODE_OPTIONS` nem `COPILOT_SDK_PATH`;
+//   o `religavel` exclui o motor que se relança sozinho (`relaunch=1`); o `ensure` cuja troca falha depois de o daemon cair religa a instalação anterior e diz na razão se subiu; o `planoEm` não escreve "undefined".
+//   O runtime não mudou (38990/39000, a cifra de 39 KB da vitrine segue); o cliente compartilhado ficou em 10685/10700 (+15 bytes: `launchDetached` repassa `opts` ao `spawn`), teto mantido.
 const BUDGETS = {
   runtime: { codeBytes: 39000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10700, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 126000, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 127500, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

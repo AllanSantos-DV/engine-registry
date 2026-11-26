@@ -6,13 +6,17 @@
 //   • a v2 não sobe (sai com erro): `restarted.ok:false` com a razão e o boot.log, o ensure falha com o texto "NÃO está no ar" e o CLI sai com 1;
 //   • a v2 sobe e nunca anuncia: a falha vem dentro do prazo injetado, sem pendurar, e o processo que não anunciou é encerrado;
 //   • `--dry-run` não derruba nem religa (o plano avisa que derrubaria e religaria); motor com `runtime.updatePath` não é trocado nem religado;
-//   • kind=cli que não é a casa nem o grafo (o vxk) é derrubado como antes e NÃO é religado.
+//   • kind=cli que não é a casa nem o grafo (o vxk) é derrubado como antes e NÃO é religado;
+//   • o daemon novo que outro consumidor já subiu é reconhecido (nada lançado, anúncio intacto); o anúncio de um pid ainda vivo nunca é apagado, e o lançado que perde a corrida não vira falha;
+//   • a troca que falha depois de o daemon cair religa a instalação ANTIGA e diz se subiu; se também não sobe, diz que o daemon NÃO está no ar;
+//   • entry e runtimeFile fora do home são recusados sem apagar nem lançar; o daemon religado roda na pasta do executável, sem NODE_OPTIONS nem COPILOT_SDK_PATH;
+//   • motor que se relança sozinho (shutdownPath com relaunch=1) não é religável; plano desconhecido não vira a palavra "undefined".
 // Hermético: registry e downloads de memória (o .tgz é real), HOME e ENGINE_KIT_HOME isolados, porta efêmera própria, sem janela, sem áudio, sem rede.
 // Todo processo lançado aqui é encerrado no fim, por PID.
 //
 //   node tests/test-ensure-religa-daemon.mjs
 import "./_tmp.mjs";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -21,8 +25,10 @@ const RUN = mkdtempSync(join(tmpdir(), "ee-religa-"));
 Object.assign(process.env, { HOME: RUN, USERPROFILE: RUN, ENGINE_KIT_HOME: join(RUN, "kit-home") });
 const { criarRegistroFalso } = await import("./_registro-falso.mjs");
 const { criarCliOffline } = await import("./_kit-copiado.mjs");
-const { ensureCommand, planoEm } = await import("../kit/ensure.mjs");
+const { ensureCommand, pinCommand, planoEm } = await import("../kit/ensure.mjs");
+const { pinOf } = await import("../kit/trust.mjs");
 const religar = await import("../kit/religar.mjs").catch(() => null);
+const { resolve: resolverMotor } = await import("../kit/resolve.mjs");
 const { homeOf, registry, instalado } = await criarRegistroFalso(RUN);
 
 let failures = 0;
@@ -61,19 +67,55 @@ const FONTES = {
   quebra: "console.error('boom: motor novo quebrado'); process.exit(3);\n",
   mudo: "console.log('subi e nao anuncio'); setInterval(() => {}, 1000);\n",
 };
-const fonteDe = (v2) => (_nome, versao) => (versao === "1.0.0" ? SOBE : FONTES[v2]);
+const AMBIENTE = SOBE.replace("srv.listen(0, '127.0.0.1', () => {", `srv.listen(0, '127.0.0.1', () => {
+  writeFileSync(join(aqui, '..', 'ambiente.json'), JSON.stringify({ cwd: process.cwd(), nodeOptions: process.env.NODE_OPTIONS ?? null, sdk: process.env.COPILOT_SDK_PATH ?? null }));`);
+const SOBE_UMA_VEZ = SOBE.replace("readFileSync } from 'node:fs'", "readFileSync, existsSync } from 'node:fs'")
+  .replace("const shutdownToken", `const marca = join(aqui, '..', 'ja-subiu');
+if (existsSync(marca)) { console.error('boom: religar do anterior quebrado'); process.exit(3); }
+writeFileSync(marca, '1');
+const shutdownToken`);
+const PERDE = `
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const anuncio = join(dirname(fileURLToPath(import.meta.url)), '..', 'run', 'daemon.json');
+for (let i = 0; i < 40; i++) {
+  try {
+    const { port } = JSON.parse(readFileSync(anuncio, 'utf8'));
+    if ((await fetch('http://127.0.0.1:' + port + '/health')).status === 200) { console.error('perdi o port-lock: outro daemon ja responde'); process.exit(1); }
+  } catch { /* ainda sem anuncio */ }
+  await new Promise((r) => setTimeout(r, 100));
+}
+console.error('perdi o port-lock e nenhum outro daemon respondeu'); process.exit(1);
+`;
+const LENTO = `
+import http from 'node:http';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+let pronto = false;
+setTimeout(() => { pronto = true; }, 1500);
+const srv = http.createServer((req, res) => { res.writeHead(req.url === '/health' && pronto ? 200 : 404).end(); });
+srv.listen(0, '127.0.0.1', () => {
+  mkdirSync(join(process.argv[2], 'run'), { recursive: true });
+  writeFileSync(join(process.argv[2], 'run', 'daemon.json'), JSON.stringify({ port: srv.address().port, pid: process.pid, version: '1.1.0', shutdownToken: 'x' }));
+});
+`;
+const FORA = (marcador) => `import { writeFileSync } from 'node:fs'; writeFileSync(${JSON.stringify(marcador)}, 'lancado');
+`;
+Object.assign(FONTES, { perde: PERDE });
+const fonteDe = (v2, v1 = SOBE) => (_nome, versao) => (versao === "1.0.0" ? v1 : FONTES[v2] ?? v2);
 
 const ler = (f) => { try { return readFileSync(f, "utf8"); } catch { return ""; } };
 const daemonJson = (home) => { try { return JSON.parse(readFileSync(join(home, "run", "daemon.json"), "utf8")); } catch { return null; } };
 const saude = async (home) => { const d = daemonJson(home); try { return (await fetch(`http://127.0.0.1:${d.port}/health`, { signal: AbortSignal.timeout(2000) })).status; } catch { return null; } };
 
 /** Instala a v1 e, com `vivoAntes`, sobe o daemon dela (cwd = bin, como o real) e espera o anúncio. */
-async function preparar(nome, { v2 = "sobe", vivoAntes = true, extraEngine = {} } = {}) {
+async function preparar(nome, { v2 = "sobe", v1 = SOBE, vivoAntes = true, extraEngine = {} } = {}) {
   const name = `fake-${nome}`;
   process.env.ENGINE_KIT_HOME = join(RUN, `trust-${nome}`);
   mkdirSync(process.env.ENGINE_KIT_HOME, { recursive: true });
   const extra = { [name]: { kind: "daemon", runtime: RUNTIME, ...extraEngine } };
-  const r1 = registry({ [name]: "1.0.0" }, { extra, fonte: fonteDe("sobe") });
+  const r1 = registry({ [name]: "1.0.0" }, { extra, fonte: fonteDe("sobe", v1) });
   const primeira = await ensureCommand(name, r1.opts);
   if (!primeira.ok) { throw new Error(`instalação inicial falhou: ${primeira.reason}`); }
   const home = homeOf(name);
@@ -84,7 +126,7 @@ async function preparar(nome, { v2 = "sobe", vivoAntes = true, extraEngine = {} 
     for (let i = 0; i < 100 && daemonJson(home)?.pid !== pid1; i++) { await sleep(100); }
     if (daemonJson(home)?.pid !== pid1) { throw new Error("o daemon v1 não anunciou"); }
   }
-  const r2 = registry({ [name]: "1.1.0" }, { extra, fonte: fonteDe(v2) });
+  const r2 = registry({ [name]: "1.1.0" }, { extra, fonte: fonteDe(v2, v1) });
   return { name, home, pid1, r2, bootLog: join(home, "run", "boot.log") };
 }
 const guardar = (r) => { if (r?.restarted?.pid) { lancados.add(r.restarted.pid); } };
@@ -166,6 +208,133 @@ console.log("\n== kind=cli que não é a casa nem o grafo: derrubado, não relig
   check("não foi religado: sem restarted, sem boot.log", r.restarted === undefined && !existsSync(c.bootLog), JSON.stringify(r.restarted));
 }
 
+const motorDe = async (c) => (await resolverMotor(c.name, { manifest: c.r2.manifest })).engine;
+const entryDe = (c) => join(c.home, "bin", c.name + ".mjs");
+const lerJson = (f) => { try { return JSON.parse(readFileSync(f, "utf8")); } catch { return null; } };
+const esperarAnuncio = async (home, pid) => { for (let i = 0; i < 100 && daemonJson(home)?.pid !== pid; i++) { await sleep(100); } return daemonJson(home)?.pid === pid; };
+const subirComo = async (c, args, opts = {}) => {
+  const p = spawn(process.execPath, args, { windowsHide: true, stdio: "ignore", ...opts });
+  lancados.add(p.pid);
+  await esperarAnuncio(c.home, p.pid);
+  return p.pid;
+};
+/** Derruba o daemon v1 pelo gancho do religador, instala a v2 sem daemon no ar e devolve o religador já com "derrubou". */
+async function derrubadoEInstalado(c, prazoMs = 20000) {
+  const rel = religar.religador(await motorDe(c), { prazoMs });
+  await rel.antes();
+  const i = await ensureCommand(c.name, c.r2.opts);
+  if (!i.ok || vivo(c.pid1)) { throw new Error("preparo da corrida falhou: " + JSON.stringify(i)); }
+  return rel;
+}
+const segurarPasta = (pasta) => { const p = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { cwd: pasta, windowsHide: true, stdio: "ignore" }); lancados.add(p.pid); return p.pid; };
+const WINDOWS = process.platform === "win32";
+
+console.log("\n== outro consumidor já subiu o daemon novo: o religar o reconhece, sem lançar nem apagar ==");
+{
+  const c = await preparar("corrida", {});
+  const rel = await derrubadoEInstalado(c);
+  const pidOutro = await subirComo(c, [entryDe(c)], { cwd: join(c.home, "bin") });
+  const anuncio = ler(join(c.home, "run", "daemon.json"));
+  const r = await rel.religar("1.1.0");
+  check("restarted ok com o pid e a versão do daemon que já estava no ar", r?.ok === true && r.pid === pidOutro && r.version === "1.1.0", JSON.stringify(r));
+  check("nada foi lançado: sem boot.log, o anúncio segue byte a byte e o daemon do outro segue vivo", !existsSync(c.bootLog) && ler(join(c.home, "run", "daemon.json")) === anuncio && vivo(pidOutro), `${existsSync(c.bootLog)} ${vivo(pidOutro)}`);
+}
+
+console.log("\n== o anúncio de um pid ainda vivo nunca é apagado; o lançado que perde a corrida não vira falha ==");
+{
+  const c = await preparar("perde", { v2: "perde" });
+  const rel = await derrubadoEInstalado(c);
+  const lento = join(RUN, "w-lento.mjs");
+  writeFileSync(lento, LENTO);
+  const pidLento = await subirComo(c, [lento, c.home]);
+  const r = await rel.religar("1.1.0");
+  check("o daemon vivo que ainda subia é o religado: ok com o pid dele, não 'saiu ao subir'", r?.ok === true && r.pid === pidLento, JSON.stringify(r));
+  check("o anúncio é o dele e ele segue vivo", daemonJson(c.home)?.pid === pidLento && vivo(pidLento));
+}
+
+console.log("\n== a troca que falha depois de o daemon cair religa a instalação antiga ==");
+if (!WINDOWS) { console.log("  PULADO só o Windows trava o rename de uma pasta em uso (o holder tem o cwd em bin)"); }
+else {
+  const c = await preparar("troca-falha");
+  const holder = segurarPasta(join(c.home, "bin"));
+  await sleep(300);
+  const linhas = [];
+  const r = await ensureCommand(c.name, { ...c.r2.opts, religarPrazoMs: 20000, log: (m) => linhas.push(m) });
+  guardar(r);
+  const dj = daemonJson(c.home);
+  check("o ensure falha e a instalação antiga ficou intacta", r.ok === false && /não consegui trocar/.test(r.reason ?? "") && instalado(c.name) === "1.0.0", JSON.stringify(r));
+  check("restarted.ok com a versão antiga, num pid novo, anunciado e respondendo", r.restarted?.ok === true && r.restarted.version === "1.0.0" && r.restarted.pid !== c.pid1 && dj?.pid === r.restarted.pid && vivo(r.restarted.pid) && (await saude(c.home)) === 200, JSON.stringify(r.restarted));
+  check("a razão diz que a troca falhou e que o daemon anterior foi religado", /a troca falhou; o daemon anterior foi religado/.test(r.reason ?? ""), r.reason);
+  matar(holder);
+}
+if (WINDOWS) {
+  const c = await preparar("troca-falha-sem-religar", { v1: SOBE_UMA_VEZ });
+  const holder = segurarPasta(join(c.home, "bin"));
+  await sleep(300);
+  const r = await ensureCommand(c.name, { ...c.r2.opts, religarPrazoMs: 20000 });
+  guardar(r);
+  check("o ensure falha e a razão diz que o daemon NÃO está no ar, com o boot.log", r.ok === false && /não consegui trocar/.test(r.reason ?? "") && /NÃO está no ar/.test(r.reason ?? "") && (r.reason ?? "").includes(c.bootLog), r.reason);
+  check("restarted.ok:false com a causa da subida que falhou", r.restarted?.ok === false && /boom: religar do anterior quebrado/.test(r.restarted.reason) && r.restarted.bootLog === c.bootLog, JSON.stringify(r.restarted));
+  matar(holder);
+}
+
+if (WINDOWS) {
+  const c = await preparar("pin-troca-falha");
+  const holder = segurarPasta(join(c.home, "bin"));
+  await sleep(300);
+  const r = await pinCommand(c.name, { ...c.r2.opts, version: "1.1.0", religarPrazoMs: 20000 });
+  lancados.add(daemonJson(c.home)?.pid);
+  check("pin --version cuja troca falha não deixa o pin gravado, mesmo com o daemon antigo religado", r.ok === false && /pin não aplicado/.test(r.reason ?? "") && /o daemon anterior foi religado/.test(r.reason) && !pinOf(c.name), `${JSON.stringify(r)} pin=${pinOf(c.name)}`);
+  matar(holder);
+}
+
+console.log("\n== caminhos do descritor fora do home: recusados sem apagar nem lançar ==");
+{
+  const c = await preparar("fora-entry", { v2: "sobe" });
+  const marcador = join(RUN, "marcador-entry");
+  writeFileSync(join(RUN, "homes", "fora-do-home.mjs"), FORA(marcador));
+  const base = await motorDe(c);
+  const rel = religar.religador({ ...base, install: { ...base.install, entry: "../fora-do-home.mjs" } }, { prazoMs: 5000 });
+  await rel.antes();
+  const antes = ler(join(c.home, "run", "daemon.json"));
+  const r = await rel.religar("1.1.0");
+  await sleep(1500);
+  check("entry com .. é recusado dizendo que sai do home", r?.ok === false && /fora do home/.test(r.reason ?? ""), JSON.stringify(r));
+  check("nada foi lançado nem apagado: sem marcador, sem boot.log, anúncio intacto", !existsSync(marcador) && !existsSync(c.bootLog) && ler(join(c.home, "run", "daemon.json")) === antes && antes !== "");
+  const c2 = await preparar("fora-abs", { v2: "sobe" });
+  const abs = join(RUN, "fora-abs.mjs");
+  writeFileSync(abs, FORA(join(RUN, "marcador-abs")));
+  const b2 = await motorDe(c2);
+  const rel2 = religar.religador({ ...b2, install: { ...b2.install, entry: abs } }, { prazoMs: 5000 });
+  await rel2.antes();
+  const antes2 = ler(join(c2.home, "run", "daemon.json"));
+  const r2 = await rel2.religar("1.1.0");
+  await sleep(1500);
+  check("entry absoluto é recusado e nada é lançado nem apagado", r2?.ok === false && /fora do home/.test(r2.reason ?? "") && !existsSync(join(RUN, "marcador-abs")) && !existsSync(c2.bootLog) && ler(join(c2.home, "run", "daemon.json")) === antes2 && antes2 !== "", JSON.stringify(r2));
+  const c3 = await preparar("fora-runtime", { v2: "sobe" });
+  const anuncioFora = join(RUN, "anuncio-fora.json");
+  writeFileSync(anuncioFora, ler(join(c3.home, "run", "daemon.json")));
+  const b3 = await motorDe(c3);
+  const rel3 = religar.religador({ ...b3, runtime: { ...b3.runtime, runtimeFile: "../../anuncio-fora.json" } }, { prazoMs: 5000 });
+  await rel3.antes();
+  const r3 = await rel3.religar("1.1.0");
+  check("runtimeFile fora do home é recusado: o arquivo de fora segue lá e nada é lançado", r3?.ok === false && /fora do home/.test(r3.reason ?? "") && existsSync(anuncioFora) && !existsSync(c3.bootLog), JSON.stringify(r3));
+}
+
+console.log("\n== o daemon religado roda na pasta do executável, sem NODE_OPTIONS nem COPILOT_SDK_PATH ==");
+{
+  const c = await preparar("ambiente", { v2: AMBIENTE });
+  Object.assign(process.env, { NODE_OPTIONS: "--no-warnings", COPILOT_SDK_PATH: join(RUN, "sdk-falso") });
+  let r;
+  try { r = await ensureCommand(c.name, { ...c.r2.opts, religarPrazoMs: 20000 }); } finally { delete process.env.NODE_OPTIONS; delete process.env.COPILOT_SDK_PATH; }
+  guardar(r);
+  const amb = lerJson(join(c.home, "ambiente.json"));
+  const mesmo = (a, b) => realpathSync(a).toLowerCase() === realpathSync(b).toLowerCase();
+  check("o religar deu certo", r.ok && r.restarted?.ok === true, JSON.stringify(r));
+  check("o cwd do daemon é a pasta do executável (bin)", amb?.cwd && mesmo(amb.cwd, join(c.home, "bin")), JSON.stringify(amb));
+  check("NODE_OPTIONS e COPILOT_SDK_PATH não chegam ao daemon", !amb?.nodeOptions && !amb?.sdk, JSON.stringify(amb));
+}
+
 console.log("\n== quem é religável ==");
 {
   const real = JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8")).engines;
@@ -174,6 +343,9 @@ console.log("\n== quem é religável ==");
   check("o mcp-gateway (lançador próprio no ensureGateway) não é religado pelo ensure", religar !== null && !quem("mcp-gateway"));
   check("o vxk (kind=cli, shim stdio) e o motor sem bloco runtime não são", religar !== null && !quem("vxk") && religar.religavel({ name: "x", kind: "daemon" }) === false);
   check("o prazo padrão é uma constante nomeada de 60 s", religar?.PRAZO_RELIGAR_MS === 60000);
+  const sintetico = (shutdownPath) => ({ name: "x", kind: "daemon", runtime: { ...RUNTIME, shutdownPath } });
+  check("motor que se relança sozinho (shutdownPath com relaunch=1) não é religável; o mesmo motor sem relaunch é", religar?.religavel(sintetico("/shutdown?relaunch=1")) === false && religar?.religavel(sintetico("/shutdown?a=1&relaunch=1")) === false && religar?.religavel(sintetico("/shutdown")) === true);
+  check("plano desconhecido não vira a palavra undefined, nem com o aviso de religar", planoEm({ plan: "inexistente", religaria: true }) === undefined && planoEm({ plan: "reusar", version: "1.0.0" }) === "reusaria v1.0.0, já em dia");
 }
 
 console.log("\n== pelo CLI de verdade (exit code, texto, --json) ==");
@@ -205,5 +377,6 @@ async function cli(nome, v2, args) {
 }
 
 for (const p of lancados) { matar(p); }
+for (const p of lancados) { await sumiu(p); }
 console.log(failures === 0 ? "\n== TUDO VERDE ==" : `\n== ${failures} FALHA(S) ==`);
 process.exitCode = failures === 0 ? 0 : 1;

@@ -85,10 +85,10 @@ export function listCommand({ bundled, platform = target(), apps = false } = {})
 }
 
 /** O que o kit faria, em texto, a partir do retorno de `ensure`, `pin` ou `rollback` com `dryRun:true`. */
-export const planoEm = (r) => ({
+export const planoEm = (r) => { const plano = ({
   instalar: `instalaria v${r.version}`, atualizar: `atualizaria v${r.installed} → v${r.version}`, reusar: `reusaria v${r.version}, já em dia`, manter: `manteria v${r.version} (v${r.available} disponível; ENGINE_KIT_NO_AUTO_UPDATE ligado)`,
   fixar: `fixaria v${r.version} (já instalada)`, "instalar-e-fixar": `instalaria v${r.version} e fixaria`, "trocar-e-fixar": `trocaria v${r.installed} → v${r.version} e fixaria`, reverter: `reverteria v${r.installed} → v${r.version} e fixaria`,
-})[r.plan] + (r.religaria ? "; derrubaria e religaria o daemon vivo" : "");
+})[r.plan]; return plano && plano + (r.religaria ? "; derrubaria e religaria o daemon vivo" : ""); };
 
 /**
  * Fetcher de `ensureDeArquivo`: o artefato e os sidecars `<tgz>.sha256` e `<tgz>.sig` (os três assets da release) saem do disco,
@@ -133,7 +133,7 @@ export function instaladosAtualizaveis(opts) {
  * @param {boolean=} opts.fixar com `dryRun` e `version`: o plano de um `pin --version`, em que o pin gravado não contradiz a versão pedida porque ela é a que vai ser fixada.
  * @param {number=} opts.religarPrazoMs prazo para o daemon religado anunciar e responder o `/health` (default `PRAZO_RELIGAR_MS`, 60 s).
  * Daemon vivo que o ensure derruba para trocar a instalação é religado com o executável novo (`restarted: {ok:true, pid, version, bootLog}`); se não sobe, o retorno é
- * `{ ok:false, reason, restarted: {ok:false, reason, bootLog, pid?}, version }` (a instalação ficou feita, o daemon NÃO está no ar). Daemon parado antes não é lançado. No `dryRun`, `religaria:true` avisa o que o ensure faria.
+ * `{ ok:false, reason, restarted: {ok:false, reason, bootLog, pid?}, version }` (a instalação ficou feita, o daemon NÃO está no ar). Se a troca falha depois de o daemon cair, o retorno é `{ ok:false, reason, restarted }` e `restarted` é o religar da instalação ANTIGA (a razão diz se subiu). Daemon parado antes não é lançado. No `dryRun`, `religaria:true` avisa o que o ensure faria.
  * @returns {Promise<{ok:true, entryPath:string, version:string, kind:string, reused?:boolean, signed?:boolean,
  *          previous?:string, available?:string, pinned?:string} | {ok:false, reason:string}>} `previous` = versão
  *          substituída; `pinned` = versão em que o motor está fixado.
@@ -193,7 +193,9 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
   if (!p.ok) {
     // Rotação legítima de chave chega ao registry antes de chegar a este pacote: a saída é o kit novo.
     const hint = /FIXADA|não declara publicKey/.test(p.reason) ? ` — se a chave foi rotacionada de propósito, rode npx engine-kit@latest ensure ${name}` : "";
-    return { ok: false, reason: p.reason + hint };
+    const restarted = await rel.religar(previous);
+    const volta = !restarted ? "" : restarted.ok ? `; a troca falhou; o daemon anterior foi religado (pid ${restarted.pid}, v${restarted.version})` : `; o daemon NÃO está no ar: ${restarted.reason}; saída do daemon em ${restarted.bootLog}`;
+    return { ok: false, reason: p.reason + hint + volta, ...(restarted ? { restarted } : {}) };
   }
   const restarted = await rel.religar(p.version);
   const base = { entryPath: p.entryPath, version: p.version, kind: engine.kind, ...(p.installed && previous && previous !== p.version ? { previous } : {}), ...(restarted ? { restarted } : {}) };
@@ -264,7 +266,7 @@ export async function pinCommand(name, { version, ...opts } = {}) {
     const s = setPin(name, version), before = s.was;
     if (!s.ok) { return s; }
     const e = await ensureCommand(name, opts);
-    if (!e.ok && !e.restarted) {
+    if (!e.ok && !e.entryPath) {
       const back = setPin(name, before);
       return { ok: false, reason: `${e.reason} → pin não aplicado${back.ok ? (before ? ` (pin anterior v${before} restaurado)` : "") : `; ${back.reason}`}` };
     }
