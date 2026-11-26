@@ -115,11 +115,8 @@ async function streamToDisk(fetcher, url, part, idleMs) {
  */
 async function downloadChecked(engine, part, { log, fetcher, idleMs }) {
   let expected;
-  try {
-    expected = String(await fetcher(engine.checksumUrl, 15000)).trim().split(/\s+/)[0].toLowerCase();
-  } catch (e) {
-    return refuse(engine, `sha256 sidecar inacessível (${e.status || e.message}) → ABORT (fail-closed)`);
-  }
+  try { expected = String(await fetcher(engine.checksumUrl, 15000)).trim().split(/\s+/)[0].toLowerCase(); }
+  catch (e) { return refuse(engine, `sha256 sidecar inacessível (${e.status || e.message}) → ABORT (fail-closed)`); }
   if (!/^[0-9a-f]{64}$/.test(expected)) { return refuse(engine, "sha256 sidecar malformado → ABORT"); }
 
   log(`[engine-kit] baixando ${engine.assetUrl} …`);
@@ -209,12 +206,8 @@ async function verifyAuthenticity(engine, digest, { log, fetcher, trustedKeys })
   if (!publicKey) {
     // Chave fixada pelo consumidor e registry sem chave: tirar a publicKey do manifest não pode
     // ser o atalho para instalar sem assinatura.
-    if (trustedKeys?.[engine.name]) {
-      return refuse(engine, `o consumidor fixou uma chave mas o registry não declara publicKey → ABORT (registry pode estar comprometido)`);
-    }
-    if (required) {
-      return refuse(engine, `registry pede assinatura (signatureRequired) mas não declara publicKey → ABORT (manifesto inconsistente)`);
-    }
+    if (trustedKeys?.[engine.name]) { return refuse(engine, `o consumidor fixou uma chave mas o registry não declara publicKey → ABORT (registry pode estar comprometido)`); }
+    if (required) { return refuse(engine, `registry pede assinatura (signatureRequired) mas não declara publicKey → ABORT (manifesto inconsistente)`); }
     say(log, engine, `SEM assinatura no registry — integridade (sha256) verificada, AUTENTICIDADE não`);
     return { ok: true, signed: false };
   }
@@ -223,21 +216,16 @@ async function verifyAuthenticity(engine, digest, { log, fetcher, trustedKeys })
   // registry comprometido. Confronta com a raiz de confiança LOCAL antes de usá-la.
   const t = checkTrust(engine.name, publicKey, { trustedKeys, rotation: engine.install?.rotation });
   if (!t.ok) { return t; }
-  if (t.rotated) {
-    say(log, engine, `chave rotacionada, assinada pela chave anterior${t.saved === false ? ` (NÃO gravada em ${trustPath()})` : ""}`);
-  } else if (t.saved === false) {
-    say(log, engine, `chave aceita, mas NÃO gravada em ${trustPath()} — o próximo ensure repete o primeiro contato`);
-  } else if (t.tofu) {
+  if (t.rotated) { say(log, engine, `chave rotacionada, assinada pela chave anterior${t.saved === false ? ` (NÃO gravada em ${trustPath()})` : ""}`); }
+  else if (t.saved === false) { say(log, engine, `chave aceita, mas NÃO gravada em ${trustPath()} — o próximo ensure repete o primeiro contato`); }
+  else if (t.tofu) {
     const how = trustedKeys?.[engine.name] ? "chave FIXADA pelo consumidor conferiu e foi gravada" : "chave pública gravada na 1ª vez (TOFU)";
     say(log, engine, `${how} em ${trustPath()} — trocas futuras serão ABORT`);
   }
 
   let sig;
-  try {
-    sig = await fetcher(engine.signatureUrl, 15000);
-  } catch (e) {
-    return refuse(engine, `sidecar .sig inacessível (${e.status || e.message}) mas o registry declara publicKey → ABORT (fail-closed)`);
-  }
+  try { sig = await fetcher(engine.signatureUrl, 15000); }
+  catch (e) { return refuse(engine, `sidecar .sig inacessível (${e.status || e.message}) mas o registry declara publicKey → ABORT (fail-closed)`); }
 
   const v = verifyDigest(digest, sig, publicKey, { algorithm });
   if (!v.ok) { return refuse(engine, v.reason); }
@@ -268,6 +256,8 @@ async function verifyAuthenticity(engine, digest, { log, fetcher, trustedKeys })
  * @returns {Promise<{ok:true, path:string, version:string, signed:boolean} | {ok:false, reason:string}>} nunca lança.
  */
 export async function fetchArtifact(engine, { log = () => {}, destDir: dir = process.cwd(), idleTimeoutMs, downloadTimeoutMs, fetcher = fetchBuf, trustedKeys, intoHome = false } = {}) {
+  const { assetName: a } = engine;
+  if (/[\\/]|^\.\.?$/.test(a)) { return refuse(engine, `asset "${a}" não é um nome de arquivo`); }
   const dentro = relative(resolvePath(engine.homeDir), resolvePath(dir));
   if (!intoHome && !dentro.startsWith("..") && !isAbsolute(dentro)) {
     return refuse(engine, `destino ${dir} está dentro do home de ${engine.name} (${engine.homeDir}): o doctor --fix trata o artefato ali como sobra de instalação e o apagaria → escolha outra pasta`);
@@ -276,19 +266,15 @@ export async function fetchArtifact(engine, { log = () => {}, destDir: dir = pro
   if (mk) { return mk; }
 
   // .part → rename: nunca entregar um caminho que aponta para download pela metade nem não conferido.
-  const part = join(dir, `${engine.assetName}.part`);
+  const part = join(dir, `${a}.part`);
 
   const dl = await downloadChecked(engine, part, { log, fetcher, idleMs: idleTimeoutMs ?? downloadTimeoutMs ?? 60000 });
   const auth = dl.digest ? await verifyAuthenticity(engine, dl.digest, { log, fetcher, trustedKeys }) : dl;
   if (!auth.ok) { dropFile(part); return auth; }
 
-  const out = join(dir, engine.assetName);
-  try {
-    renameSync(part, out);
-  } catch (e) {
-    dropFile(part);
-    return refuse(engine, `não consegui gravar ${out}: ${e?.message || e}`);
-  }
+  const out = join(dir, a);
+  try { renameSync(part, out); }
+  catch (e) { dropFile(part); return refuse(engine, `não consegui gravar ${out}: ${e?.message || e}`); }
   log(`[engine-kit] ${engine.name} v${engine.version} verificado em ${out}`);
   return { ok: true, path: out, version: engine.version, signed: auth.signed };
 }
@@ -327,14 +313,10 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
   // existe como descritor de registro — release, chave, versão — mas quem instala é ele mesmo.
   // Tentar provisionar aqui daria erro obscuro (o artefato é um instalador, não um tarball de
   // `extractTo`); melhor recusar dizendo QUEM instala.
-  if (engine.status === "self-managed") {
-    return refuse(engine, "é self-managed: instala e atualiza pelo próprio updater, não pelo engine-kit");
-  }
+  if (engine.status === "self-managed") { return refuse(engine, "é self-managed: instala e atualiza pelo próprio updater, não pelo engine-kit"); }
 
   if (!allowNetwork) { return refuse(engine, "ausente/desatualizado e rede desabilitada"); }
-  if (engine.status === "pending-release") {
-    return refuse(engine, "ainda não publicou release (status: pending-release)");
-  }
+  if (engine.status === "pending-release") { return refuse(engine, "ainda não publicou release (status: pending-release)"); }
 
   const rb = !allowDowngrade && !exact && rollbackReason(engine.name, engine.version);
   if (rb) { return { ok: false, reason: rb }; }
@@ -386,23 +368,19 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
       if (onBeforeReplace) { try { await onBeforeReplace(); } catch { /* best-effort */ } }
       aside = `${binDir}.old-${process.pid}`;
       rmTree(aside);
-      try { await renameRetry(binDir, aside); } catch (e) {
-        return abort(`${engine.name}: não consegui trocar ${binDir} (${e.code || e.message}): arquivos em uso — feche quem usa o motor e rode de novo; a instalação atual ficou intacta`);
-      }
+      try { await renameRetry(binDir, aside); }
+      catch (e) { return abort(`${engine.name}: não consegui trocar ${binDir} (${e.code || e.message}): arquivos em uso — feche quem usa o motor e rode de novo; a instalação atual ficou intacta`); }
     }
     // `extractTo` pode ser ANINHADO (ex.: "runtimes/<motor>", quando o home guarda estado que
     // precisa sobreviver ao swap — pesos, logs). O rename exige o diretório-pai existente: sem
     // isto, funciona na máquina que já tem a pasta e falha justamente na máquina limpa.
     mkdirSync(dirname(binDir), { recursive: true });
-    try {
-      await renameRetry(staging, binDir);
-    } catch (e) {
+    try { await renameRetry(staging, binDir); }
+    catch (e) {
       if (aside) { try { renameSync(aside, binDir); } catch { /* o reason abaixo diz onde ficou */ } }
       return refuse(engine, `swap falhou (${e.code || e.message})${aside && existsSync(aside) ? `; a instalação anterior está em ${aside}` : ""}`);
     }
-    if (aside && !keepPrevious) {
-      try { rmTree(aside); } catch (e) { say(log, engine, `instalado, mas a versão anterior ficou em ${aside} (${e.code || e.message})`); }
-    }
+    if (aside && !keepPrevious) { try { rmTree(aside); } catch (e) { say(log, engine, `instalado, mas a versão anterior ficou em ${aside} (${e.code || e.message})`); } }
     dropFile(tgz);
 
     if (!existsSync(entryPath)) { return refuse(engine, `artefato extraído incompleto (sem ${engine.install.entry})`); }

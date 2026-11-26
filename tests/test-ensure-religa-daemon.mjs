@@ -17,7 +17,7 @@
 //   • só o entry .js, .mjs ou .cjs é lançado por node; o que apenas termina em "js" (bin/foo-js, bin/nodejs) é lançado direto, como executável;
 //   • o filho lançado que perde a corrida para outro daemon de versão diferente é encerrado e o outro segue vivo; o filho que é ele mesmo o divergente segue vivo;
 //   • o pid anterior que morre perto do fim do prazo não deixa o filho sem tempo: o filho recebe sempre um piso de espera, e o total não passa de prazo + piso;
-//   • o daemon da versão certa que fica saudável só depois da última espera é o religado (ok com o pid dele), sem falha e sem matar o filho nem o daemon.
+//   • o daemon da versão certa que fica saudável só depois da última espera é o religado (ok com o pid dele), sem falha: o filho lançado que não anunciou é encerrado e o daemon segue vivo; o filho que é o próprio anunciante não é morto.
 // Hermético: registry e downloads de memória (o .tgz é real), HOME e ENGINE_KIT_HOME isolados, porta efêmera própria, sem janela, sem áudio, sem rede.
 // Todo processo lançado aqui é encerrado no fim, por PID.
 //
@@ -104,6 +104,8 @@ srv.listen(0, '127.0.0.1', () => {
   writeFileSync(join(process.argv[2], 'run', 'daemon.json'), JSON.stringify({ port: srv.address().port, pid: process.pid, version: '1.1.0', shutdownToken: 'x' }));
 });
 `;
+const SO_NO_FIM_DO_FILHO = SO_NO_FIM.replaceAll("process.argv[2]", "dirname(dirname(fileURLToPath(import.meta.url)))")
+  .replace("import { join } from 'node:path';", "import { join, dirname } from 'node:path'; import { fileURLToPath } from 'node:url';");
 const FORA = (marcador) => `import { writeFileSync } from 'node:fs'; writeFileSync(${JSON.stringify(marcador)}, 'lancado');
 `;
 const VAZA = (extra) => `
@@ -472,7 +474,7 @@ console.log("\n== o pid anterior que morre a 100 ms do fim: o filho ainda sobe e
   check("restarted ok com o pid e a versão do filho, anunciado e respondendo", r?.ok === true && r.version === "1.1.0" && daemonJson(c.home)?.pid === r.pid && vivo(r.pid) && (await saude(c.home)) === 200, JSON.stringify(r));
 }
 
-console.log("\n== o daemon da versão certa que fica saudável depois da última espera é o religado, sem falha e sem matar ninguém ==");
+console.log("\n== o daemon da versão certa que fica saudável depois da última espera é o religado, sem falha; só o filho que não anunciou é encerrado ==");
 {
   const soNoFim = join(RUN, "w-so-no-fim.mjs");
   writeFileSync(soNoFim, SO_NO_FIM);
@@ -495,7 +497,13 @@ console.log("\n== o daemon da versão certa que fica saudável depois da última
   const r = await emVoo;
   await sleep(300);
   check("com o filho lançado: ok com o pid e a versão do outro daemon, sem falha", r?.ok === true && r.pid === pidOutro && r.version === "1.1.0", JSON.stringify(r));
-  check("o filho não é morto por engano e o outro daemon segue vivo e anunciado", pidFilho > 0 && vivo(pidFilho) && vivo(pidOutro) && daemonJson(c.home)?.pid === pidOutro, `${pidFilho} ${pidOutro}`);
+  check("o filho lançado que não anunciou é encerrado e o outro daemon segue vivo e anunciado", pidFilho > 0 && (await sumiu(pidFilho)) && vivo(pidOutro) && daemonJson(c.home)?.pid === pidOutro, `${pidFilho} ${pidOutro}`);
+  const f = await preparar("so-no-fim-e-o-filho", { v2: SO_NO_FIM_DO_FILHO });
+  const relF = await derrubadoEInstalado(f, 2500);
+  const rF = await relF.religar("1.1.0");
+  if (rF?.pid) { lancados.add(rF.pid); }
+  await sleep(300);
+  check("o filho que é o próprio anunciante da versão certa é o religado e segue vivo", rF?.ok === true && rF.version === "1.1.0" && vivo(rF.pid) && daemonJson(f.home)?.pid === rF.pid, JSON.stringify(rF));
 }
 
 console.log("\n== quem é religável ==");

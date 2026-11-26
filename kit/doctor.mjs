@@ -10,12 +10,12 @@
 // A regra é a mesma do kit e não muda aqui: **desatualizado → atualiza; ausente → baixa;
 // atualizado → REUSA**; motor fixado (`engine-kit pin`) fica na versão fixada. Reusar é o caminho comum e precisa ser barato — por isso o diagnóstico
 // não baixa nada, e o `--fix` delega ao `provision` (SHA256 + assinatura fail-closed, lock e swap
-// atômicos). O doctor não reimplementa instalação: ele só decide QUEM precisa.
+// atômicos); o daemon vivo que o --fix derruba para trocar a instalação é religado (`religar.mjs`), como no `ensure`. O doctor não reimplementa instalação: ele só decide QUEM precisa.
 //
 // Exit code: 0 = tudo conciliado. 1 = há divergência (e `--fix` não foi passado) ou algo falhou.
 import { rmSync } from "node:fs";
 import { provision, autoUpdateEnabled } from "./provision.mjs";
-import { derrubarAntes } from "./ensure.mjs";
+import { religador, aposReligar } from "./religar.mjs";
 import { diagnoseEngines, engineView, detailLines, staleVerify, SEM_ACAO } from "./diagnose.mjs";
 import { firstContactKeys } from "./trust.mjs";
 import { keysWithoutBackup, backupReminder } from "./key-backup.mjs";
@@ -87,18 +87,20 @@ for (const r of pending) {
     else { console.log(`  PULADO ${r.name}: v${v} em quarentena (--version ${v} força)`); }
     continue;
   }
+  const rel = religador(r.engine, { log });
   const p = await provision(r.engine, {
     exact: Boolean(r.pin),
     repair: r.state === "ADULTERADO",
     trustedKeys: firstContactKeys(r.name),
     log,
-    onBeforeReplace: derrubarAntes(r.engine, log),
+    onBeforeReplace: rel.antes,
   });
-  if (p.ok) {
+  const restarted = await rel.religar(p.ok ? p.version : r.installed);
+  if (p.ok && restarted?.ok !== false) {
     console.log(`  OK   ${r.name} v${p.version}${p.signed === false ? " (SEM assinatura — motor ainda não migrado)" : ""}`);
   } else {
     failures++;
-    console.log(` FALHA ${r.name} — ${p.reason}`);
+    console.log(` FALHA ${r.name} — ${p.ok ? `v${p.version} instalada` : p.reason}${aposReligar(restarted, p.ok)}`);
   }
 }
 

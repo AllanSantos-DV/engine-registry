@@ -1,6 +1,6 @@
-// engine-kit/religar.mjs — o `ensure` religa o daemon que ele próprio derrubou para trocar a instalação.
+// engine-kit/religar.mjs — o `ensure` e o `doctor --fix` religam o daemon que eles próprios derrubaram para trocar a instalação.
 //
-// Só religa o que estava VIVO (runtime + pid + /health) e que o `shutdown` do ensure encerrou de fato; daemon parado não é lançado, e o kit
+// Só religa o que estava VIVO (runtime + pid + /health) e que o `shutdown` do gancho `antes` encerrou de fato; daemon parado não é lançado, e o kit
 // continua sem verbo para subir motor. A subida reaproveita a do cliente compartilhado (`launchDetached`: sem janela, saída em <home>/run/boot.log)
 // e a espera pelo anúncio é a do `discover`. Ferramental do CLI: o runtime do consumidor não importa este arquivo.
 import { readFileSync, rmSync } from "node:fs";
@@ -46,7 +46,7 @@ const foraDoHome = (home, p) => { const r = relative(home, resolve(home, p)); re
 /**
  * Sobe o executável e espera o anúncio da `versao`; no prazo, ou se o processo morre, devolve a causa e o `bootLog`.
  * Daemon já no ar na `versao` (outro consumidor subiu durante a troca) é devolvido sem lançar nada; o anúncio de um pid vivo nunca é apagado e esse pid é esperado, não duplicado.
- * A versão anunciada vale sem o sufixo `+metadata`; daemon saudável que anuncia outra versão devolve ok:false e continua vivo; se o anúncio é de outro pid, o filho lançado é encerrado.
+ * A versão anunciada vale sem o sufixo `+metadata`; daemon saudável que anuncia outra versão devolve ok:false e continua vivo; o filho lançado que não é o anunciante (outro pid, de qualquer versão) é encerrado.
  * O prazo vale para a espera do pid anterior; o filho lançado espera ao menos `pisoMs`, de modo que o total fica em até prazo + piso.
  */
 async function subir(engine, versao, prazoMs, pisoMs) {
@@ -92,13 +92,18 @@ async function subir(engine, versao, prazoMs, pisoMs) {
     return falha(`${entry} saiu ao subir (${error ?? (signal ? `sinal ${signal}` : `código ${code}`)}); últimas linhas: ${fimDoLog(bootLog, readRuntime(engine)?.[runtime.shutdownTokenField]) || "(vazio)"}`, boot.pid);
   }
   const div = await divergiu(boot);
-  if (div?.ok || div?.pid === boot.pid) { return div; }
+  if (div?.pid === boot.pid) { return div; }
   try { process.kill(boot.pid); } catch { /* já saiu */ }
   return div ?? falha(`${entry} subiu mas não anunciou em ${Math.ceil((fimDoFilho - lancadoEm) / 100) * 100}ms (encerrei o pid ${boot.pid})`, boot.pid);
 }
 
+/** Trecho da razão de um `ensure` ou `doctor --fix` que religou o daemon: vazio sem religar; `instalada` = a troca terminou e foi o religar da versão nova que falhou. */
+export const aposReligar = (r, instalada) => !r ? "" : r.ok
+  ? (instalada ? "" : `; a troca falhou; o daemon anterior foi religado (pid ${r.pid}, v${r.version})`)
+  : `${instalada ? ", mas" : ";"} o daemon NÃO está no ar: ${r.reason}; saída do daemon em ${r.bootLog}`;
+
 /**
- * Par de ganchos do `ensure`: `antes` substitui o `derrubarAntes` e anota se derrubou um daemon vivo; `religar` sobe o novo, só nesse caso.
+ * Par de ganchos do `ensure` e do `doctor --fix`: `antes` substitui o `derrubarAntes` e anota se derrubou um daemon vivo; `religar` sobe o novo, só nesse caso.
  * @param {object} engine descritor resolvido.
  * @param {{log?:(m:string)=>void, prazoMs?:number, pisoFilhoMs?:number}} [opts]
  * @returns {{antes:()=>Promise<void>, religar:(versao:string)=>Promise<undefined|{ok:true, pid:number, version:string, bootLog:string}|{ok:false, reason:string, bootLog:string, pid?:number}>}}

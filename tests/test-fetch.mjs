@@ -4,6 +4,7 @@
 //   • motor assinado → o artefato conferido vai para a pasta pedida e o HOME do motor nem é criado;
 //   • app assinado → todos os assets conferidos vão para a pasta pedida;
 //   • artefato adulterado, registry com outra chave ou nome desconhecido → recusa, nada gravado;
+//   • asset do descritor que não é um nome de arquivo ('../../fora.tgz', 'sub/a.tgz') → recusa dizendo o motivo, no fetch e no ensure, sem gravar nada fora da pasta (nem o .part);
 //   • o CLI conhece o verbo e recusa --version malformada.
 // Hermético: registry e downloads servidos de memória, raiz de confiança em pasta temporária.
 //
@@ -17,6 +18,7 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { generateKeyPairHex, signBlob } from "../kit/index.mjs";
 import { fetchCommand } from "../kit/fetch.mjs";
+import { ensureCommand } from "../kit/ensure.mjs";
 import { tarBinary } from "../kit/provision.mjs";
 
 let failures = 0;
@@ -92,6 +94,23 @@ console.log("== engine-kit fetch ==\n");
   check("recusou", !r.ok, r.ok ? "aceitou o adulterado!" : r.reason);
   check("razão aponta a assinatura", !r.ok && /assinatura Ed25519 NÃO confere/.test(r.reason));
   check("nada gravado na pasta pedida", listed(d).length === 0, listed(d).join(", "));
+}
+
+{
+  console.log("\n-- asset do descritor que não é um nome de arquivo recusa, sem gravar nada fora da pasta --");
+  const permissivo = async (url) => (url.endsWith(".sha256") ? Buffer.from(`${sha256(ENGINE_BODY)}  x\n`) : url.endsWith(".sig") ? engineSig : ENGINE_BODY);
+  const hostil = (asset, home) => { const m = manifestWith(owner.publicKeyHex, home); m.engines[0].install.asset = asset; return m; };
+  const arquivos = (d) => (existsSync(d) ? readdirSync(d, { recursive: true }) : []);
+  for (const asset of ["../../fora.tgz", "sub/a.tgz", "..\\..\\fora.tgz", ".."]) {
+    const base = dest(), m = hostil(asset);
+    const r = await fetchCommand("fake-engine", { bundled: m, manifest: m, fetcher: permissivo, destDir: join(base, "a", "b") });
+    check(`fetch recusa o asset "${asset}" dizendo que não é um nome de arquivo`, !r.ok && /não é um nome de arquivo/.test(r.reason), r.ok ? "baixou!" : r.reason);
+    check(`fetch com o asset "${asset}": nada gravado, nem o .part, nem a pasta pedida`, arquivos(base).length === 0, arquivos(base).join(", "));
+  }
+  const raiz = join(RUN, `ensure-hostil-${++seq}`), m = hostil("../../fora.tgz", join(raiz, "a", "b"));
+  const e = await ensureCommand("fake-engine", { bundled: m, manifest: m, fetcher: permissivo });
+  check("ensure recusa o asset com .. dizendo que não é um nome de arquivo", !e.ok && /não é um nome de arquivo/.test(e.reason), e.ok ? "instalou!" : e.reason);
+  check("ensure: nada gravado fora do home do motor, nem o .part", !existsSync(join(raiz, "fora.tgz")) && !existsSync(join(raiz, "fora.tgz.part")) && !existsSync(join(raiz, "a", "fora.tgz.part")));
 }
 
 {

@@ -203,10 +203,13 @@ const ROOT = resolvePath(KIT, "..");
 //   Runtime 38974/39000 e cliente 10685/10700 não mudaram.
 //   2026-11-27 tooling 140500 → 140700: dois P2 do `subir` do religar da terceira revisão independente, +0.32 KB medidos, 140207 → 140526 (kit/religar.mjs +0.32).
 //   O filho lançado espera sempre ao menos o piso (`PISO_FILHO_MS`, nunca maior que o prazo) e a falha diz o tempo concedido a ele; o daemon que anuncia a versão esperada no último olhar é devolvido ok, sem matar o filho. Runtime 38974/39000 e cliente 10685/10700 não mudaram.
+//   2026-11-27 tooling 140700 → 140800: quatro P2 da quarta revisão independente, +0.19 KB medidos, 140526 → 140717 (kit/religar.mjs +0.26, kit/doctor.mjs +0.20, kit/ensure.mjs -0.27).
+//   O `doctor --fix` usa o `religador` do `ensure` (religa só o daemon que derrubou, com prazo; a falha ao religar conta em `failures`; a troca que falha religa a instalação anterior) e `aposReligar` passou a montar o texto da razão nos dois verbos; o `subir` do religar encerra o filho lançado sempre que o anunciante é outro pid. Runtime 38974 → 38982 de 39000 (a cifra de 39 KB da vitrine segue):
+//   o `fetchArtifact` recusa `assetName` com separador de caminho ou `..` antes de gravar qualquer coisa (+0.16 KB), pagos compactando try/catch e ifs do mesmo fecho em `kit/provision.mjs`. Cliente 10685/10700 não mudou.
 const BUDGETS = {
   runtime: { codeBytes: 39000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10700, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 140700, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 140800, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

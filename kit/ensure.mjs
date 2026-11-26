@@ -19,7 +19,7 @@ import { pinOf, setPin, rollbackReason } from "./trust.mjs";
 export { firstContactKeys } from "./trust.mjs";
 import { pointerOf, quarantineOf, quarantineWarn } from "./diagnose.mjs";
 import { checkCommand, historyCommand } from "./inspect.mjs";
-import { religador, vivoParaReligar } from "./religar.mjs";
+import { religador, vivoParaReligar, aposReligar } from "./religar.mjs";
 
 const BUNDLED_MANIFEST = new URL("../manifest.json", import.meta.url);
 const installedOf = (e) => existsSync(join(e.homeDir, e.install.entry)) ? installedVersion(join(e.homeDir, e.install.extractTo ?? "bin")) : null;
@@ -235,12 +235,11 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
     // Rotação legítima de chave chega ao registry antes de chegar a este pacote: a saída é o kit novo.
     const hint = /FIXADA|não declara publicKey/.test(p.reason) ? ` — se a chave foi rotacionada de propósito, rode npx engine-kit@latest ensure ${name}` : "";
     const restarted = await rel.religar(previous);
-    const volta = !restarted ? "" : restarted.ok ? `; a troca falhou; o daemon anterior foi religado (pid ${restarted.pid}, v${restarted.version})` : `; o daemon NÃO está no ar: ${restarted.reason}; saída do daemon em ${restarted.bootLog}`;
-    return { ok: false, reason: p.reason + hint + volta, ...(restarted ? { restarted } : {}) };
+    return { ok: false, reason: p.reason + hint + aposReligar(restarted, false), ...(restarted ? { restarted } : {}) };
   }
   const restarted = await rel.religar(p.version);
   const base = { entryPath: p.entryPath, version: p.version, kind: engine.kind, ...(p.installed && previous && previous !== p.version ? { previous } : {}), ...(restarted ? { restarted } : {}) };
-  if (restarted?.ok === false) { return { ok: false, reason: `${name}: v${p.version} instalada, mas o daemon NÃO está no ar: ${restarted.reason}; saída do daemon em ${restarted.bootLog}`, ...base }; }
+  if (restarted?.ok === false) { return { ok: false, reason: `${name}: v${p.version} instalada${aposReligar(restarted, true)}`, ...base }; }
   return {
     ok: true, reused: p.reused === true, signed: p.signed, ...base,
     ...(pin ? { pinned: pin } : {}),
