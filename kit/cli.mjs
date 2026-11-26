@@ -121,7 +121,7 @@ const log = (m) => { if (!asJson) { console.log(m); } };
 
 /** Retorno de um verbo no formato das linhas do `doctor --json` (name, state, detail, warns, pin); o resto é do verbo. */
 const jsonOf = (verb, name, r) => {
-  if (!r.ok) { return { name, ok: false, state: "ERRO", detail: r.reason, warns: [], pin: null }; }
+  if (!r.ok) { return { name, ok: false, state: "ERRO", detail: r.reason, warns: [], pin: null, ...(r.restarted ? { version: r.version, restarted: r.restarted } : {}) }; }
   const warns = [
     ...(r.staleCache ? ["registry inacessível: descritor do cache vencido"] : []),
     ...(r.available ? [`v${r.available} disponível; ENGINE_KIT_NO_AUTO_UPDATE ligado`] : []),
@@ -134,7 +134,7 @@ const jsonOf = (verb, name, r) => {
   if (verb === "update") { return { ...base, state: r.state, detail: r.detail, ...(r.current ? { current: r.current } : {}), ...(r.available ? { available: r.available } : {}) }; }
   if (verb === "pin") { return { ...base, state: "FIXADO", detail: `v${r.pinned} fixado`, version: r.version }; }
   const state = r.reused ? "OK" : r.previous ? "ATUALIZADO" : "INSTALADO";
-  return { ...base, state, detail: r.previous ? `v${r.previous} → v${r.version}` : `v${r.version}${r.reused ? " reusado" : ""}`, version: r.version, signed: r.signed ?? null, entryPath: r.entryPath, kind: r.kind, ...(r.previous ? { previous: r.previous } : {}), ...(r.pointer ? { pointer: r.pointer } : {}) };
+  return { ...base, state, detail: r.previous ? `v${r.previous} → v${r.version}` : `v${r.version}${r.reused ? " reusado" : ""}`, version: r.version, signed: r.signed ?? null, entryPath: r.entryPath, kind: r.kind, ...(r.previous ? { previous: r.previous } : {}), ...(r.pointer ? { pointer: r.pointer } : {}), ...(r.restarted ? { restarted: r.restarted } : {}) };
 };
 const done = (verb, r, text) => {
   if (asJson) { console.log(JSON.stringify(jsonOf(verb, name, r), null, 2)); if (!r.ok) { process.exitCode = 1; } return; }
@@ -365,7 +365,7 @@ if (cmd === "--help" || cmd === "-h") {
           console.log(`OK neural-link: hooks desregistrados de ~/.copilot/hooks${reg?.removed?.length ? ` (eventos removidos: ${reg.removed.join(", ")})` : ""}`);
         } catch (e) { console.error(`FALHOU neural-link --unregister: ${e?.message || e}`); process.exitCode = 1; }
       } else if (name === "neural-link") { console.log("hooks não registrados: para registrá-los no config global rode `npx engine-kit ensure neural-link --register`"); }
-      if (r.kind === "daemon") { console.log("daemon: quem sobe o motor é o consumidor (ensureEngine com healthCheck)."); }
+      if (r.kind === "daemon" && !r.restarted) { console.log("daemon: quem sobe o motor é o consumidor (ensureEngine com healthCheck)."); }
     } else {
       console.error(`FALHOU ${name}: ${r.reason}`);
       process.exitCode = 1;

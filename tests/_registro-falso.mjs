@@ -17,11 +17,11 @@ export async function criarRegistroFalso(RUN) {
   const owner = generateKeyPairHex();
   const homeOf = (name) => join(RUN, "homes", name);
 
-  const tgzOf = (name, version) => {
+  const tgzOf = (name, version, fonte) => {
     const src = join(RUN, `src-${name}-${version}`);
     mkdirSync(src, { recursive: true });
     writeFileSync(join(src, "package.json"), JSON.stringify({ name, version }));
-    writeFileSync(join(src, `${name}.mjs`), "");
+    writeFileSync(join(src, `${name}.mjs`), fonte?.(name, version) ?? "");
     const tgz = `${src}.tgz`;
     execFileSync(tarBinary(), ["-czf", tgz, "-C", src, "."], { stdio: "ignore", windowsHide: true });
     return readFileSync(tgz);
@@ -32,12 +32,15 @@ export async function criarRegistroFalso(RUN) {
     install: { repo: "x/y", tag: `${name}-v{version}`, asset: `${name}.tgz`, checksum: "{asset}.sha256", extractTo: "bin", entry: `bin/${name}.mjs`, publicKey: owner.publicKeyHex, signatureAlgorithm: "ed25519-sha256-raw" },
   });
 
-  /** `baixados` conta as buscas por motor; `artefatos` guarda o .tgz, o .sha256 e o .sig de cada versão, para os testes gravarem em disco. */
-  function registry(versions) {
-    const manifest = { engines: Object.entries(versions).map(([n, v]) => engineOf(n, v)) };
+  /**
+   * `baixados` conta as buscas por motor; `artefatos` guarda o .tgz, o .sha256 e o .sig de cada versão, para os testes gravarem em disco.
+   * `extra[nome]` acrescenta campos ao descritor (kind, runtime…); `fonte(nome, versão)` devolve o conteúdo do executável do motor.
+   */
+  function registry(versions, { extra = {}, fonte } = {}) {
+    const manifest = { engines: Object.entries(versions).map(([n, v]) => engineOf(n, v, extra[n])) };
     const map = {}, baixados = {}, artefatos = {};
     for (const [name, version] of Object.entries(versions)) {
-      const blob = tgzOf(name, version), base = `https://github.com/x/y/releases/download/${name}-v${version}/${name}.tgz`;
+      const blob = tgzOf(name, version, fonte), base = `https://github.com/x/y/releases/download/${name}-v${version}/${name}.tgz`;
       const sidecars = { sha256: Buffer.from(`${sha256(blob)}  ${name}.tgz\n`), sig: signBlob(blob, owner.privateKeyHex) };
       artefatos[name] = { tgz: blob, ...sidecars };
       Object.assign(map, { [base]: blob, [`${base}.sha256`]: sidecars.sha256, [`${base}.sig`]: sidecars.sig });

@@ -178,10 +178,11 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-11-26 tooling 120000 → 122000: cinco candidatos aditivos, +2.2 KB medidos, 119638 → 121803 (kit/cli.mjs +1.2, kit/mcp.mjs +0.9, kit/export-import.mjs +0.06). No MCP, `engine_doctor` aceita `engine` e `verify`, `engine_list` aceita `apps` e a tool de leitura `engine_export` devolve o documento do `exportCommand` sem gravar (reusam `diagnoseEngines`, `listCommand` e `exportCommand`; as descrições das tools são a maior parte dos bytes);
 //   2026-11-26 tooling 122000 → 122500: correções da revisão independente, +367 bytes medidos, 121803 → 122170 — `import -` recusa a entrada padrão em terminal com uma linha de uso (kit/cli.mjs), a validação de argumentos do MCP só aceita chaves próprias do esquema (`Object.hasOwn`, kit/mcp.mjs) e `engine_doctor` recusa `engine` vazio. O runtime não mudou (38990/39000).
 //   no CLI, `--falhar-se-desatualizado` no `ensure --dry-run` e no `ensure --instalados --dry-run` (exit 1 se algum motor teria plano diferente de reusar), `import -` (lê o documento da entrada padrão, a validação é a do `importCommand`) e o `pin` de cada motor no `list --json`; o texto do uso cresceu junto. A seção Receitas do README não pesa aqui. Tudo no ferramental, fora do fecho de `kit/index.mjs` (runtime 38990/39000, a cifra de 39 KB da vitrine segue). Sem as flags, argumentos e tools novos o comportamento é o de antes, salvo o `list --json`: com o trust.json ilegível ele agora falha com exit 1 (em vez de listar) e cada motor ganha o campo `pin`.
+//   2026-11-26 tooling 122500 → 126000: o `ensure` religa o daemon vivo que ele próprio derrubou para trocar a instalação, +3.64 KB medidos, 122170 → 125808 (kit/religar.mjs novo +2.80, kit/ensure.mjs +0.70, kit/cli.mjs +0.14): `religador` (ganchos `antes` e `religar` sobre o `derrubarAntes`), `religavel`, subida e espera do anúncio reusando `launchDetached` e `discover` do cliente, `restarted` no retorno e no `--json`, `religaria` no plano do `--dry-run`. O runtime não mudou (38990/39000, a cifra de 39 KB da vitrine segue); o cliente compartilhado ficou em 10670/10700 (+32 bytes: `launchDetached` exportada, aceita `args` e devolve o `pid`), teto mantido.
 const BUDGETS = {
   runtime: { codeBytes: 39000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10700, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 122500, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 126000, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

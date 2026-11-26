@@ -19,6 +19,7 @@ import { pinOf, setPin } from "./trust.mjs";
 export { firstContactKeys } from "./trust.mjs";
 import { pointerOf } from "./diagnose.mjs";
 import { checkCommand, historyCommand } from "./inspect.mjs";
+import { religador, vivoParaReligar } from "./religar.mjs";
 
 const BUNDLED_MANIFEST = new URL("../manifest.json", import.meta.url);
 const installedOf = (e) => existsSync(join(e.homeDir, e.install.entry)) ? installedVersion(join(e.homeDir, e.install.extractTo ?? "bin")) : null;
@@ -55,10 +56,11 @@ const instaladorProprio = (engine, motivo) => {
   return `${motivo} → instalador da v${engine.version}: ${release}; engine-kit fetch ${engine.name} baixa e confere hash e assinatura sem instalar`;
 };
 
-/** `onBeforeReplace` do `provision`: derruba o daemon pelo `shutdownPath` que o registry declara, porque no Windows arquivo em uso não se sobrescreve. */
+/** `onBeforeReplace` do `provision`: derruba o daemon pelo `shutdownPath` que o registry declara, porque no Windows arquivo em uso não se sobrescreve; devolve o retorno do `shutdown`. */
 export const derrubarAntes = (engine, log) => async () => {
   const s = await shutdown(engine, { log });
   if (!s.ok) { log(`aviso: ${s.reason} — o swap pode falhar com o motor vivo`); }
+  return s;
 };
 
 /**
@@ -86,7 +88,7 @@ export function listCommand({ bundled, platform = target(), apps = false } = {})
 export const planoEm = (r) => ({
   instalar: `instalaria v${r.version}`, atualizar: `atualizaria v${r.installed} → v${r.version}`, reusar: `reusaria v${r.version}, já em dia`, manter: `manteria v${r.version} (v${r.available} disponível; ENGINE_KIT_NO_AUTO_UPDATE ligado)`,
   fixar: `fixaria v${r.version} (já instalada)`, "instalar-e-fixar": `instalaria v${r.version} e fixaria`, "trocar-e-fixar": `trocaria v${r.installed} → v${r.version} e fixaria`, reverter: `reverteria v${r.installed} → v${r.version} e fixaria`,
-})[r.plan];
+})[r.plan] + (r.religaria ? "; derrubaria e religaria o daemon vivo" : "");
 
 /**
  * Fetcher de `ensureDeArquivo`: o artefato e os sidecars `<tgz>.sha256` e `<tgz>.sig` (os três assets da release) saem do disco,
@@ -129,11 +131,14 @@ export function instaladosAtualizaveis(opts) {
  *        Motor fixado (`engine-kit pin`) fica sempre na versão fixada; `version` diferente dela é recusado.
  * @param {boolean=} opts.dryRun true = só diz o que faria, sem baixar nem gravar: devolve `{ ok:true, dryRun:true, plan }` com `plan` = instalar, atualizar, reusar ou manter.
  * @param {boolean=} opts.fixar com `dryRun` e `version`: o plano de um `pin --version`, em que o pin gravado não contradiz a versão pedida porque ela é a que vai ser fixada.
+ * @param {number=} opts.religarPrazoMs prazo para o daemon religado anunciar e responder o `/health` (default `PRAZO_RELIGAR_MS`, 60 s).
+ * Daemon vivo que o ensure derruba para trocar a instalação é religado com o executável novo (`restarted: {ok:true, pid, version, bootLog}`); se não sobe, o retorno é
+ * `{ ok:false, reason, restarted: {ok:false, reason, bootLog, pid?}, version }` (a instalação ficou feita, o daemon NÃO está no ar). Daemon parado antes não é lançado. No `dryRun`, `religaria:true` avisa o que o ensure faria.
  * @returns {Promise<{ok:true, entryPath:string, version:string, kind:string, reused?:boolean, signed?:boolean,
  *          previous?:string, available?:string, pinned?:string} | {ok:false, reason:string}>} `previous` = versão
  *          substituída; `pinned` = versão em que o motor está fixado.
  */
-export async function ensureCommand(name, { version, registryUrl, bundled, manifest, fetcher, autoUpdate = true, dryRun = false, fixar = false, log = () => {} } = {}) {
+export async function ensureCommand(name, { version, registryUrl, bundled, manifest, fetcher, autoUpdate = true, dryRun = false, fixar = false, religarPrazoMs, log = () => {} } = {}) {
   const { local, reason } = embarcado(bundled);
   if (!local) { return { ok: false, reason }; }
 
@@ -157,12 +162,14 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
   const manter = (!autoUpdate || engine.runtime?.updatePath) && !version && !pin && previous && !satisfiesPin(previous, engine.version);
   if (dryRun) {
     const serve = previous && (version || pin ? previous === engine.version : engine.runtime?.updatePath || satisfiesPin(previous, engine.version));
+    const religaria = !manter && !serve && previous && await vivoParaReligar(engine);
     if (engine.status === "pending-release" && !serve && !manter) { return { ok: false, reason: `${name}: ainda não publicou release (status: pending-release)` }; }
     if (engine.status === "self-managed" && !serve && !manter) { return { ok: false, reason: instaladorProprio(engine, `${name}: ${AUTO_GERIDO}`) }; }
     return {
       ok: true, dryRun: true, plan: manter ? "manter" : serve ? "reusar" : previous ? "atualizar" : "instalar", kind: engine.kind,
       version: manter || serve ? previous : engine.version,
       ...(previous ? { installed: previous } : {}), ...(manter ? { available: engine.version } : {}), ...(pin ? { pinned: pin } : {}), ...(engine.staleCache ? { staleCache: true } : {}),
+      ...(religaria ? { religaria: true } : {}),
     };
   }
   if (manter) {
@@ -173,13 +180,14 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
     };
   }
 
+  const rel = religador(engine, { log, ...(religarPrazoMs ? { prazoMs: religarPrazoMs } : {}) });
   const p = await provision(r.engine, {
     log,
     trustedKeys: { [name]: publicKey },
     allowDowngrade: Boolean(version),
     exact: Boolean(pin || version),
     ...(fetcher ? { fetcher } : {}),
-    onBeforeReplace: derrubarAntes(r.engine, log),
+    onBeforeReplace: rel.antes,
   });
   if (!p.ok && engine.status === "self-managed") { return { ok: false, reason: instaladorProprio(engine, p.reason) }; }
   if (!p.ok) {
@@ -187,9 +195,11 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
     const hint = /FIXADA|não declara publicKey/.test(p.reason) ? ` — se a chave foi rotacionada de propósito, rode npx engine-kit@latest ensure ${name}` : "";
     return { ok: false, reason: p.reason + hint };
   }
+  const restarted = await rel.religar(p.version);
+  const base = { entryPath: p.entryPath, version: p.version, kind: engine.kind, ...(p.installed && previous && previous !== p.version ? { previous } : {}), ...(restarted ? { restarted } : {}) };
+  if (restarted?.ok === false) { return { ok: false, reason: `${name}: v${p.version} instalada, mas o daemon NÃO está no ar: ${restarted.reason}; saída do daemon em ${restarted.bootLog}`, ...base }; }
   return {
-    ok: true, entryPath: p.entryPath, version: p.version, kind: engine.kind, reused: p.reused === true, signed: p.signed,
-    ...(p.installed && previous && previous !== p.version ? { previous } : {}),
+    ok: true, reused: p.reused === true, signed: p.signed, ...base,
     ...(pin ? { pinned: pin } : {}),
     ...(engine.staleCache ? { staleCache: true } : {}),
     ...(engine.kind === "cli" ? { pointer: pointerOf(engine) } : {}),
@@ -254,7 +264,7 @@ export async function pinCommand(name, { version, ...opts } = {}) {
     const s = setPin(name, version), before = s.was;
     if (!s.ok) { return s; }
     const e = await ensureCommand(name, opts);
-    if (!e.ok) {
+    if (!e.ok && !e.restarted) {
       const back = setPin(name, before);
       return { ok: false, reason: `${e.reason} → pin não aplicado${back.ok ? (before ? ` (pin anterior v${before} restaurado)` : "") : `; ${back.reason}`}` };
     }

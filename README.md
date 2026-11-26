@@ -107,6 +107,15 @@ que o kit faz antes de trocar a instalação); motor sem `shutdownPath` declarad
 (ou com o `runtime.json` apontando para um processo que já morreu) responde que não há nada vivo. Motor ocupado (HTTP 202) é esperado por até 120 s, com um aviso. O comando só desliga: não remove arquivos nem estado do usuário.
 Na lib, `stopEngine(nome, { registryUrl, manifest, log })` faz o mesmo e devolve `{ ok, stopped }` sem lançar.
 
+Daemon religado: trocar a instalação de um motor com daemon vivo exige derrubá-lo (arquivo em uso não se sobrescreve no Windows), e quem estava usando ficava sem o motor. O `ensure` agora **religa o que ele próprio derrubou**: se o
+motor tinha daemon vivo (anúncio de `runtime.runtimeFile`, pid existente e `healthPath` respondendo) e a troca terminou, o kit sobe o executável novo (como o `ensureHome` do `kit/client.mjs`: sem janela, saída em
+`<home>/run/boot.log`), espera o anúncio e o `/health` por até 60 s (`PRAZO_RELIGAR_MS`, em `kit/religar.mjs`) e registra no log `[engine-kit] <motor>: religando o daemon que estava no ar...` e o resultado.
+O retorno (e o `--json`) traz `restarted: { ok: true, pid, version, bootLog }`. Se o daemon não sobe, sai com exit 1, `restarted: { ok: false, reason, bootLog }` e a linha `FALHOU <motor>: v<x> instalada, mas o daemon NÃO está no ar: …` aponta o `boot.log`:
+a instalação nova fica feita e o estado de falha é visível, não silencioso; um processo que subiu e não anunciou no prazo é encerrado. Daemon que **não** estava no ar não é lançado (o kit continua sem verbo para subir motor), e
+`--dry-run` não derruba nem religa: o plano diz `atualizaria vA → vB; derrubaria e religaria o daemon vivo`. Religam-se os motores `kind: daemon` e a casa de embeddings e o motor de grafo (`kind: cli`, mas o executável instalado é o daemon que o
+cliente compartilhado sobe); motor sem bloco `runtime`, `self-managed`, o `vxk` (shim stdio) e motor com `runtime.updatePath` (o `ensure` não troca a instalação dele; quem atualiza é o próprio daemon, `engine-kit update`) não são religados.
+Na lib, `ensureEngine` de um `kind: daemon` já sobe o daemon no fim (`lifecycle`) e a casa e o grafo sobem pelo `ensureHome`; o religar do `ensure` é do CLI (`ensureCommand` aceita `religarPrazoMs`).
+
 Hooks do neural-link: `npx engine-kit ensure neural-link` só instala o dispatcher e avisa que nada foi registrado;
 `npx engine-kit ensure neural-link --register` também roda o `install()` do motor, que escreve a declaração de cada
 evento em `~/.copilot/hooks/` (config global do usuário) e lista os eventos gravados. Na CLI o registro só acontece com `--register`; o adaptador de lib (`ensureNeuralLink`) registra a cada chamada.
@@ -465,6 +474,7 @@ kit/
   cli.mjs          # comando `engine-kit` (bin do pacote): ensure, fetch, pin, unpin, rollback, stop, doctor, list, history, check, trust e url
   inspect.mjs      # verbos de leitura: history, check (faixas de versão), trust, url e o relatório do doctor --report
   ensure.mjs       # ensure (inclusive `--de <manifesto>`), pin, unpin, rollback e stop: resolve → provision com a chave do manifest embarcado no pacote
+  religar.mjs      # o ensure religa o daemon vivo que ele derrubou para trocar a instalação (boot.log, prazo, restarted)
   fetch.mjs        # fetch: baixa e confere motor ou app sem instalar
   doctor.mjs       # concilia a máquina inteira (OK, DESATUALIZADO, AUSENTE, FIXADO...); --fix aplica
   update.mjs       # o kit se atualiza (relança na última versão do npm); ENGINE_KIT_NO_AUTO_UPDATE=1 desliga

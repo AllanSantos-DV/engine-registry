@@ -10,7 +10,7 @@ import { pathToFileURL } from "node:url";
 
 /**
  * @param {string} RUN pasta temporária do teste (HOME dele).
- * @param {{manifest:object, artefatos:object, kitHome?:string, env?:object}} o `manifest` e `artefatos` de `registry()` em `_registro-falso.mjs`; `env` acrescenta variáveis ao ambiente do CLI (vale sobre as de sempre); `STDIN_TTY_FALSO` não vazio faz o processo ver a entrada padrão como terminal.
+ * @param {{manifest:object, artefatos:object, kitHome?:string, env?:object}} o `manifest` e `artefatos` de `registry()` em `_registro-falso.mjs`; `env` acrescenta variáveis ao ambiente do CLI (vale sobre as de sempre); `STDIN_TTY_FALSO` não vazio faz o processo ver a entrada padrão como terminal; `LOOPBACK_REAL` não vazio deixa passar ao fetch de verdade só as chamadas a `http://127.0.0.1:` (daemon falso do teste).
  * @returns {Promise<{cli:(...args:string[])=>{status:number, stdout:string, stderr:string}, comEntrada:(input:string, ...args:string[])=>{status:number, stdout:string, stderr:string}}>} `comEntrada` roda o CLI com `input` na entrada padrão.
  */
 export async function criarCliOffline(RUN, { manifest, artefatos, kitHome = join(RUN, "kit-home-cli"), env: extra = {} }) {
@@ -38,7 +38,8 @@ export async function criarCliOffline(RUN, { manifest, artefatos, kitHome = join
     'import { readFileSync } from "node:fs";',
     'const mapa = JSON.parse(readFileSync(process.env.REDE_FALSA, "utf8"));',
     'if (process.env.STDIN_TTY_FALSO) { Object.defineProperty(process.stdin, "isTTY", { value: true }); }',
-    'globalThis.fetch = async (url) => (String(url) in mapa ? new Response(Buffer.from(mapa[String(url)], "base64")) : new Response("nao encontrado", { status: 404 }));',
+    'const real = globalThis.fetch;',
+    'globalThis.fetch = async (url, init) => (process.env.LOOPBACK_REAL && String(url).startsWith("http://127.0.0.1:") ? real(url, init) : String(url) in mapa ? new Response(Buffer.from(mapa[String(url)], "base64")) : new Response("nao encontrado", { status: 404 }));',
   ].join("\n"));
 
   const env = { ...process.env, HOME: RUN, USERPROFILE: RUN, ENGINE_KIT_HOME: kitHome, ENGINE_KIT_UPDATED_FROM: "teste", ENGINE_KIT_NO_AUTO_UPDATE: "1", REDE_FALSA: rede, ...extra };
