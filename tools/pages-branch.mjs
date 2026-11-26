@@ -3,13 +3,13 @@
 // artefato do Actions.
 //
 //   publish: confere o site (index.html, referências sob a base /engine-registry/, sem link simbólico), monta um commit
-//            órfão só com o conteúdo do site mais .nojekyll e o envia a gh-pages com push forçado (a branch é só do
-//            site e é refeita a cada publicação). Remoto SSH exige a chave de deploy em PAGES_DEPLOY_KEY (push com
-//            GITHUB_TOKEN não dispara a publicação do Pages).
-//   verify:  lê a URL pública até ela servir o mesmo index.html do build.
+//            órfão só com o conteúdo do site, o manifest.json da raiz do repositório (--manifest) e .nojekyll, e o envia
+//            a gh-pages com push forçado (a branch é só do site e é refeita a cada publicação). Remoto SSH exige a chave
+//            de deploy em PAGES_DEPLOY_KEY (push com GITHUB_TOKEN não dispara a publicação do Pages).
+//   verify:  lê a URL pública até ela servir o mesmo index.html do build e o mesmo manifest.json do repositório.
 //
-// Configuração inválida (site ausente, referência fora da base, link simbólico, branch fora de gh-pages, chave ausente)
-// termina com código 1 e a causa no erro padrão. Reversão e processo: docs/PAGES.md.
+// Configuração inválida (site ausente, manifest ausente ou que não é JSON, referência fora da base, link simbólico,
+// branch fora de gh-pages, chave ausente) termina com código 1 e a causa no erro padrão. Reversão e processo: docs/PAGES.md.
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -21,6 +21,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const BRANCH = 'gh-pages';
 export const KEY_ENV = 'PAGES_DEPLOY_KEY';
 export const DEFAULT_SITE = path.join(ROOT, 'site');
+export const DEFAULT_MANIFEST = path.join(ROOT, 'manifest.json');
 export const DEFAULT_REMOTE = 'git@github.com:AllanSantos-DV/engine-registry.git';
 export const DEFAULT_URL = 'https://allansantos-dv.github.io/engine-registry/';
 
@@ -49,8 +50,26 @@ export function checkSite(site) {
   }
 }
 
-export function stageTree(site, destination) {
+/** CRLF vira LF: o blob do git é LF e o checkout local pode ter CRLF, então os dois lados da comparação passam por aqui. */
+const lf = (buffer) => Buffer.from(buffer.toString('latin1').replace(/\r\n/g, '\n'), 'latin1');
+
+/** Bytes do manifest.json a publicar, com LF; recusa arquivo ausente ou que não é JSON. */
+export function readManifest(file) {
+  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
+    throw new PagesError(`${file} não existe: o manifest.json é publicado junto com o site`);
+  }
+  const bytes = lf(fs.readFileSync(file));
+  try {
+    JSON.parse(bytes.toString('utf8'));
+  } catch (error) {
+    throw new PagesError(`${file} não é JSON válido (${error.message}): não publico um manifest quebrado`);
+  }
+  return bytes;
+}
+
+export function stageTree(site, destination, manifest) {
   fs.cpSync(site, destination, { recursive: true });
+  fs.writeFileSync(path.join(destination, 'manifest.json'), manifest);
   fs.writeFileSync(path.join(destination, '.nojekyll'), '');
 }
 
@@ -72,9 +91,10 @@ function hasSsh() {
   return !spawnSync('ssh', ['-V'], { windowsHide: true }).error;
 }
 
-export function publish(site, remote, branch, message, key) {
+export function publish(site, remote, branch, message, key, manifestFile = DEFAULT_MANIFEST) {
   if (branch !== BRANCH) { throw new PagesError(`push forçado só na branch ${BRANCH}, não em '${branch}'`); }
   checkSite(site);
+  const manifest = readManifest(manifestFile);
   const overSsh = remote.startsWith('git@') || remote.startsWith('ssh://');
   if (overSsh && !key.includes('PRIVATE KEY')) {
     throw new PagesError(`${KEY_ENV} ausente ou não é uma chave privada: remoto SSH exige a chave de deploy`);
@@ -93,7 +113,7 @@ export function publish(site, remote, branch, message, key) {
         + `-o UserKnownHostsFile="${knownHosts}"`;
     }
     const tree = path.join(temp, 'tree');
-    stageTree(site, tree);
+    stageTree(site, tree, manifest);
     git(['init', '-q', '-b', branch], tree);
     git(['add', '-A'], tree);
     git(['-c', 'user.name=github-actions[bot]', '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com',
@@ -130,8 +150,22 @@ export async function verifyVideo(url, site, stamp) {
   return { bytes: got.length, sha256: sha(got), type };
 }
 
-export async function verify(url, site, attempts, interval, stamp) {
+/** O manifest.json publicado responde 200, é JSON e tem os mesmos bytes (com LF) do manifest local. */
+export async function verifyManifest(url, manifest, stamp) {
+  const res = await fetch(new URL(`manifest.json?v=${stamp}`, url), { signal: AbortSignal.timeout(30000), cache: 'no-store' });
+  if (!res.ok) { throw new PagesError(`o manifest.json publicado respondeu HTTP ${res.status}`); }
+  const got = lf(Buffer.from(await res.arrayBuffer()));
+  try {
+    JSON.parse(got.toString('utf8'));
+  } catch {
+    throw new PagesError('o manifest publicado não é JSON válido');
+  }
+  if (!got.equals(manifest)) { throw new PagesError('o manifest publicado difere do da main'); }
+}
+
+export async function verify(url, site, attempts, interval, stamp, manifestFile = DEFAULT_MANIFEST) {
   checkSite(site);
+  const manifest = readManifest(manifestFile);
   let last = 'sem resposta';
   for (let attempt = 0; attempt < attempts; attempt++) {
     try {
@@ -142,6 +176,7 @@ export async function verify(url, site, attempts, interval, stamp) {
       } else if (!samePage(body, site)) {
         last = 'a página responde, mas não é o index.html deste site';
       } else {
+        await verifyManifest(url, manifest, stamp);
         const video = await verifyVideo(url, site, stamp);
         if (video) { console.log(`vídeo no ar: ${video.type}, ${video.bytes} B, sha256 ${video.sha256}`); }
         return;
@@ -151,7 +186,7 @@ export async function verify(url, site, attempts, interval, stamp) {
     }
     if (attempt + 1 < attempts) { await new Promise((resolve) => setTimeout(resolve, interval * 1000)); }
   }
-  throw new PagesError(`${url} não serve o index.html de ${site} depois de ${attempts} tentativas (${last})`);
+  throw new PagesError(`${url} não serve o index.html de ${site} e o manifest.json do repositório depois de ${attempts} tentativas (${last})`);
 }
 
 function parse(argv) {
@@ -159,7 +194,7 @@ function parse(argv) {
   if (command !== 'publish' && command !== 'verify') {
     throw new PagesError(`uso: pages-branch.mjs publish|verify [--opção valor]; recebido '${command ?? ''}'`);
   }
-  const allowed = command === 'publish' ? ['site', 'remote', 'branch', 'message'] : ['site', 'url', 'attempts', 'interval', 'stamp'];
+  const allowed = command === 'publish' ? ['site', 'remote', 'branch', 'message', 'manifest'] : ['site', 'url', 'attempts', 'interval', 'stamp', 'manifest'];
   const options = {};
   for (let i = 0; i < rest.length; i += 2) {
     const name = rest[i].replace(/^--/, '');
@@ -178,12 +213,12 @@ export async function main(argv) {
     if (command === 'publish') {
       const branch = options.branch ?? BRANCH;
       const sha = publish(site, options.remote ?? DEFAULT_REMOTE, branch, options.message ?? 'Site engine-registry',
-        process.env[KEY_ENV] ?? '');
+        process.env[KEY_ENV] ?? '', options.manifest ?? DEFAULT_MANIFEST);
       console.log(`${branch} publicada em ${sha}.`);
     } else {
       const url = options.url ?? DEFAULT_URL;
-      await verify(url, site, Number(options.attempts ?? 20), Number(options.interval ?? 15), options.stamp ?? String(Date.now()));
-      console.log(`${url} serve o index.html deste site.`);
+      await verify(url, site, Number(options.attempts ?? 20), Number(options.interval ?? 15), options.stamp ?? String(Date.now()), options.manifest ?? DEFAULT_MANIFEST);
+      console.log(`${url} serve o index.html deste site e o manifest.json do repositório.`);
     }
     return 0;
   } catch (error) {

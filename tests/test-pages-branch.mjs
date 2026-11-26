@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-/* tests/test-pages-branch.mjs — a publicação do Pages pela branch gh-pages falha alto em configuração inválida, o workflow
-   não usa artefato do Actions, só roda por disparo manual e a conferência da página no ar lê a URL de verdade (servidor
-   local; nada é publicado).
+/* tests/test-pages-branch.mjs — a publicação do Pages pela branch gh-pages falha alto em configuração inválida, leva o
+   manifest.json da raiz junto com o site, o workflow não usa artefato do Actions, só roda por disparo manual ou por mudança
+   do manifest na main e a conferência da página no ar lê a URL de verdade (servidor local; nada é publicado).
      node tests/test-pages-branch.mjs */
 import "./_tmp.mjs";
 import assert from 'node:assert/strict';
@@ -17,7 +17,7 @@ import * as video from '../tools/baixar-video.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WORKFLOWS = path.join(ROOT, '.github', 'workflows');
-const WORKFLOW = fs.readFileSync(path.join(WORKFLOWS, 'pages.yml'), 'utf8')
+const WORKFLOW = fs.readFileSync(path.join(WORKFLOWS, 'pages.yml'), 'utf8').replace(/\r/g, '')
   .split('\n').filter((line) => !line.trimStart().startsWith('#')).join('\n');
 const INDEX = '<html><link href="/engine-registry/_astro/a.css"><a href="/engine-registry/">x</a><img src="media/v.png"></html>';
 
@@ -30,14 +30,25 @@ function makeSite(html = INDEX) {
   fs.writeFileSync(path.join(site, 'media', '_x.bin'), 'x');
   return site;
 }
+const MANIFEST = '{\n  "engines": [\n    { "name": "x", "version": "1.0.0" }\n  ]\n}\n';
+function makeManifest(text = MANIFEST) {
+  const file = path.join(tmp(), 'manifest.json');
+  fs.writeFileSync(file, text);
+  return file;
+}
 function bareRemote() {
   const remote = path.join(tmp(), 'remote.git');
   spawnSync('git', ['init', '-q', '--bare', remote], { windowsHide: true });
   return remote;
 }
 const gitOut = (remote, ...args) => spawnSync('git', ['--git-dir', remote, ...args], { encoding: 'utf8', windowsHide: true }).stdout.trim();
-async function live(body, status = 200) {
-  const server = http.createServer((_req, res) => { res.writeHead(status); res.end(body); });
+const gitBytes = (remote, ...args) => spawnSync('git', ['--git-dir', remote, ...args], { windowsHide: true }).stdout;
+async function live(index, { manifest = MANIFEST, manifestStatus = 200, status = 200 } = {}) {
+  const server = http.createServer((req, res) => {
+    const isManifest = new URL(req.url, 'http://x').pathname.endsWith('/manifest.json');
+    res.writeHead(isManifest ? manifestStatus : status);
+    res.end(isManifest ? manifest : index);
+  });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   return { url: `http://127.0.0.1:${server.address().port}/`, close: () => new Promise((resolve) => server.close(resolve)) };
 }
@@ -57,9 +68,18 @@ await ok('chave de deploy, sem GITHUB_TOKEN, com contents: read', () => {
   assert.ok(!WORKFLOW.includes('GITHUB_TOKEN'), 'push com GITHUB_TOKEN não dispara a publicação do Pages');
   assert.ok(WORKFLOW.includes('contents: read'));
 });
-await ok('só disparo manual: sem push nem cron publicando sozinhos', () => {
-  assert.ok(WORKFLOW.includes('workflow_dispatch'));
-  assert.ok(!/^\s*(push|schedule|pull_request):/m.test(WORKFLOW), 'a publicação é decisão explícita do dono');
+const GATILHOS = WORKFLOW.match(/^on:\n((?:[ \t]+.*\n|\n)*)/m)?.[1] ?? '';
+await ok('gatilhos: disparo manual e push na main só quando o site ou o manifest.json mudam; sem cron nem pull request', () => {
+  assert.match(GATILHOS, /^ {2}workflow_dispatch:/m);
+  assert.match(GATILHOS, /^ {2}push:\n {4}branches: \[main\]\n {4}paths: \['site\/\*\*', 'manifest\.json'\]\n/m);
+  assert.ok(!/^ {2}(schedule|pull_request|pull_request_target|release):/m.test(GATILHOS), 'só o dono e a mudança do manifest na main publicam');
+});
+await ok('a publicação só roda a partir da main: o manifest publicado é o da main', () => {
+  const passos = WORKFLOW.split('\n');
+  const guarda = passos.findIndex((l) => l.includes("github.ref != 'refs/heads/main'"));
+  assert.ok(guarda > 0, 'sem guarda de branch, um disparo manual na develop publicaria o manifest da develop');
+  assert.match(passos.slice(guarda, guarda + 4).join('\n'), /exit 1/);
+  assert.ok(guarda < passos.findIndex((l) => l.includes('tools/pages-branch.mjs publish')), 'a guarda vem antes de publicar');
 });
 await ok('runner Linux hospedado por padrão, local só com CI_RUNNER=local, sem Windows nem macOS', () => {
   const runsOn = WORKFLOW.split('\n').find((l) => l.includes('runs-on:')) ?? '';
@@ -81,14 +101,14 @@ await ok('nenhum workflow do registry usa runner Windows/macOS nem roda a suíte
     assert.ok(!/npm (run )?test\s*$/m.test(code), `${file}: roda a suíte no runner hospedado`);
   }
 });
-await ok('publica commit órfão com .nojekyll e arquivos "_"', () => {
-  const remote = bareRemote(); const site = makeSite();
-  const sha = pages.publish(site, remote, 'gh-pages', 'p', '');
+await ok('publica commit órfão com .nojekyll, manifest.json e arquivos "_"', () => {
+  const remote = bareRemote(); const site = makeSite(); const manifest = makeManifest();
+  const sha = pages.publish(site, remote, 'gh-pages', 'p', '', manifest);
   assert.equal(gitOut(remote, 'rev-parse', 'gh-pages'), sha);
   assert.equal(gitOut(remote, 'rev-list', '--count', 'gh-pages'), '1');
   const tree = gitOut(remote, 'ls-tree', '-r', '--name-only', 'gh-pages').split('\n').sort();
-  assert.deepEqual(tree, ['.nojekyll', 'index.html', 'media/_x.bin']);
-  pages.publish(site, remote, 'gh-pages', 'p2', '');
+  assert.deepEqual(tree, ['.nojekyll', 'index.html', 'manifest.json', 'media/_x.bin']);
+  pages.publish(site, remote, 'gh-pages', 'p2', '', manifest);
   assert.equal(gitOut(remote, 'rev-list', '--count', 'gh-pages'), '1', 'segunda publicação refaz o commit órfão');
 });
 await ok('recusas explícitas: branch, site ausente, referência absoluta, ssh sem chave', () => {
@@ -101,13 +121,82 @@ await ok('recusas explícitas: branch, site ausente, referência absoluta, ssh s
   assert.equal(gitOut(remote, 'branch', '--list'), '', 'nada foi publicado');
 });
 await ok('verify lê a URL pública', async () => {
-  const site = makeSite();
-  const good = await live(INDEX); const bad = await live('<html>outra</html>'); const down = await live('x', 500);
+  const site = makeSite(); const manifest = makeManifest();
+  const good = await live(INDEX); const bad = await live('<html>outra</html>'); const down = await live('x', { status: 500 });
   try {
-    await pages.verify(good.url, site, 1, 0, 'a');
-    await assert.rejects(() => pages.verify(bad.url, site, 1, 0, 'a'), /não é o index\.html/);
-    await assert.rejects(() => pages.verify(down.url, site, 1, 0, 'a'), /HTTP 500/);
+    await pages.verify(good.url, site, 1, 0, 'a', manifest);
+    await assert.rejects(() => pages.verify(bad.url, site, 1, 0, 'a', manifest), /não é o index\.html/);
+    await assert.rejects(() => pages.verify(down.url, site, 1, 0, 'a', manifest), /HTTP 500/);
   } finally { await Promise.all([good.close(), bad.close(), down.close()]); }
+});
+
+const lerManifest = (remote) => gitBytes(remote, 'show', 'gh-pages:manifest.json');
+await ok('a árvore publicada leva o manifest.json idêntico ao do commit, na raiz', () => {
+  const remote = bareRemote(); const manifest = makeManifest();
+  pages.publish(makeSite(), remote, 'gh-pages', 'p', '', manifest);
+  assert.ok(lerManifest(remote).equals(fs.readFileSync(manifest)));
+});
+await ok('sem --manifest publica o manifest.json da raiz do repositório', () => {
+  const remote = bareRemote();
+  pages.publish(makeSite(), remote, 'gh-pages', 'p', '');
+  const raiz = fs.readFileSync(path.join(ROOT, 'manifest.json')).toString('latin1').replace(/\r\n/g, '\n');
+  assert.equal(lerManifest(remote).toString('latin1'), raiz);
+});
+await ok('o manifest da raiz prevalece sobre um manifest.json dentro da pasta do site', () => {
+  const remote = bareRemote(); const site = makeSite();
+  fs.writeFileSync(path.join(site, 'manifest.json'), '{"engines":[{"name":"velho"}]}');
+  pages.publish(site, remote, 'gh-pages', 'p', '', makeManifest());
+  assert.equal(lerManifest(remote).toString('utf8'), MANIFEST);
+});
+await ok('o manifest não mora em site/: vem da raiz', () => {
+  assert.ok(!fs.existsSync(path.join(ROOT, 'site', 'manifest.json')));
+});
+await ok('manifest com CRLF no checkout é publicado com LF', () => {
+  const remote = bareRemote();
+  pages.publish(makeSite(), remote, 'gh-pages', 'p', '', makeManifest(MANIFEST.replace(/\n/g, '\r\n')));
+  const blob = lerManifest(remote);
+  assert.ok(!blob.includes(0x0d), 'o blob publicado não pode ter CR');
+  assert.equal(blob.toString('utf8'), MANIFEST);
+});
+await ok('manifest ausente recusa a publicação e não publica nada', () => {
+  const remote = bareRemote();
+  assert.throws(() => pages.publish(makeSite(), remote, 'gh-pages', 'p', '', path.join(tmp(), 'manifest.json')), (e) => e instanceof pages.PagesError && /manifest\.json/.test(e.message));
+  assert.equal(gitOut(remote, 'branch', '--list'), '');
+});
+await ok('manifest que não é JSON válido recusa a publicação e não publica nada', () => {
+  const remote = bareRemote();
+  assert.throws(() => pages.publish(makeSite(), remote, 'gh-pages', 'p', '', makeManifest('{"engines": [')), (e) => e instanceof pages.PagesError && /não é JSON válido/.test(e.message));
+  assert.equal(gitOut(remote, 'branch', '--list'), '');
+});
+await ok('a linha de comando recusa --manifest ausente com código 1 e a causa no erro padrão', () => {
+  const remote = bareRemote();
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'tools', 'pages-branch.mjs'), 'publish', '--site', makeSite(), '--remote', remote, '--manifest', path.join(tmp(), 'nada.json')], { encoding: 'utf8', windowsHide: true });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /nada\.json/);
+  assert.equal(gitOut(remote, 'branch', '--list'), '');
+});
+await ok('verify passa quando o manifest é servido igual, mesmo com CRLF no checkout local', async () => {
+  const site = makeSite(); const server = await live(INDEX);
+  try {
+    await pages.verify(server.url, site, 1, 0, 'a', makeManifest());
+    await pages.verify(server.url, site, 1, 0, 'a', makeManifest(MANIFEST.replace(/\n/g, '\r\n')));
+  } finally { await server.close(); }
+});
+await ok('verify falha com a causa quando o manifest publicado dá 404', async () => {
+  const server = await live(INDEX, { manifestStatus: 404 });
+  try { await assert.rejects(() => pages.verify(server.url, makeSite(), 1, 0, 'a', makeManifest()), /manifest\.json.*HTTP 404/); } finally { await server.close(); }
+});
+await ok('verify falha quando o manifest publicado difere do da main', async () => {
+  const server = await live(INDEX, { manifest: MANIFEST.replace('1.0.0', '9.9.9') });
+  try { await assert.rejects(() => pages.verify(server.url, makeSite(), 1, 0, 'a', makeManifest()), /o manifest publicado difere do da main/); } finally { await server.close(); }
+});
+await ok('verify falha quando o manifest publicado não é JSON válido', async () => {
+  const server = await live(INDEX, { manifest: '<html>404</html>' });
+  try { await assert.rejects(() => pages.verify(server.url, makeSite(), 1, 0, 'a', makeManifest()), /manifest publicado não é JSON válido/); } finally { await server.close(); }
+});
+await ok('verify recusa antes de ler a URL se o manifest local falta', async () => {
+  const server = await live(INDEX);
+  try { await assert.rejects(() => pages.verify(server.url, makeSite(), 1, 0, 'a', path.join(tmp(), 'manifest.json')), /manifest\.json/); } finally { await server.close(); }
 });
 const sha = (b) => createHash('sha256').update(b).digest('hex');
 const MP4 = Buffer.from('mp4-de-teste-com-alguns-bytes');
