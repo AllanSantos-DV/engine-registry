@@ -201,10 +201,12 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-11-27 tooling 140000 → 140500: quatro correções P2 da segunda revisão independente, +0.30 KB medidos, 139912 → 140207 (kit/ensure.mjs +0.23, kit/cli.mjs +0.03, kit/religar.mjs +0.03).
 //   O `unpin` de um nome cujo pin continua valendo por outro que divide a instalação devolve ok com `warns` ("continua fixado em vX por <dono>") e o CLI imprime a linha `aviso:` (fora do `--todos`); o `subir` do religar volta a lançar por node só o entry `.js/.mjs/.cjs` (a barra invertida da regex tinha sido apagada), encerra o filho lançado quando outro pid anuncia versão diferente e usa um prazo único para a espera do pid anterior e a do filho.
 //   Runtime 38974/39000 e cliente 10685/10700 não mudaram.
+//   2026-11-27 tooling 140500 → 140700: dois P2 do `subir` do religar da terceira revisão independente, +0.32 KB medidos, 140207 → 140526 (kit/religar.mjs +0.32).
+//   O filho lançado espera sempre ao menos o piso (`PISO_FILHO_MS`, nunca maior que o prazo) e a falha diz o tempo concedido a ele; o daemon que anuncia a versão esperada no último olhar é devolvido ok, sem matar o filho. Runtime 38974/39000 e cliente 10685/10700 não mudaram.
 const BUDGETS = {
   runtime: { codeBytes: 39000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10700, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 140500, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 140700, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

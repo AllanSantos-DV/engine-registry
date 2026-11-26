@@ -16,7 +16,8 @@
 //   • motor que se relança sozinho (shutdownPath com relaunch=1) não é religável; plano desconhecido não vira a palavra "undefined";
 //   • só o entry .js, .mjs ou .cjs é lançado por node; o que apenas termina em "js" (bin/foo-js, bin/nodejs) é lançado direto, como executável;
 //   • o filho lançado que perde a corrida para outro daemon de versão diferente é encerrado e o outro segue vivo; o filho que é ele mesmo o divergente segue vivo;
-//   • o prazo é um só: o pid anterior que morre perto do fim não abre um segundo prazo inteiro para o filho.
+//   • o pid anterior que morre perto do fim do prazo não deixa o filho sem tempo: o filho recebe sempre um piso de espera, e o total não passa de prazo + piso;
+//   • o daemon da versão certa que fica saudável só depois da última espera é o religado (ok com o pid dele), sem falha e sem matar o filho nem o daemon.
 // Hermético: registry e downloads de memória (o .tgz é real), HOME e ENGINE_KIT_HOME isolados, porta efêmera própria, sem janela, sem áudio, sem rede.
 // Todo processo lançado aqui é encerrado no fim, por PID.
 //
@@ -79,6 +80,25 @@ import { join } from 'node:path';
 let pronto = false;
 setTimeout(() => { pronto = true; }, 1500);
 const srv = http.createServer((req, res) => { res.writeHead(req.url === '/health' && pronto ? 200 : 404).end(); });
+srv.listen(0, '127.0.0.1', () => {
+  mkdirSync(join(process.argv[2], 'run'), { recursive: true });
+  writeFileSync(join(process.argv[2], 'run', 'daemon.json'), JSON.stringify({ port: srv.address().port, pid: process.pid, version: '1.1.0', shutdownToken: 'x' }));
+});
+`;
+const FILHO = `import { writeFileSync } from 'node:fs'; import { join, dirname } from 'node:path'; import { fileURLToPath } from 'node:url';
+writeFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'filho.pid'), String(process.pid)); setInterval(() => {}, 1000);
+`;
+const SO_NO_FIM = `
+import http from 'node:http';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+let ultimo = 0, seguidos = 0;
+const srv = http.createServer((req, res) => {
+  const agora = Date.now();
+  seguidos = agora - ultimo < 200 ? seguidos + 1 : 0;
+  ultimo = agora;
+  res.writeHead(req.url === '/health' && seguidos >= 2 ? 200 : 404).end();
+});
 srv.listen(0, '127.0.0.1', () => {
   mkdirSync(join(process.argv[2], 'run'), { recursive: true });
   writeFileSync(join(process.argv[2], 'run', 'daemon.json'), JSON.stringify({ port: srv.address().port, pid: process.pid, version: '1.1.0', shutdownToken: 'x' }));
@@ -234,8 +254,8 @@ const subirComo = async (c, args, opts = {}) => {
   return p.pid;
 };
 /** Derruba o daemon v1 pelo gancho do religador, instala a v2 sem daemon no ar e devolve o religador já com "derrubou". */
-async function derrubadoEInstalado(c, prazoMs = 20000) {
-  const rel = religar.religador(await motorDe(c), { prazoMs });
+async function derrubadoEInstalado(c, prazoMs = 20000, pisoFilhoMs) {
+  const rel = religar.religador(await motorDe(c), { prazoMs, pisoFilhoMs });
   await rel.antes();
   const i = await ensureCommand(c.name, c.r2.opts);
   if (!i.ok || vivo(c.pid1)) { throw new Error("preparo da corrida falhou: " + JSON.stringify(i)); }
@@ -407,9 +427,6 @@ console.log("\n== só entry .js, .mjs e .cjs é lançado por node; o resto é ex
 
 console.log("\n== o filho lançado que perde a corrida para outro daemon de outra versão é encerrado ==");
 {
-  const FILHO = `import { writeFileSync } from 'node:fs'; import { join, dirname } from 'node:path'; import { fileURLToPath } from 'node:url';
-writeFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'filho.pid'), String(process.pid)); setInterval(() => {}, 1000);
-`;
   const c = await preparar("filho-perde", { v2: FILHO });
   const rel = await derrubadoEInstalado(c, 6000);
   const emVoo = rel.religar("1.1.0");
@@ -426,20 +443,59 @@ writeFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'filho.pid'), 
   check("o outro daemon segue vivo, anunciado e respondendo", vivo(pidOutro) && daemonJson(c.home)?.pid === pidOutro && (await saude(c.home)) === 200);
 }
 
-console.log("\n== o prazo é um só: o pid anterior que morre perto do fim não abre um segundo prazo ==");
+const surdoDe = (nome) => { const f = join(RUN, `w-surdo-${nome}.mjs`); writeFileSync(f, LENTO.replace("1500", "600000")); return f; };
+
+console.log("\n== o pid anterior que morre perto do fim: o filho tem ao menos o piso, e o total não passa de prazo + piso ==");
 {
-  const prazo = 3000;
+  const prazo = 3000, piso = 1500;
   const c = await preparar("prazo-unico", { v2: "mudo" });
-  const rel = await derrubadoEInstalado(c, prazo);
-  const surdo = join(RUN, "w-surdo.mjs");
-  writeFileSync(surdo, LENTO.replace("1500", "600000"));
-  const pidSurdo = await subirComo(c, [surdo, c.home]);
+  const rel = await derrubadoEInstalado(c, prazo, piso);
+  const pidSurdo = await subirComo(c, [surdoDe("prazo-unico"), c.home]);
   const t0 = Date.now();
   setTimeout(() => matar(pidSurdo), prazo - 500);
   const r = await rel.religar("1.1.0");
   const gasto = Date.now() - t0;
-  check("o religar falha por não anunciar, e o processo que não anunciou é encerrado", r?.ok === false && /não anunciou em 3000ms/.test(r.reason ?? "") && (await sumiu(r.pid)), JSON.stringify(r));
-  check("o total fica perto de um prazo só", gasto < prazo + 1500, `${gasto}ms para um prazo de ${prazo}ms`);
+  check("o religar falha por não anunciar, a razão diz o tempo que o filho teve (o piso) e o processo é encerrado", r?.ok === false && /não anunciou em 1500ms/.test(r.reason ?? "") && (await sumiu(r.pid)), JSON.stringify(r));
+  check("o filho esperou o piso inteiro depois da morte do anterior", gasto >= prazo - 500 + piso - 200, `${gasto}ms`);
+  check("o total não passa de prazo + piso + tolerância", gasto < prazo + piso + 1500, `${gasto}ms para um prazo de ${prazo}ms e piso de ${piso}ms`);
+}
+
+console.log("\n== o pid anterior que morre a 100 ms do fim: o filho ainda sobe e anuncia dentro do piso ==");
+{
+  const prazo = 3000;
+  const c = await preparar("piso-filho", { v2: `await new Promise((r) => setTimeout(r, 1200));\n${SOBE}` });
+  const rel = await derrubadoEInstalado(c, prazo);
+  const pidSurdo = await subirComo(c, [surdoDe("piso-filho"), c.home]);
+  setTimeout(() => matar(pidSurdo), prazo - 100);
+  const r = await rel.religar("1.1.0");
+  if (r?.pid) { lancados.add(r.pid); }
+  check("restarted ok com o pid e a versão do filho, anunciado e respondendo", r?.ok === true && r.version === "1.1.0" && daemonJson(c.home)?.pid === r.pid && vivo(r.pid) && (await saude(c.home)) === 200, JSON.stringify(r));
+}
+
+console.log("\n== o daemon da versão certa que fica saudável depois da última espera é o religado, sem falha e sem matar ninguém ==");
+{
+  const soNoFim = join(RUN, "w-so-no-fim.mjs");
+  writeFileSync(soNoFim, SO_NO_FIM);
+  const marcador = join(RUN, "marcador-so-no-fim");
+  const a = await preparar("so-no-fim-anterior", { v2: FORA(marcador) });
+  const relA = await derrubadoEInstalado(a, 2000);
+  const pidA = await subirComo(a, [soNoFim, a.home]);
+  const rA = await relA.religar("1.1.0");
+  await sleep(300);
+  check("com o pid anterior vivo: ok com o pid e a versão dele, não 'anuncia vX, esperado vX'", rA?.ok === true && rA.pid === pidA && rA.version === "1.1.0", JSON.stringify(rA));
+  check("com o pid anterior vivo: nada foi lançado e o daemon segue vivo e anunciado", !existsSync(marcador) && !existsSync(a.bootLog) && vivo(pidA) && daemonJson(a.home)?.pid === pidA);
+  const c = await preparar("so-no-fim-filho", { v2: FILHO });
+  const rel = await derrubadoEInstalado(c, 2500);
+  const emVoo = rel.religar("1.1.0");
+  const arq = join(c.home, "filho.pid");
+  for (let i = 0; i < 100 && !existsSync(arq); i++) { await sleep(100); }
+  const pidFilho = Number(ler(arq));
+  lancados.add(pidFilho);
+  const pidOutro = await subirComo(c, [soNoFim, c.home]);
+  const r = await emVoo;
+  await sleep(300);
+  check("com o filho lançado: ok com o pid e a versão do outro daemon, sem falha", r?.ok === true && r.pid === pidOutro && r.version === "1.1.0", JSON.stringify(r));
+  check("o filho não é morto por engano e o outro daemon segue vivo e anunciado", pidFilho > 0 && vivo(pidFilho) && vivo(pidOutro) && daemonJson(c.home)?.pid === pidOutro, `${pidFilho} ${pidOutro}`);
 }
 
 console.log("\n== quem é religável ==");

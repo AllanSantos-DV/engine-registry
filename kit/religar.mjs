@@ -14,6 +14,9 @@ import { derrubarAntes } from "./ensure.mjs";
 /** Quanto o kit espera o daemon religado anunciar o `runtime.runtimeFile` e responder o `/health`; o mesmo prazo do `ensureHome`. */
 export const PRAZO_RELIGAR_MS = 60000;
 
+/** Espera mínima do filho lançado, mesmo que o pid anterior tenha gasto quase todo o prazo (nunca maior que o prazo). */
+export const PISO_FILHO_MS = 10000;
+
 /**
  * Motor que o ensure sabe religar: declara runtime (arquivo, health e shutdown) e o executável instalado é o próprio daemon, isto é, `kind: daemon` (menos o mcp-gateway, que tem lançador próprio no `ensureGateway`)
  * ou os dois motores que o cliente compartilhado sobe (a casa e o grafo, `kind: cli`). O vxk é `cli` com daemon próprio: o executável dele é um shim stdio.
@@ -44,9 +47,9 @@ const foraDoHome = (home, p) => { const r = relative(home, resolve(home, p)); re
  * Sobe o executável e espera o anúncio da `versao`; no prazo, ou se o processo morre, devolve a causa e o `bootLog`.
  * Daemon já no ar na `versao` (outro consumidor subiu durante a troca) é devolvido sem lançar nada; o anúncio de um pid vivo nunca é apagado e esse pid é esperado, não duplicado.
  * A versão anunciada vale sem o sufixo `+metadata`; daemon saudável que anuncia outra versão devolve ok:false e continua vivo; se o anúncio é de outro pid, o filho lançado é encerrado.
- * O prazo é um só para a espera do pid anterior e a do filho.
+ * O prazo vale para a espera do pid anterior; o filho lançado espera ao menos `pisoMs`, de modo que o total fica em até prazo + piso.
  */
-async function subir(engine, versao, prazoMs) {
+async function subir(engine, versao, prazoMs, pisoMs) {
   const { homeDir, install, runtime } = engine;
   const entry = join(homeDir, install.entry);
   const bootLog = join(homeDir, "run", "boot.log");
@@ -60,17 +63,17 @@ async function subir(engine, versao, prazoMs) {
   };
   const noAr = async (boot) => { const o = await olhar(boot); return o && (!versao || semMeta(o.version) === semMeta(versao)) ? o : null; };
   const fim = Date.now() + prazoMs;
-  const esperar = async (boot, segue) => {
+  const esperar = async (boot, segue, limite) => {
     let up = await noAr(boot);
-    for (; !up && segue() && Date.now() < fim; up = await noAr(boot)) { await sleep(250); }
+    for (; !up && segue() && Date.now() < limite; up = await noAr(boot)) { await sleep(250); }
     return up ?? noAr(boot);
   };
-  const divergiu = async (boot) => { const o = await olhar(boot); return o && falha(`o daemon está no ar mas anuncia v${o.version}, esperado v${versao}`, o.pid); };
+  const divergiu = async (boot) => { const o = await olhar(boot); return o && (semMeta(o.version) === semMeta(versao) ? o : falha(`o daemon está no ar mas anuncia v${o.version}, esperado v${versao}`, o.pid)); };
   const ja = await noAr();
   if (ja) { return ja; }
   const anterior = readRuntime(engine)?.pid;
   if (anterior && alive(anterior)) {
-    const up = await esperar(undefined, () => alive(anterior));
+    const up = await esperar(undefined, () => alive(anterior), fim);
     if (up) { return up; }
     if (alive(anterior)) { return (await divergiu()) ?? falha(`o pid ${anterior} anunciado está vivo mas não respondeu o /health em ${prazoMs}ms: não lancei um segundo daemon`, anterior); }
   }
@@ -80,25 +83,27 @@ async function subir(engine, versao, prazoMs) {
   let boot;
   try { boot = /\.[cm]?js$/.test(entry) ? launchDetached(process.execPath, bootLog, [entry], opts) : launchDetached(entry, bootLog, [], opts); }
   catch (e) { return falha(`não consegui subir ${entry} (${e?.message ?? e})`); }
-  const up = await esperar(boot, () => !boot.dead);
+  const lancadoEm = Date.now();
+  const fimDoFilho = Math.max(fim, lancadoEm + Math.min(pisoMs, prazoMs));
+  const up = await esperar(boot, () => !boot.dead, fimDoFilho);
   if (up) { return up; }
   if (boot.dead) {
     const { code, signal, error } = boot.dead;
     return falha(`${entry} saiu ao subir (${error ?? (signal ? `sinal ${signal}` : `código ${code}`)}); últimas linhas: ${fimDoLog(bootLog, readRuntime(engine)?.[runtime.shutdownTokenField]) || "(vazio)"}`, boot.pid);
   }
   const div = await divergiu(boot);
-  if (div?.pid === boot.pid) { return div; }
+  if (div?.ok || div?.pid === boot.pid) { return div; }
   try { process.kill(boot.pid); } catch { /* já saiu */ }
-  return div ?? falha(`${entry} subiu mas não anunciou em ${prazoMs}ms (encerrei o pid ${boot.pid})`, boot.pid);
+  return div ?? falha(`${entry} subiu mas não anunciou em ${Math.ceil((fimDoFilho - lancadoEm) / 100) * 100}ms (encerrei o pid ${boot.pid})`, boot.pid);
 }
 
 /**
  * Par de ganchos do `ensure`: `antes` substitui o `derrubarAntes` e anota se derrubou um daemon vivo; `religar` sobe o novo, só nesse caso.
  * @param {object} engine descritor resolvido.
- * @param {{log?:(m:string)=>void, prazoMs?:number}} [opts]
+ * @param {{log?:(m:string)=>void, prazoMs?:number, pisoFilhoMs?:number}} [opts]
  * @returns {{antes:()=>Promise<void>, religar:(versao:string)=>Promise<undefined|{ok:true, pid:number, version:string, bootLog:string}|{ok:false, reason:string, bootLog:string, pid?:number}>}}
  */
-export function religador(engine, { log = () => {}, prazoMs = PRAZO_RELIGAR_MS } = {}) {
+export function religador(engine, { log = () => {}, prazoMs = PRAZO_RELIGAR_MS, pisoFilhoMs = PISO_FILHO_MS } = {}) {
   let derrubou = false;
   return {
     async antes() {
@@ -109,7 +114,7 @@ export function religador(engine, { log = () => {}, prazoMs = PRAZO_RELIGAR_MS }
     async religar(versao) {
       if (!derrubou) { return undefined; }
       say(log, engine, "religando o daemon que estava no ar...");
-      const r = await subir(engine, versao, prazoMs);
+      const r = await subir(engine, versao, prazoMs, pisoFilhoMs);
       say(log, engine, r.ok ? `daemon religado (pid ${r.pid}, v${r.version}); saída em ${r.bootLog}` : `daemon NÃO religado: ${r.reason}; saída em ${r.bootLog}`);
       return r;
     },
