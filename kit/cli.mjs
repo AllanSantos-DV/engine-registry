@@ -354,7 +354,7 @@ if (cmd === "--help" || cmd === "-h") {
     for (const m of l.ok ? l.names : []) {
       const r = unpinCommand(m);
       if (!r.ok) { console.error(`FALHOU ${m}: ${r.reason}`); process.exitCode = 1; }
-      else { console.log(r.was ? `OK ${m} solto (estava fixado em v${r.was}); o próximo ensure traz a versão do registry` : `OK ${m} não estava fixado`); }
+      else { console.log(r.was ? `OK ${m} solto (estava fixado em v${r.was}); o próximo ensure traz a versão do registry` : `OK ${m} não estava fixado`); if (!todos) { avisosDoPlano(r); } }
     }
   } else if (cmd === "stop") {
     const r = await stopCommand(name, { registryUrl: flag("--registry-url"), log });

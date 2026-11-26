@@ -13,13 +13,16 @@
 //   • a troca que falha depois de o daemon cair religa a instalação ANTIGA e diz se subiu; se também não sobe, diz que o daemon NÃO está no ar;
 //   • a razão não leva o shutdownToken do runtime.json nem hexadecimal de 32+ caracteres do fim do boot.log (viram [omitido]); as outras linhas ficam;
 //   • entry e runtimeFile fora do home são recusados sem apagar nem lançar; o daemon religado roda na pasta do executável, sem NODE_OPTIONS nem COPILOT_SDK_PATH;
-//   • motor que se relança sozinho (shutdownPath com relaunch=1) não é religável; plano desconhecido não vira a palavra "undefined".
+//   • motor que se relança sozinho (shutdownPath com relaunch=1) não é religável; plano desconhecido não vira a palavra "undefined";
+//   • só o entry .js, .mjs ou .cjs é lançado por node; o que apenas termina em "js" (bin/foo-js, bin/nodejs) é lançado direto, como executável;
+//   • o filho lançado que perde a corrida para outro daemon de versão diferente é encerrado e o outro segue vivo; o filho que é ele mesmo o divergente segue vivo;
+//   • o prazo é um só: o pid anterior que morre perto do fim não abre um segundo prazo inteiro para o filho.
 // Hermético: registry e downloads de memória (o .tgz é real), HOME e ENGINE_KIT_HOME isolados, porta efêmera própria, sem janela, sem áudio, sem rede.
 // Todo processo lançado aqui é encerrado no fim, por PID.
 //
 //   node tests/test-ensure-religa-daemon.mjs
 import "./_tmp.mjs";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -374,6 +377,69 @@ console.log("\n== o daemon religado roda na pasta do executável, sem NODE_OPTIO
   check("o religar deu certo", r.ok && r.restarted?.ok === true, JSON.stringify(r));
   check("o cwd do daemon é a pasta do executável (bin)", amb?.cwd && mesmo(amb.cwd, join(c.home, "bin")), JSON.stringify(amb));
   check("NODE_OPTIONS e COPILOT_SDK_PATH não chegam ao daemon", !amb?.nodeOptions && !amb?.sdk, JSON.stringify(amb));
+}
+
+console.log("\n== só entry .js, .mjs e .cjs é lançado por node; o resto é executável lançado direto ==");
+{
+  const CJS = (marcador) => `require('node:fs').writeFileSync(${JSON.stringify(marcador)}, 'lancado');\n`;
+  const lancar = async (nome, entry, escrever) => {
+    const c = await preparar(nome, { v2: "sobe" });
+    const marcador = join(RUN, `marcador-${nome}`);
+    escrever(join(c.home, entry), marcador);
+    const base = await motorDe(c);
+    const rel = religar.religador({ ...base, install: { ...base.install, entry } }, { prazoMs: 5000 });
+    await rel.antes();
+    return { r: await rel.religar("1.1.0"), marcador };
+  };
+  const script = (conteudo) => (arq, marcador) => writeFileSync(arq, conteudo(marcador));
+  const binario = (arq) => { copyFileSync(process.execPath, arq); chmodSync(arq, 0o755); };
+  const porNode = { "bin/lanca.js": CJS, "bin/lanca.cjs": CJS, "bin/lanca.mjs": FORA };
+  for (const [entry, conteudo] of Object.entries(porNode)) {
+    const { marcador } = await lancar(`entry-${entry.split(".")[1]}`, entry, script(conteudo));
+    check(`o entry ${entry} é lançado por node`, existsSync(marcador));
+  }
+  const direto = WINDOWS ? /ENOENT/ : /código 0/;
+  for (const entry of ["bin/foo-js", "bin/nodejs"]) {
+    const { r } = await lancar(`entry-${entry.split("/")[1]}`, entry, binario);
+    check(`o entry ${entry}, sem ponto antes de js, é lançado direto e não por node`, r?.ok === false && direto.test(r.reason) && !/código 1/.test(r.reason), JSON.stringify(r));
+  }
+}
+
+console.log("\n== o filho lançado que perde a corrida para outro daemon de outra versão é encerrado ==");
+{
+  const FILHO = `import { writeFileSync } from 'node:fs'; import { join, dirname } from 'node:path'; import { fileURLToPath } from 'node:url';
+writeFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'filho.pid'), String(process.pid)); setInterval(() => {}, 1000);
+`;
+  const c = await preparar("filho-perde", { v2: FILHO });
+  const rel = await derrubadoEInstalado(c, 6000);
+  const emVoo = rel.religar("1.1.0");
+  const arq = join(c.home, "filho.pid");
+  for (let i = 0; i < 100 && !existsSync(arq); i++) { await sleep(100); }
+  const pidFilho = Number(ler(arq));
+  lancados.add(pidFilho);
+  const outro = join(c.home, "bin", "outro.mjs");
+  writeFileSync(outro, SOBE.replace(/const version = (.*);/, "const version = '9.9.9';"));
+  const pidOutro = await subirComo(c, [outro], { cwd: join(c.home, "bin") });
+  const r = await emVoo;
+  check("o religar devolve ok:false dizendo a versão anunciada e o pid do outro daemon", r?.ok === false && /o daemon está no ar mas anuncia v9\.9\.9, esperado v1\.1\.0/.test(r.reason) && r.pid === pidOutro, JSON.stringify(r));
+  check("o filho lançado é encerrado", pidFilho > 0 && (await sumiu(pidFilho)), String(pidFilho));
+  check("o outro daemon segue vivo, anunciado e respondendo", vivo(pidOutro) && daemonJson(c.home)?.pid === pidOutro && (await saude(c.home)) === 200);
+}
+
+console.log("\n== o prazo é um só: o pid anterior que morre perto do fim não abre um segundo prazo ==");
+{
+  const prazo = 3000;
+  const c = await preparar("prazo-unico", { v2: "mudo" });
+  const rel = await derrubadoEInstalado(c, prazo);
+  const surdo = join(RUN, "w-surdo.mjs");
+  writeFileSync(surdo, LENTO.replace("1500", "600000"));
+  const pidSurdo = await subirComo(c, [surdo, c.home]);
+  const t0 = Date.now();
+  setTimeout(() => matar(pidSurdo), prazo - 500);
+  const r = await rel.religar("1.1.0");
+  const gasto = Date.now() - t0;
+  check("o religar falha por não anunciar, e o processo que não anunciou é encerrado", r?.ok === false && /não anunciou em 3000ms/.test(r.reason ?? "") && (await sumiu(r.pid)), JSON.stringify(r));
+  check("o total fica perto de um prazo só", gasto < prazo + 1500, `${gasto}ms para um prazo de ${prazo}ms`);
 }
 
 console.log("\n== quem é religável ==");

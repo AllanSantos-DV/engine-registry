@@ -14,3 +14,7 @@ Defeito: `engine-kit ensure casa-de-embeddings` atualizava a versão (0.3.6 → 
 - Falha ao religar é estado visível: `ensureCommand` devolve `ok:false` com `restarted: { ok:false, reason, bootLog }` e a razão `v<x> instalada, mas o daemon NÃO está no ar`; o CLI sai com 1. A instalação nova fica feita, e o `pin --version` não desfaz o pin nesse caso (a troca aconteceu). Processo que subiu e não anunciou no prazo é encerrado por PID.
 - Na lib, `ensureEngine` não ganhou nada: o `kind: daemon` já sobe pelo `lifecycle` e a casa e o grafo pelo `ensureHome`; o fecho do runtime está em 38990/39000 e não cabia mais código. A lógica ficou em `kit/religar.mjs` (ferramental). No runtime/cliente só mudou `launchDetached` em `kit/client.mjs` (exportada, aceita `args`, devolve `pid`): 10638 → 10670 de 10700.
 - Teste: `tests/test-ensure-religa-daemon.mjs`, com daemon falso em porta efêmera, HOME e ENGINE_KIT_HOME isolados e processos encerrados por PID.
+
+## Limites conhecidos
+
+- Pid reaproveitado pelo sistema operacional: se o pid anunciado no runtime foi reaproveitado por outro processo, o religar o vê como vivo, espera o prazo e falha visível (`ok:false`, com o pid e o `boot.log`), sem lançar um segundo daemon. É o desenho fail-closed: sem o pid não há como distinguir o daemon do anúncio de um processo alheio, e lançar assim mesmo arriscaria dois daemons na mesma porta.

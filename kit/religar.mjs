@@ -43,7 +43,8 @@ const foraDoHome = (home, p) => { const r = relative(home, resolve(home, p)); re
 /**
  * Sobe o executável e espera o anúncio da `versao`; no prazo, ou se o processo morre, devolve a causa e o `bootLog`.
  * Daemon já no ar na `versao` (outro consumidor subiu durante a troca) é devolvido sem lançar nada; o anúncio de um pid vivo nunca é apagado e esse pid é esperado, não duplicado.
- * A versão anunciada vale sem o sufixo `+metadata`; daemon saudável que anuncia outra versão devolve ok:false e continua vivo.
+ * A versão anunciada vale sem o sufixo `+metadata`; daemon saudável que anuncia outra versão devolve ok:false e continua vivo; se o anúncio é de outro pid, o filho lançado é encerrado.
+ * O prazo é um só para a espera do pid anterior e a do filho.
  */
 async function subir(engine, versao, prazoMs) {
   const { homeDir, install, runtime } = engine;
@@ -58,9 +59,10 @@ async function subir(engine, versao, prazoMs) {
     return d.ok ? { ok: true, pid: d.pid ?? boot?.pid, version: String(d.version ?? versao ?? "").replace(/^v/, ""), bootLog } : null;
   };
   const noAr = async (boot) => { const o = await olhar(boot); return o && (!versao || semMeta(o.version) === semMeta(versao)) ? o : null; };
+  const fim = Date.now() + prazoMs;
   const esperar = async (boot, segue) => {
     let up = await noAr(boot);
-    for (const fim = Date.now() + prazoMs; !up && segue() && Date.now() < fim; up = await noAr(boot)) { await sleep(250); }
+    for (; !up && segue() && Date.now() < fim; up = await noAr(boot)) { await sleep(250); }
     return up ?? noAr(boot);
   };
   const divergiu = async (boot) => { const o = await olhar(boot); return o && falha(`o daemon está no ar mas anuncia v${o.version}, esperado v${versao}`, o.pid); };
@@ -76,7 +78,7 @@ async function subir(engine, versao, prazoMs) {
   if (!(anuncio?.pid && alive(anuncio.pid))) { rmSync(join(homeDir, runtime.runtimeFile), { force: true }); }
   const opts = { cwd: dirname(entry), env: { ...process.env, NODE_OPTIONS: "", COPILOT_SDK_PATH: "" } };
   let boot;
-  try { boot = /.[cm]?js$/.test(entry) ? launchDetached(process.execPath, bootLog, [entry], opts) : launchDetached(entry, bootLog, [], opts); }
+  try { boot = /\.[cm]?js$/.test(entry) ? launchDetached(process.execPath, bootLog, [entry], opts) : launchDetached(entry, bootLog, [], opts); }
   catch (e) { return falha(`não consegui subir ${entry} (${e?.message ?? e})`); }
   const up = await esperar(boot, () => !boot.dead);
   if (up) { return up; }
@@ -85,9 +87,9 @@ async function subir(engine, versao, prazoMs) {
     return falha(`${entry} saiu ao subir (${error ?? (signal ? `sinal ${signal}` : `código ${code}`)}); últimas linhas: ${fimDoLog(bootLog, readRuntime(engine)?.[runtime.shutdownTokenField]) || "(vazio)"}`, boot.pid);
   }
   const div = await divergiu(boot);
-  if (div) { return div; }
+  if (div?.pid === boot.pid) { return div; }
   try { process.kill(boot.pid); } catch { /* já saiu */ }
-  return falha(`${entry} subiu mas não anunciou em ${prazoMs}ms (encerrei o pid ${boot.pid})`, boot.pid);
+  return div ?? falha(`${entry} subiu mas não anunciou em ${prazoMs}ms (encerrei o pid ${boot.pid})`, boot.pid);
 }
 
 /**

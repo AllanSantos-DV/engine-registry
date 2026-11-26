@@ -198,10 +198,13 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-11-27 tooling 138500 → 140000: três correções P2 da revisão independente, +1.74 KB medidos, 138170 → 139912 (kit/religar.mjs +0.85, kit/ensure.mjs +0.66, kit/doctor.mjs +0.17, kit/export-import.mjs +0.06, kit/fetch.mjs +0.01).
 //   O `doctor --fix` conta como falha (exit 1) o motor ADULTERADO cuja versão oferecida está em quarentena, em vez de pulá-lo e dizer "conciliado"; o `subir` do religar compara a versão anunciada sem o sufixo `+metadata`, devolve ok:false sem matar o daemon saudável que anuncia outra versão e espera o pid vivo já anunciado em vez de lançar um segundo;
 //   `pinDaInstalacao` (kit/ensure.mjs, reusado pelo `pinFor`, pelo export e pelo fetch) faz o canônico herdar o pin gravado em outro nome do mesmo home e entrada, e `instalacaoDe` passou a ser a chave única que o `semDuplicados` também usa. Runtime 38974/39000 e cliente 10685/10700 não mudaram.
+//   2026-11-27 tooling 140000 → 140500: quatro correções P2 da segunda revisão independente, +0.30 KB medidos, 139912 → 140207 (kit/ensure.mjs +0.23, kit/cli.mjs +0.03, kit/religar.mjs +0.03).
+//   O `unpin` de um nome cujo pin continua valendo por outro que divide a instalação devolve ok com `warns` ("continua fixado em vX por <dono>") e o CLI imprime a linha `aviso:` (fora do `--todos`); o `subir` do religar volta a lançar por node só o entry `.js/.mjs/.cjs` (a barra invertida da regex tinha sido apagada), encerra o filho lançado quando outro pid anuncia versão diferente e usa um prazo único para a espera do pid anterior e a do filho.
+//   Runtime 38974/39000 e cliente 10685/10700 não mudaram.
 const BUDGETS = {
   runtime: { codeBytes: 39000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10700, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 140000, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 140500, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

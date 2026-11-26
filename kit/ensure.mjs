@@ -327,10 +327,15 @@ export async function pinCommand(name, { version, ...opts } = {}) {
   return s.ok ? { ok: true, version: inst, pinned: inst, ...(r.engine.staleCache ? { staleCache: true } : {}) } : s;
 }
 
-/** `engine-kit unpin <motor>`: o motor volta a receber atualizações. Nunca lança. */
-export function unpinCommand(name) {
+/**
+ * `engine-kit unpin <motor>`: o motor volta a receber atualizações. Nunca lança. Se o pin continua valendo por outro nome que divide a instalação (`pinDaInstalacao`),
+ * o resultado segue ok e traz `warns` dizendo quem soltar. Opção de teste: `bundled`, como no `ensureCommand`.
+ */
+export function unpinCommand(name, { bundled } = {}) {
   const s = setPin(name, null);
-  return s.ok ? { ok: true, was: s.was } : s;
+  if (!s.ok) { return s; }
+  const { pin, dono } = pinDaInstalacao(embarcado(bundled).local, name);
+  return { ok: true, was: s.was, ...(pin ? { warns: [`continua fixado em v${pin} por ${dono}, que divide a instalação: engine-kit unpin ${dono}`] } : {}) };
 }
 
 /**

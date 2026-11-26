@@ -5,7 +5,7 @@
 //   • pin diferente da versão instalada não derruba o export: o motor sai sem pin, listado em `pinOmitido`, e o CLI avisa em uma linha no stderr;
 //   • o motor cujo entry muda por plataforma (`install.byPlatform`) conta como instalado na plataforma dele, no export e na trava de rebaixamento do import;
 //   • dois motores que dividem home e entrada na plataforma (o do sufixo `-linux-x64`) são o mesmo binário: export e `--instalados` ficam com o de nome canônico, uma vez só;
-//   • o pin gravado só em um dos nomes do mesmo binário vale para o canônico (export, plano do ensure, recusa de outra versão), sem gravar pin novo no trust.json;
+//   • o pin gravado só em um dos nomes do mesmo binário vale para o canônico (export, plano do ensure, recusa de outra versão), sem gravar pin novo no trust.json; `unpin` do canônico avisa quando o pin continua valendo pelo nome que divide a instalação (texto do CLI e `warns`), sem mudar o exit;
 //   • o documento nunca leva chave pública, assinatura, caminho local, usuário nem máquina: só as chaves conhecidas, com os valores no formato esperado;
 //   • sem arquivo o export imprime o JSON; com arquivo grava por .part e rename e nunca deixa metade;
 //   • o import instala a versão REGISTRADA (não a do registry), pelo ensure (sha256 + Ed25519 + chave do manifest embarcado), e fixa só quem estava fixado;
@@ -32,7 +32,7 @@ Object.assign(process.env, { HOME: RUN, USERPROFILE: RUN, ENGINE_KIT_HOME: KIT_H
 const { criarRegistroFalso } = await import("./_registro-falso.mjs");
 const { criarCliOffline } = await import("./_kit-copiado.mjs");
 const mod = await import("../kit/export-import.mjs").catch((e) => ({ erro: e }));
-const { ensureCommand, listCommand, pinCommand, planoEm, instaladosAtualizaveis } = await import("../kit/ensure.mjs");
+const { ensureCommand, listCommand, pinCommand, unpinCommand, planoEm, instaladosAtualizaveis } = await import("../kit/ensure.mjs");
 const { pinOf, setPin, trustPath, historyPath } = await import("../kit/trust.mjs");
 const { ownVersion } = await import("../kit/update.mjs");
 const { RUNTIME, SOBE } = await import("./_daemon-falso.mjs");
@@ -452,7 +452,20 @@ console.log("\n== motor cujo entry muda por plataforma ==");
   const outra = await comoEm("linux", "x64", () => ensureCommand("pl-grafo", { bundled: novo, manifest: novo, dryRun: true, version: "1.2.0" }));
   check("versão diferente do pin herdado é recusada e a razão manda soltar o nome que tem o pin", outra.ok === false && /fixado em v1.1.0/.test(outra.reason) && /unpin pl-grafo-linux-x64/.test(outra.reason), JSON.stringify(outra));
   check("o canônico não ganha pin no trust.json", pinOf("pl-grafo") === undefined && readFileSync(trustPath(), "utf8") === trustAntes);
-  setPin("pl-grafo-linux-x64", null);
+  const aviso = "continua fixado em v1.1.0 por pl-grafo-linux-x64, que divide a instalação: engine-kit unpin pl-grafo-linux-x64";
+  const solta = await comoEm("linux", "x64", () => unpinCommand("pl-grafo", { bundled: dois }));
+  check("unpin do canônico cujo pin vive no nome do sufixo segue ok e avisa quem ainda fixa a instalação", solta.ok === true && !solta.was && JSON.stringify(solta.warns) === JSON.stringify([aviso]), JSON.stringify(solta));
+  const soltaDono = await comoEm("linux", "x64", () => unpinCommand("pl-grafo-linux-x64", { bundled: dois }));
+  check("unpin do nome que tem o pin solta e não avisa nada", soltaDono.ok === true && soltaDono.was === "1.1.0" && soltaDono.warns === undefined && pinOf("pl-grafo-linux-x64") === undefined, JSON.stringify(soltaDono));
+
+  const mesmoBinario = { engines: [{ ...gemeo, platforms: undefined }, { ...gemeo, name: "pl-grafo", platforms: undefined }] };
+  const { cli } = await criarCliOffline(RUN, { manifest: mesmoBinario, artefatos: {}, kitHome: KIT_HOME });
+  setPin("pl-grafo-linux-x64", "1.1.0");
+  const um = cli("unpin", "pl-grafo");
+  check("pelo CLI, unpin do canônico sai 0, diz que não estava fixado e traz a linha aviso:", um.status === 0 && um.stdout === `OK pl-grafo não estava fixado\naviso: ${aviso}\n`, um.stdout + um.stderr);
+  setPin("pl-grafo", "1.1.0");
+  const todos = cli("unpin", "--todos");
+  check("unpin --todos solta os dois e não avisa de pin que ele mesmo vai soltar", todos.status === 0 && !/aviso:/.test(todos.stdout) && !pinOf("pl-grafo") && !pinOf("pl-grafo-linux-x64"), todos.stdout + todos.stderr);
   rmSync(homeOf("pl-grafo"), { recursive: true, force: true });
 }
 
