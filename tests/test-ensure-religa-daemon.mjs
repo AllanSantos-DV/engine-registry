@@ -9,6 +9,7 @@
 //   • kind=cli que não é a casa nem o grafo (o vxk) é derrubado como antes e NÃO é religado;
 //   • o daemon novo que outro consumidor já subiu é reconhecido (nada lançado, anúncio intacto); o anúncio de um pid ainda vivo nunca é apagado, e o lançado que perde a corrida não vira falha;
 //   • a troca que falha depois de o daemon cair religa a instalação ANTIGA e diz se subiu; se também não sobe, diz que o daemon NÃO está no ar;
+//   • a razão não leva o shutdownToken do runtime.json nem hexadecimal de 32+ caracteres do fim do boot.log (viram [omitido]); as outras linhas ficam;
 //   • entry e runtimeFile fora do home são recusados sem apagar nem lançar; o daemon religado roda na pasta do executável, sem NODE_OPTIONS nem COPILOT_SDK_PATH;
 //   • motor que se relança sozinho (shutdownPath com relaunch=1) não é religável; plano desconhecido não vira a palavra "undefined".
 // Hermético: registry e downloads de memória (o .tgz é real), HOME e ENGINE_KIT_HOME isolados, porta efêmera própria, sem janela, sem áudio, sem rede.
@@ -24,6 +25,7 @@ import { tmpdir } from "node:os";
 const RUN = mkdtempSync(join(tmpdir(), "ee-religa-"));
 Object.assign(process.env, { HOME: RUN, USERPROFILE: RUN, ENGINE_KIT_HOME: join(RUN, "kit-home") });
 const { criarRegistroFalso } = await import("./_registro-falso.mjs");
+const { RUNTIME, SOBE } = await import("./_daemon-falso.mjs");
 const { criarCliOffline } = await import("./_kit-copiado.mjs");
 const { ensureCommand, pinCommand, planoEm } = await import("../kit/ensure.mjs");
 const { pinOf } = await import("../kit/trust.mjs");
@@ -39,29 +41,6 @@ const lancados = new Set();
 const matar = (pid) => { if (pid) { try { process.kill(pid); } catch { /* já saiu */ } } };
 process.on("exit", () => { for (const p of lancados) { matar(p); } });
 
-const RUNTIME = { transport: "http", runtimeFile: "run/daemon.json", healthPath: "/health", shutdownPath: "/shutdown", shutdownTokenField: "shutdownToken", shutdownTokenHeader: "x-shutdown-token", heartbeatMs: 30000 };
-
-const SOBE = `
-import http from 'node:http';
-import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-const aqui = dirname(fileURLToPath(import.meta.url));
-const version = JSON.parse(readFileSync(join(aqui, 'package.json'), 'utf8')).version;
-const shutdownToken = 'tok-' + process.pid;
-const srv = http.createServer((req, res) => {
-  if (req.url === '/health') { res.writeHead(200).end('ok'); return; }
-  if (req.url === '/shutdown' && req.method === 'POST') {
-    if (req.headers['x-shutdown-token'] !== shutdownToken) { res.writeHead(401).end(); return; }
-    res.writeHead(200).end('ok'); setTimeout(() => process.exit(0), 50); return;
-  }
-  res.writeHead(404).end();
-});
-srv.listen(0, '127.0.0.1', () => {
-  mkdirSync(join(aqui, '..', 'run'), { recursive: true });
-  writeFileSync(join(aqui, '..', 'run', 'daemon.json'), JSON.stringify({ port: srv.address().port, pid: process.pid, version, shutdownToken }));
-});
-`;
 const FONTES = {
   sobe: SOBE,
   quebra: "console.error('boom: motor novo quebrado'); process.exit(3);\n",
@@ -102,7 +81,22 @@ srv.listen(0, '127.0.0.1', () => {
 `;
 const FORA = (marcador) => `import { writeFileSync } from 'node:fs'; writeFileSync(${JSON.stringify(marcador)}, 'lancado');
 `;
-Object.assign(FONTES, { perde: PERDE });
+const VAZA = (extra) => `
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const aqui = dirname(fileURLToPath(import.meta.url));
+${extra}
+console.error('boom: motor novo quebrado');
+process.exit(3);
+`;
+Object.assign(FONTES, {
+  perde: PERDE,
+  vazaToken: VAZA(`mkdirSync(join(aqui, '..', 'run'), { recursive: true });
+writeFileSync(join(aqui, '..', 'run', 'daemon.json'), JSON.stringify({ port: 1, pid: process.pid, version: '1.1.0', shutdownToken: 'segredo-do-shutdown' }));
+console.error('subindo com shutdownToken=segredo-do-shutdown');`),
+  vazaHex: VAZA("console.error('chave ' + 'ab12'.repeat(16) + ' fim');"),
+});
 const fonteDe = (v2, v1 = SOBE) => (_nome, versao) => (versao === "1.0.0" ? v1 : FONTES[v2] ?? v2);
 
 const ler = (f) => { try { return readFileSync(f, "utf8"); } catch { return ""; } };
@@ -166,6 +160,22 @@ console.log("\n== a v2 não consegue subir: falha visível ==");
   check("restarted.ok:false com a razão (código de saída e a linha do erro) e o boot.log", r.restarted?.ok === false && /código 3/.test(r.restarted.reason) && /boom: motor novo quebrado/.test(r.restarted.reason) && r.restarted.bootLog === c.bootLog, JSON.stringify(r.restarted));
   check("o texto diz que o daemon NÃO está no ar e aponta o boot.log", /NÃO está no ar/.test(r.reason ?? "") && (r.reason ?? "").includes(c.bootLog), r.reason);
   check("o boot.log tem a saída da v2", /boom: motor novo quebrado/.test(ler(c.bootLog)));
+}
+
+console.log("\n== o fim do log do daemon que não sobe não vaza segredo ==");
+{
+  const caso = async (nome, v2) => {
+    const c = await preparar(nome, { v2 });
+    const r = await ensureCommand(c.name, { ...c.r2.opts, religarPrazoMs: 20000 });
+    guardar(r);
+    return { r, razoes: [r.restarted?.reason ?? "", r.reason ?? ""] };
+  };
+  const t = await caso("vaza-token", "vazaToken");
+  check("o shutdownToken do runtime.json sai da razão (do religar e do ensure) e vira [omitido]", t.r.restarted?.ok === false && t.razoes.every((x) => !x.includes("segredo-do-shutdown") && x.includes("[omitido]")), JSON.stringify(t.razoes));
+  check("as outras linhas do log seguem visíveis", t.razoes.every((x) => x.includes("boom: motor novo quebrado") && x.includes("subindo com shutdownToken=")), JSON.stringify(t.razoes));
+  const h = await caso("vaza-hex", "vazaHex");
+  check("sequência hexadecimal de 32+ caracteres sai da razão e vira [omitido]", h.r.restarted?.ok === false && h.razoes.every((x) => !/[0-9a-f]{32}/i.test(x) && x.includes("chave [omitido] fim")), JSON.stringify(h.razoes));
+  check("as outras linhas do log seguem visíveis também no caso do hexadecimal", h.razoes.every((x) => x.includes("boom: motor novo quebrado")), JSON.stringify(h.razoes));
 }
 
 console.log("\n== a v2 sobe e nunca anuncia: o prazo corta ==");

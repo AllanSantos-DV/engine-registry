@@ -89,15 +89,17 @@ await ok('a publicação só roda a partir da main: o manifest publicado é o da
   assert.match(passos.slice(guarda, guarda + 4).join('\n'), /exit 1/);
   assert.ok(guarda < passos.findIndex((l) => l.includes('tools/pages-branch.mjs publish')), 'a guarda vem antes de publicar');
 });
-await ok('só publica o commit que é a ponta atual da main: a conferência está no passo de publicar, antes do publish', () => {
+await ok('só publica se a main não mudou site/, manifest.json nem schema.json depois do commit da execução: busca a main e confere no passo de publicar, antes do publish', () => {
   const linhas = WORKFLOW.split('\n');
-  const confere = linhas.findIndex((l) => l.includes('git ls-remote origin refs/heads/main'));
+  const busca = linhas.findIndex((l) => l.includes('git fetch') && l.includes('origin') && l.includes('refs/heads/main:refs/remotes/origin/main'));
+  const confere = linhas.findIndex((l) => l.includes('git diff --quiet "$GITHUB_SHA" origin/main -- site manifest.json schema.json'));
   const publica = linhas.findIndex((l) => l.includes('tools/pages-branch.mjs publish'));
-  assert.ok(confere > 0, 'sem a conferência, o re-run de uma execução antiga republica um commit que já não é a main');
-  assert.ok(confere < publica, 'a conferência vem antes de publicar');
-  assert.ok(!linhas.slice(confere, publica).some((l) => /^\s*- name:/.test(l)), 'a conferência e o publish são o mesmo passo');
-  assert.match(linhas[confere], /test "\$\(git ls-remote origin refs\/heads\/main \| cut -f1\)" = "\$GITHUB_SHA"/);
-  assert.match(linhas.slice(confere, publica).join('\n'), /o commit desta execução não é a ponta da main; dispare de novo[\s\S]*exit 1/);
+  assert.ok(!WORKFLOW.includes('ls-remote'), 'exigir que o commit seja a ponta da main falha o run do commit A quando a main avança para B sem tocar o site, e B não dispara run novo');
+  assert.ok(busca > 0, 'sem buscar a main, a comparação usaria uma origin/main velha');
+  assert.ok(confere > busca, 'a comparação vem depois de buscar a main');
+  assert.ok(confere < publica, 'a comparação vem antes de publicar');
+  assert.ok(!linhas.slice(busca, publica).some((l) => /^\s*- name:/.test(l)), 'a busca, a comparação e o publish são o mesmo passo');
+  assert.match(linhas.slice(confere, publica).join('\n'), /a main mudou site\/, manifest\.json ou schema\.json depois do commit desta execução; dispare de novo[\s\S]*exit 1/);
   assert.match(fs.readFileSync(path.join(ROOT, 'docs', 'PAGES.md'), 'utf8'), /Environment[^\n]*main/, 'docs/PAGES.md diz que proteger a chave exige um Environment restrito à main');
 });
 await ok('runner Linux hospedado por padrão, local só com CI_RUNNER=local, sem Windows nem macOS', () => {

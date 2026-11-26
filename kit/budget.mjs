@@ -184,10 +184,11 @@ const ROOT = resolvePath(KIT, "..");
 //   o `religavel` exclui o motor que se relança sozinho (`relaunch=1`); o `ensure` cuja troca falha depois de o daemon cair religa a instalação anterior e diz na razão se subiu; o `planoEm` não escreve "undefined".
 //   O runtime não mudou (38990/39000, a cifra de 39 KB da vitrine segue); o cliente compartilhado ficou em 10685/10700 (+15 bytes: `launchDetached` repassa `opts` ao `spawn`), teto mantido.
 //   2026-11-26 tooling 127500 → 129500: `engine-kit pin` com vários motores e com `--instalados`, e `engine-kit unpin --todos`, +1.87 KB medidos, 127139 → 129013 (só kit/cli.mjs; o texto do uso e as mensagens de recusa são boa parte dos bytes). O `pin` de vários motores reusa o laço de vários motores do `ensure` e o `pinCommand`; `--instalados` reusa o `instaladosAtualizaveis`; o `unpin --todos` lê os pins do `trust.json` (`readTrust`, já exportada) e reusa o `unpinCommand`. Sem os nomes extras e as flags novas o comportamento é o de antes. O runtime não mudou (38990/39000, a cifra de 39 KB da vitrine segue) e o cliente compartilhado segue em 10685/10700.
+//   2026-11-26 tooling 129500 → 130200: cinco correções da revisão independente do diff main..develop, +0.74 KB medidos, 129013 → 129757 (kit/export-import.mjs +0.40, kit/religar.mjs +0.18, kit/ensure.mjs +0.16). O `import` compara o rebaixamento com a maior entre a versão instalada e a `maxVersion` do `trust.json` (motor não instalado também) e grava o pin do documento mesmo quando o daemon não sobe, dizendo na razão se foi aplicado; o `ensure --dry-run` recusa, com a razão do `rollbackReason`, o que o ensure real recusaria por anti-rollback; o fim do `boot.log` na razão do religar sai sem o `shutdownToken` do runtime.json e sem hexadecimal de 32+ caracteres. O runtime não mudou (38990/39000) e o cliente compartilhado segue em 10685/10700. As outras duas correções (a guarda do `pages.yml` e o texto do `docs/PAGES.md`) não contam bytes de código.
 const BUDGETS = {
   runtime: { codeBytes: 39000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10700, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 129500, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 130200, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

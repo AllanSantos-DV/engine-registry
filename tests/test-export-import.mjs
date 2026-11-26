@@ -10,12 +10,15 @@
 //   • --dry-run mostra o plano do ensure e não baixa, não instala, não fixa e não grava histórico;
 //   • documento inválido (formato, chave estranha, nome, versão, duplicado, `__proto__`) é recusado inteiro, antes de instalar qualquer coisa, sem poluir nada;
 //   • motor desconhecido, sem build para a plataforma, versão que o registry não tem, artefato adulterado e pin local diferente recusam só aquele motor, e o resultado é ok:false;
+//   • a trava de rebaixamento compara com a maior entre a versão instalada e a maior já vista no trust.json, mesmo com o motor não instalado;
+//   • o daemon que não sobe depois da troca não perde o pin do documento: continua ok:false e a razão diz se o pin foi aplicado;
 //   • pelo CLI: texto, --json, exit 1 se algum motor falhou, e o uso documenta os dois verbos.
 // Hermético: registry e downloads de memória (o .tgz é real e assinado), HOME e ENGINE_KIT_HOME isolados, nenhuma rede, o CLI roda numa cópia do kit.
 //
 //   node tests/test-export-import.mjs
 import "./_tmp.mjs";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
 import { hostname } from "node:os";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -30,6 +33,7 @@ const mod = await import("../kit/export-import.mjs").catch((e) => ({ erro: e }))
 const { ensureCommand, listCommand, pinCommand, planoEm } = await import("../kit/ensure.mjs");
 const { pinOf, trustPath, historyPath } = await import("../kit/trust.mjs");
 const { ownVersion } = await import("../kit/update.mjs");
+const { RUNTIME, SOBE } = await import("./_daemon-falso.mjs");
 const { homeOf, registry, instalado, preinstalar, owner } = await criarRegistroFalso(RUN);
 const { exportCommand, importCommand } = mod;
 
@@ -329,6 +333,69 @@ console.log("\n== pin do documento e rebaixamento ==");
   check("no --dry-run o rebaixamento aparece como recusa, não como 'atualizaria'", seco.ok === false && /rebaix/.test(linha(seco, "ei-livre")?.reason ?? ""), JSON.stringify(seco));
   const aceito = await importar(pedido, { ...v1.opts, permitirRebaixar: true });
   check("com permitirRebaixar o import instala a versão do documento", aceito.ok === true && instalado("ei-livre") === "1.0.0", JSON.stringify(aceito));
+}
+
+console.log("\n== rebaixamento com o motor não instalado e a maior versão no trust.json ==");
+{
+  const semInstalar = () => rmSync(homeOf("ei-livre"), { recursive: true, force: true });
+  limpar("ei-livre");
+  await ensureCommand("ei-livre", v2.opts);
+  semInstalar();
+  const velho = gravar(doc([{ name: "ei-livre", version: "1.0.0" }]));
+  const recusa = await importar(velho, { ...v1.opts });
+  check("não instalado e o trust.json guarda 1.1.0: o documento 1.0.0 é recusado dizendo a versão de referência e --permitir-rebaixar", recusa.ok === false && /rebaixar exige --permitir-rebaixar/.test(linha(recusa, "ei-livre")?.reason ?? "") && /v1\.1\.0/.test(linha(recusa, "ei-livre")?.reason ?? ""), JSON.stringify(recusa));
+  check("a recusa não baixa nem instala nada", instalado("ei-livre") === null && !existsSync(join(homeOf("ei-livre"), "bin")), JSON.stringify(recusa));
+  const seco = await importar(velho, { ...v1.opts, dryRun: true });
+  check("no --dry-run a mesma recusa aparece, sem plano de instalar", seco.ok === false && /rebaixar exige --permitir-rebaixar/.test(linha(seco, "ei-livre")?.reason ?? ""), JSON.stringify(seco));
+
+  const aceito = await importar(velho, { ...v1.opts, permitirRebaixar: true });
+  check("com permitirRebaixar o import instala a versão do documento", aceito.ok === true && instalado("ei-livre") === "1.0.0", JSON.stringify(aceito));
+  const repetido = await importar(velho, { ...v1.opts });
+  check("já na versão do documento, mesmo abaixo da maior vista: reusa, sem pedir a flag", repetido.ok === true && linha(repetido, "ei-livre")?.reused === true && instalado("ei-livre") === "1.0.0", JSON.stringify(repetido));
+
+  semInstalar();
+  const igual = await importar(gravar(doc([{ name: "ei-livre", version: "1.1.0" }])), { ...v2.opts });
+  check("documento igual à maior versão vista: instala", igual.ok === true && instalado("ei-livre") === "1.1.0", JSON.stringify(igual));
+  semInstalar();
+  const novo = registry({ "ei-livre": "1.2.0" });
+  const maior = await importar(gravar(doc([{ name: "ei-livre", version: "1.2.0" }])), { ...novo.opts });
+  check("documento maior que a maior versão vista: instala", maior.ok === true && instalado("ei-livre") === "1.2.0", JSON.stringify(maior));
+  limpar("ei-livre");
+}
+
+console.log("\n== import: o daemon que não sobe depois da troca não perde o pin do documento ==");
+{
+  const QUEBRA = "console.error('boom: motor novo quebrado'); process.exit(3);\n";
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const lancados = new Set();
+  process.on("exit", () => { for (const p of lancados) { try { process.kill(p); } catch { /* já saiu */ } } });
+  const daemonJson = (home) => { try { return JSON.parse(readFileSync(join(home, "run", "daemon.json"), "utf8")); } catch { return null; } };
+  const preparar = async (name) => {
+    const extra = { [name]: { kind: "daemon", runtime: RUNTIME } };
+    const r1 = registry({ [name]: "1.0.0" }, { extra, fonte: () => SOBE });
+    await ensureCommand(name, r1.opts);
+    const home = homeOf(name);
+    const proc = spawn(process.execPath, [join(home, "bin", `${name}.mjs`)], { cwd: join(home, "bin"), windowsHide: true, stdio: "ignore" });
+    lancados.add(proc.pid);
+    for (let i = 0; i < 100 && daemonJson(home)?.pid !== proc.pid; i++) { await sleep(100); }
+    const r2 = registry({ [name]: "1.1.0" }, { extra, fonte: (_n, v) => (v === "1.0.0" ? SOBE : QUEBRA) });
+    return { opts: { ...r2.opts, religarPrazoMs: 20000 }, pedido: gravar(doc([{ name, version: "1.1.0", pin: "1.1.0" }])) };
+  };
+
+  const c = await preparar("pd-aplica");
+  const r = await importar(c.pedido, c.opts);
+  const l = linha(r, "pd-aplica");
+  check("a troca fica feita e o daemon não sobe: ok:false, com a razão do daemon", r.ok === false && l?.ok === false && instalado("pd-aplica") === "1.1.0" && l.restarted?.ok === false && /NÃO está no ar/.test(l.reason ?? ""), JSON.stringify(l));
+  check("o pin do documento é gravado mesmo assim e a razão diz que foi aplicado", pinOf("pd-aplica") === "1.1.0" && /pin v1\.1\.0 aplicado/.test(l?.reason ?? ""), JSON.stringify(l));
+
+  const d = await preparar("pd-falha");
+  const guardado = readFileSync(trustPath(), "utf8");
+  const estraga = (m) => { if (/NÃO religado/.test(m)) { writeFileSync(trustPath(), "{ ilegível"); } };
+  const f = await importar(d.pedido, { ...d.opts, log: estraga });
+  writeFileSync(trustPath(), guardado);
+  const lf = linha(f, "pd-falha");
+  check("pin que não grava: continua ok:false e a razão diz que o pin NÃO foi aplicado, com o porquê", f.ok === false && lf?.ok === false && /NÃO está no ar/.test(lf.reason ?? "") && /pin NÃO aplicado: .*ilegível/.test(lf.reason ?? "") && pinOf("pd-falha") === undefined, JSON.stringify(lf));
+  limpar("pd-aplica", "pd-falha");
 }
 
 console.log("\n== motor cujo entry muda por plataforma ==");

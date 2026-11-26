@@ -15,7 +15,7 @@ import { resolve, fill, target, expandHome, platformReason } from "./resolve.mjs
 export { platformReason };
 import { provision, installedVersion, satisfiesPin } from "./provision.mjs";
 import { shutdown, stopEngine } from "./lifecycle.mjs";
-import { pinOf, setPin } from "./trust.mjs";
+import { pinOf, setPin, rollbackReason } from "./trust.mjs";
 export { firstContactKeys } from "./trust.mjs";
 import { pointerOf } from "./diagnose.mjs";
 import { checkCommand, historyCommand } from "./inspect.mjs";
@@ -165,6 +165,8 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
     const religaria = !manter && !serve && previous && await vivoParaReligar(engine);
     if (engine.status === "pending-release" && !serve && !manter) { return { ok: false, reason: `${name}: ainda não publicou release (status: pending-release)` }; }
     if (engine.status === "self-managed" && !serve && !manter) { return { ok: false, reason: instaladorProprio(engine, `${name}: ${AUTO_GERIDO}`) }; }
+    const rb = !manter && !serve && !version && !pin && rollbackReason(name, engine.version);
+    if (rb) { return { ok: false, reason: rb }; }
     return {
       ok: true, dryRun: true, plan: manter ? "manter" : serve ? "reusar" : previous ? "atualizar" : "instalar", kind: engine.kind,
       version: manter || serve ? previous : engine.version,

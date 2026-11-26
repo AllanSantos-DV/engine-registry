@@ -55,8 +55,9 @@ jobs:
         env:
           PAGES_DEPLOY_KEY: ${{ secrets.PAGES_DEPLOY_KEY }}
         run: |
-          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$GITHUB_SHA" || {
-            echo "::error::o commit desta execução não é a ponta da main; dispare de novo"
+          git fetch --no-tags --depth=1 origin +refs/heads/main:refs/remotes/origin/main
+          git diff --quiet "$GITHUB_SHA" origin/main -- site manifest.json schema.json || {
+            echo "::error::a main mudou site/, manifest.json ou schema.json depois do commit desta execução; dispare de novo"
             exit 1
           }
           node tools/pages-branch.mjs publish --message "Site engine-registry ${GITHUB_SHA::7}"

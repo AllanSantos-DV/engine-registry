@@ -27,7 +27,13 @@ export const religavel = (engine) => {
 /** O motor é religável e tem daemon VIVO agora (pid existe e `/health` responde). */
 export const vivoParaReligar = async (engine) => religavel(engine) && (await lifeOf(engine)).state === "VIVO";
 
-const fimDoLog = (log) => { try { return readFileSync(log, "utf8").trim().split("\n").slice(-5).join(" | "); } catch { return ""; } };
+/** As últimas linhas do log, sem o `token` do anúncio do daemon nem sequências hexadecimais de 32+ caracteres (podem ser segredo). */
+const fimDoLog = (log, token) => {
+  try {
+    const fim = readFileSync(log, "utf8").trim().split("\n").slice(-5).join(" | ");
+    return (token ? fim.replaceAll(String(token), "[omitido]") : fim).replace(/[0-9a-f]{32,}/gi, "[omitido]");
+  } catch { return ""; }
+};
 
 const foraDoHome = (home, p) => { const r = relative(home, resolve(home, p)); return /^\.\.([\\/]|$)/.test(r) || isAbsolute(r); };
 
@@ -61,7 +67,7 @@ async function subir(engine, versao, prazoMs) {
   if (up || (boot.dead && (up = await noAr(boot)))) { return up; }
   if (boot.dead) {
     const { code, signal, error } = boot.dead;
-    return falha(`${entry} saiu ao subir (${error ?? (signal ? `sinal ${signal}` : `código ${code}`)}); últimas linhas: ${fimDoLog(bootLog) || "(vazio)"}`, boot.pid);
+    return falha(`${entry} saiu ao subir (${error ?? (signal ? `sinal ${signal}` : `código ${code}`)}); últimas linhas: ${fimDoLog(bootLog, readRuntime(engine)?.[runtime.shutdownTokenField]) || "(vazio)"}`, boot.pid);
   }
   try { process.kill(boot.pid); } catch { /* já saiu */ }
   return falha(`${entry} subiu mas não anunciou em ${prazoMs}ms (encerrei o pid ${boot.pid})`, boot.pid);

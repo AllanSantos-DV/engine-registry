@@ -5,7 +5,7 @@
 // NUNCA lança: devolve { ok, reason }.
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { ensureCommand, listCommand, pinCommand } from "./ensure.mjs";
-import { cmpVer, dropFile, pinOf } from "./trust.mjs";
+import { cmpVer, dropFile, pinOf, readTrust } from "./trust.mjs";
 import { ownVersion } from "./update.mjs";
 
 const FORMATO = 1;
@@ -80,6 +80,8 @@ export function exportCommand(file, { bundled } = {}) {
  * `engine-kit import <arquivo|-> [--dry-run]`: instala, pelo `ensureCommand` com `version`, a versão registrada de cada motor do documento (sha256, Ed25519 e chave do
  * manifest embarcado como em qualquer instalação) e, se havia pin, fixa depois pelo `pinCommand`. Documento inválido é recusado inteiro, antes de instalar qualquer coisa;
  * a partir daí um motor recusado (desconhecido, sem build para a plataforma, versão ausente, artefato adulterado, pin local diferente) não impede os outros.
+ * Versão abaixo da maior entre a instalada e a maior já vista no `trust.json` é recusada sem `permitirRebaixar`. Se o ensure instalou mas o daemon não subiu, o pin do documento é gravado
+ * mesmo assim e a razão (ok:false) diz se foi aplicado.
  * Com `dryRun` devolve o plano do `ensure --dry-run` (com `fixar` quando havia pin), sem baixar, instalar nem fixar.
  * @param {string} file documento do `export`; `-` lê a entrada padrão.
  * @param {object=} opts as do `ensureCommand`, menos `version`.
@@ -95,15 +97,19 @@ export async function importCommand(file, opts = {}) {
   const aqui = new Map(l.ok ? l.engines.map((e) => [e.name, e.installed]) : []);
   for (const { name, version, pin } of doc.engines) {
     const inst = aqui.get(name);
-    if (inst && cmpVer(version, inst) < 0 && !opts.permitirRebaixar) {
-      engines.push([name, { ok: false, reason: `${name}: o documento pede v${version}, abaixo da v${inst} instalada → rebaixar exige --permitir-rebaixar` }]);
+    let max;
+    try { max = readTrust()[name]?.maxVersion; } catch (e) { engines.push([name, { ok: false, reason: e.message }]); continue; }
+    const ref = max && (!inst || cmpVer(max, inst) > 0) ? max : inst;
+    if (ref && version !== inst && cmpVer(version, ref) < 0 && !opts.permitirRebaixar) {
+      engines.push([name, { ok: false, reason: `${name}: o documento pede v${version}, abaixo da v${ref} já instalada → rebaixar exige --permitir-rebaixar` }]);
       continue;
     }
     let r = await ensureCommand(name, { ...opts, version });
     if (r.ok && pin && opts.dryRun) { r = { ...r, plan: PLANO_COM_PIN[r.plan], pinned: pin }; }
-    else if (r.ok && pin) {
+    else if (pin && (r.ok || r.entryPath)) {
       const p = await pinCommand(name, opts);
-      r = p.ok ? { ...r, pinned: p.pinned } : { ok: false, reason: `${name} v${version} instalado, mas não fixou: ${p.reason}` };
+      if (!r.ok) { r = { ...r, reason: `${r.reason}; ${p.ok ? `pin v${p.pinned} aplicado` : `pin NÃO aplicado: ${p.reason}`}` }; }
+      else { r = p.ok ? { ...r, pinned: p.pinned } : { ok: false, reason: `${name} v${version} instalado, mas não fixou: ${p.reason}` }; }
     }
     engines.push([name, r]);
   }

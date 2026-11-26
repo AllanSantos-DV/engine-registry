@@ -126,9 +126,11 @@ Antes da primeira publicação, uma vez:
 3. Rodar o workflow `pages` (Actions → pages → Run workflow). Depois do primeiro push, apontar Settings → Pages para a
    branch `gh-pages`, `/`; se a página não subir, `gh api -X POST repos/AllanSantos-DV/engine-registry/pages/builds`.
 
-O passo de publicar só segue se o commit da execução for a ponta atual da `main` (`git ls-remote origin refs/heads/main` igual a
-`$GITHUB_SHA`): o re-run de uma execução antiga, ou de um workflow editado em outra branch, falha com "o commit desta execução não é a
-ponta da main; dispare de novo". Isso não protege a chave: quem consegue rodar um workflow editado ainda lê o secret. Proteger de verdade
+O passo de publicar busca a `main` (`git fetch origin main`) e só segue se `site/`, `manifest.json` e `schema.json` forem iguais no commit da
+execução e na ponta atual da `main` (`git diff --quiet "$GITHUB_SHA" origin/main -- site manifest.json schema.json`): o re-run de uma execução
+antiga cuja `main` já mudou o site, o manifest ou o schema, ou de um workflow editado em outra branch, falha com "a main mudou site/,
+manifest.json ou schema.json depois do commit desta execução; dispare de novo". Se a `main` avançou só em outros arquivos, o conteúdo
+publicado é o mesmo e a publicação segue. Isso não protege a chave: quem consegue rodar um workflow editado ainda lê o secret. Proteger de verdade
 a `PAGES_DEPLOY_KEY` exige um Environment restrito à `main` (Settings → Environments, Deployment branches) com o secret guardado nele e o
 job apontando para esse Environment; é configuração do repositório, fora do código.
 

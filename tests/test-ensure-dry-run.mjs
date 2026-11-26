@@ -5,6 +5,7 @@
 //   • nenhum artefato é baixado, nada é gravado no motor nem no histórico, e o motor instalado continua na versão em que estava;
 //   • motor self-managed e entrada sem release são recusados com o motivo, como no ensure;
 //   • motor em pending-release com instalada que serve: plano reusar, como o ensure; sem instalada que sirva, a mesma recusa e a mesma razão;
+//   • o plano recusa, com a mesma razão do ensure, a versão do registry abaixo da maior já vista no trust.json (anti-rollback), exceto com `--version`;
 //   • `--de` traz uma ação por motor (instalaria, atualizaria, reusado, pulado) e não instala nenhum;
 //   • sem a flag o ensure instala de verdade, e a flag não combina com `--register` nem `--unregister` e não vale para os verbos sem plano.
 // Hermético: registry e downloads de memória (o .tgz é real), HOME e ENGINE_KIT_HOME isolados, nenhum daemon.
@@ -95,6 +96,27 @@ console.log("\n== motor em pending-release: o plano reusa a instalada que serve,
   check("sem instalada: plano e ensure real recusam com a mesma razão", planoAusente.ok === false && /pending-release/.test(planoAusente.reason) && realAusente.ok === false && planoAusente.reason === realAusente.reason, JSON.stringify({ planoAusente, realAusente }));
 
   check("nada foi baixado e a instalada velha segue na 1.0.0", Object.keys(reg.baixados).length === 0 && instalado("pr-velha") === "1.0.0" && !existsSync(homeOf("pr-ausente")), JSON.stringify(reg.baixados));
+}
+
+console.log("\n== anti-rollback: o plano recusa o que o ensure recusaria ==");
+{
+  const alto = registry({ "ar-ausente": "2.0.0", "ar-velho": "3.0.0" });
+  await ensureCommand("ar-ausente", alto.opts);
+  await ensureCommand("ar-velho", alto.opts);
+  rmSync(homeOf("ar-ausente"), { recursive: true, force: true });
+  preinstalar("ar-velho", "1.0.0");
+  const baixo = registry({ "ar-ausente": "1.0.0", "ar-velho": "2.0.0" });
+  const dry = (nome, extra = {}) => ensureCommand(nome, { ...baixo.opts, dryRun: true, ...extra });
+
+  const planoAusente = await dry("ar-ausente");
+  const realAusente = await ensureCommand("ar-ausente", baixo.opts);
+  check("ausente e o registry abaixo da maior versão vista: plano e ensure real recusam com a mesma razão", planoAusente.ok === false && /ABORT \(rollback/.test(planoAusente.reason) && realAusente.ok === false && planoAusente.reason === realAusente.reason, JSON.stringify({ planoAusente, realAusente }));
+  const planoVelho = await dry("ar-velho");
+  const realVelho = await ensureCommand("ar-velho", baixo.opts);
+  check("instalada que não serve e o registry abaixo da maior versão vista: plano e ensure real recusam com a mesma razão", planoVelho.ok === false && /ABORT \(rollback/.test(planoVelho.reason) && realVelho.ok === false && planoVelho.reason === realVelho.reason, JSON.stringify({ planoVelho, realVelho }));
+  check("o ensure real não trocou nada: nada baixado, ausente segue ausente e a velha segue na 1.0.0", Object.keys(baixo.baixados).length === 0 && !existsSync(homeOf("ar-ausente")) && instalado("ar-velho") === "1.0.0", JSON.stringify(baixo.baixados));
+  const exato = await dry("ar-ausente", { version: "1.0.0" });
+  check("com --version o downgrade é pedido: o plano segue instalar", exato.ok && exato.plan === "instalar" && exato.version === "1.0.0", JSON.stringify(exato));
 }
 
 console.log("\n== ensure --de --dry-run ==");
