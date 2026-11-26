@@ -76,7 +76,7 @@ console.log("\n== plano do ensure --dry-run ==");
   const dry = (nome, extra = {}) => ensureCommand(nome, { ...opts, dryRun: true, ...extra });
   const p = await dry("q-velho");
   check("o plano traz quarantined e o aviso", p.ok && p.dryRun === true && p.quarantined?.version === "1.1.0" && quarentena(p.warns).join() === aviso("1.1.0"), JSON.stringify(p));
-  check("o plano é o que o ensure real faz, sem inventar: atualizar de 1.0.0 para 1.1.0", p.plan === "atualizar" && p.installed === "1.0.0" && p.version === "1.1.0", JSON.stringify(p));
+  check("o plano é o que o ensure real faz: manter a instalada 1.0.0, sem baixar a 1.1.0", p.plan === "manter" && p.installed === "1.0.0" && p.version === "1.0.0" && !("available" in p), JSON.stringify(p));
   const limpo = await dry("q-limpo");
   check("sem volta gravada o plano não ganha campo nem aviso", limpo.ok && !("quarantined" in limpo) && !("warns" in limpo), JSON.stringify(limpo));
   const exato = await dry("q-velho", { version: "1.1.0" });
@@ -87,7 +87,7 @@ console.log("\n== plano do ensure --dry-run ==");
   check("a tool engine_plan herda o campo e o aviso", tool.quarantined?.version === "1.1.0" && quarentena(tool.warns).join() === aviso("1.1.0"), JSON.stringify(tool));
   check("ler não grava histórico nem baixa nada", historico() === linhasAntes && Object.keys(reg.baixados).length === 0 && instalado("q-velho") === "1.0.0", JSON.stringify(reg.baixados));
   const real = await ensureCommand("q-velho", { ...opts, autoUpdate: true });
-  check("o ensure real executa o plano: atualiza de 1.0.0 para 1.1.0", real.ok && real.previous === "1.0.0" && real.version === "1.1.0" && instalado("q-velho") === "1.1.0", JSON.stringify(real));
+  check("o ensure real executa o plano: mantém a 1.0.0 e devolve quarantined", real.ok && real.reused === true && real.version === "1.0.0" && real.quarantined?.version === "1.1.0" && instalado("q-velho") === "1.0.0" && Object.keys(reg.baixados).length === 0, JSON.stringify(real));
 }
 
 console.log("\n== pelo CLI ==");

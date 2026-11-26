@@ -82,10 +82,11 @@ export async function salvarSidecars(arquivo, { sha256, sig, publicKey, algorith
  * @param {object=} opts.manifest manifest do registry já carregado (testes).
  * @param {Function=} opts.fetcher download injetável do motor (testes).
  * @param {Function=} opts.appGet download injetável do app (testes).
+ * @param {boolean=} opts.soMotor recusa o que não é motor do manifest embarcado (o app que um documento do `export` citasse).
  * @param {boolean=} opts.comAssinaturas só motor: grava também `<artefato>.sha256` e `<artefato>.sig`, os que foram conferidos (`salvarSidecars`), e os lista em `files` com `sidecar`.
  * @returns {Promise<{ok:true, kind:"engine"|"app", version:string, files:{path:string, signed?:boolean, sidecar?:string}[]} | {ok:false, reason:string}>}
  */
-export async function fetchCommand(name, { version, registryUrl, destDir = process.cwd(), bundled, manifest, fetcher, appGet, comAssinaturas = false, log = () => {} } = {}) {
+export async function fetchCommand(name, { version, registryUrl, destDir = process.cwd(), bundled, manifest, fetcher, appGet, comAssinaturas = false, soMotor = false, log = () => {} } = {}) {
   const { local, reason } = embarcado(bundled);
   if (!local) { return { ok: false, reason }; }
 
@@ -117,6 +118,7 @@ export async function fetchCommand(name, { version, registryUrl, destDir = proce
     return { ok: true, kind: "engine", version: f.version, files, ...(r.engine.staleCache ? { staleCache: true } : {}) };
   }
 
+  if (soMotor) { return { ok: false, reason: `"${name}" não é motor deste engine-kit: o documento do export só traz motores` }; }
   if (registryUrl) { return { ok: false, reason: `${name} é app: vem só do manifest embarcado no pacote, então --registry-url não se aplica` }; }
   const found = findApp(local, name);
   if (!found.ok) {

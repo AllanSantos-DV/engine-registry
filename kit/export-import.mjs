@@ -47,6 +47,18 @@ export function validarDocumento(doc) {
 }
 
 /**
+ * Lê o documento do `export` (`-` = entrada padrão) e o confere com `validarDocumento`. Nunca lança.
+ * @param {string} file caminho do documento.
+ * @returns {{ok:true, doc:object} | {ok:false, reason:string}}
+ */
+export function lerDocumento(file) {
+  let doc;
+  try { doc = JSON.parse(readFileSync(file === "-" ? 0 : file, "utf8")); } catch (e) { return { ok: false, reason: `não consegui ler ${file === "-" ? "a entrada padrão" : file}: ${e.message}` }; }
+  const v = validarDocumento(doc);
+  return v.ok ? { ok: true, doc } : v;
+}
+
+/**
  * `engine-kit export [arquivo]`: o documento com, por motor instalado aqui, nome, versão instalada e pin do `trust.json`, mais a versão do kit.
  * Com `file`, grava por .part e rename; sem ele, só devolve o documento. Não usa rede. O documento sai pelo mesmo validador do `import`.
  * O pin diferente da versão instalada não entra no documento (ele só descreve o que instala) e o motor aparece em `pinOmitido`.
@@ -88,10 +100,9 @@ export function exportCommand(file, { bundled } = {}) {
  * @returns {Promise<{ok:boolean, dryRun?:true, engines:[string, object][]} | {ok:false, reason:string}>} `engines` traz, na ordem do documento, o retorno do ensure de cada motor (com `pinned` se fixou).
  */
 export async function importCommand(file, opts = {}) {
-  let doc;
-  try { doc = JSON.parse(readFileSync(file === "-" ? 0 : file, "utf8")); } catch (e) { return { ok: false, reason: `não consegui ler ${file === "-" ? "a entrada padrão" : file}: ${e.message}` }; }
-  const v = validarDocumento(doc);
-  if (!v.ok) { return v; }
+  const lido = lerDocumento(file);
+  if (!lido.ok) { return lido; }
+  const { doc } = lido;
   const engines = [];
   const l = listCommand({ bundled: opts.bundled });
   const aqui = new Map(l.ok ? l.engines.map((e) => [e.name, e.installed]) : []);

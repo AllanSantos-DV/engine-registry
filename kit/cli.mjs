@@ -30,7 +30,7 @@ import { existsSync } from "node:fs";
 import { ensureCommand, ensureDeCommand, pinCommand, unpinCommand, stopCommand, listCommand, rollbackCommand, instaladosAtualizaveis, ensureDeArquivo, planoEm } from "./ensure.mjs";
 import { registerNeuralLink, unregisterNeuralLink } from "./register.mjs";
 import { fetchCommand } from "./fetch.mjs";
-import { exportCommand, importCommand } from "./export-import.mjs";
+import { exportCommand, importCommand, lerDocumento } from "./export-import.mjs";
 import { historyCommand, checkCommand, urlCommand, updateCommand, reportCommand, trustCommand, trustRestoreCommand, pathCommand, infoCommand } from "./inspect.mjs";
 import { completionScript, SHELLS } from "./completion.mjs";
 import { selfUpdate, autoUpdateEnabled } from "./update.mjs";
@@ -50,6 +50,8 @@ const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-ur
   "     engine-kit unpin --todos                     solta todos os pins gravados\n" +
   "     engine-kit fetch <motor|app> [--version <x.y.z>] [--dest <pasta>] [--registry-url <url>]   baixa e confere (sha256 + Ed25519) sem instalar\n" +
   "     engine-kit fetch <motor> [<motor>...] --com-assinaturas [--dest <pasta>] [--registry-url <url>] [--json]   grava ao lado de cada .tgz conferido o <artefato>.sha256 e o <artefato>.sig da release (também conferidos), a pasta que o ensure <motor> --de-arquivo aceita; vários motores numa chamada, uma falha não esconde os outros (exit 1 se algum falhou)\n" +
+  "     engine-kit fetch --instalados [--com-assinaturas] [--dest <pasta>] [--registry-url <url>] [--json]   espelho em lote: baixa e confere (sha256 + Ed25519) o artefato de cada motor instalado aqui (o conjunto do ensure --instalados: sem self-managed nem motor de outra plataforma), sem instalar nada; a versão é a que o ensure instalaria; envelope { ok, engines }, uma falha não esconde os outros (exit 1 se algum falhou); sem nomes, sem --version\n" +
+  "     engine-kit fetch --de-export <documento> [--com-assinaturas] [--dest <pasta>] [--registry-url <url>] [--json]   o mesmo para cada motor do documento do export, na versão registrada nele; documento inválido é recusado inteiro; sem nomes, sem --version, não combina com --instalados\n" +
   "     (ensure, pin, fetch e stop aceitam --json: um objeto JSON no formato das linhas do doctor --json, também na falha)\n" +
   "     engine-kit stop <motor> [--registry-url <url>]   desliga o motor pelo shutdownPath que o registry declara\n" +
   "     engine-kit ensure neural-link --register     além de instalar, registra os hooks no config global do usuário\n" +
@@ -80,15 +82,16 @@ const VERBS = ["ensure", "pin", "unpin", "fetch", "stop", "doctor", "list", "his
 const NOME_OPCIONAL = ["doctor", "list", "history", "trust", "export", "mcp"];
 const [cmd, name] = args;
 const nomeOpcional = name?.startsWith("-") ? undefined : name;
-const COM_VALOR = ["--version", "--registry-url", "--dest", "--engine", "--de", "--de-arquivo", "--retry"];
+const COM_VALOR = ["--version", "--registry-url", "--dest", "--engine", "--de", "--de-arquivo", "--de-export", "--retry"];
 const deManifesto = cmd === "ensure" && name === "--de";
-const instalados = (cmd === "ensure" || cmd === "pin") && name === "--instalados";
+const instalados = (cmd === "ensure" || cmd === "pin" || cmd === "fetch") && name === "--instalados";
+const deExport = cmd === "fetch" && name === "--de-export";
 const todos = cmd === "unpin" && name === "--todos";
 const FLAGS = {
   ensure: ["--version", "--registry-url", "--register", "--unregister", "--json", "--de", "--dry-run", "--instalados", "--de-arquivo", "--retry", "--falhar-se-desatualizado"],
   pin: ["--version", "--registry-url", "--json", "--retry", "--dry-run", "--instalados"],
   unpin: ["--todos"],
-  fetch: ["--version", "--registry-url", "--dest", "--json", "--retry", "--com-assinaturas"],
+  fetch: ["--version", "--registry-url", "--dest", "--json", "--retry", "--com-assinaturas", "--instalados", "--de-export"],
   stop: ["--registry-url", "--json"],
   doctor: ["--fix", "--json", "--verify", "--report", "--engine", "--local", "--registry-url"],
   list: ["--json", "--apps"],
@@ -108,8 +111,8 @@ const FLAGS = {
 /** Primeira flag que o verbo não aceita, ou argumento solto além do nome do motor. */
 const sobra = () => {
   const aceitas = FLAGS[cmd] ?? [];
-  for (let i = deManifesto || instalados || (NOME_OPCIONAL.includes(cmd) && !(["history", "trust", "export"].includes(cmd) && nomeOpcional)) ? 1 : 2; i < args.length; i++) {
-    if (!args[i].startsWith("-")) { if (cmd === "check" || cmd === "ensure" || cmd === "pin" || deManifesto || (cmd === "fetch" && args.includes("--com-assinaturas"))) { continue; } return `argumento inesperado: ${args[i]}`; }
+  for (let i = deManifesto || instalados || deExport || (NOME_OPCIONAL.includes(cmd) && !(["history", "trust", "export"].includes(cmd) && nomeOpcional)) ? 1 : 2; i < args.length; i++) {
+    if (!args[i].startsWith("-")) { if (cmd === "check" || cmd === "ensure" || cmd === "pin" || deManifesto || (cmd === "fetch" && (args.includes("--com-assinaturas") || instalados || deExport))) { continue; } return `argumento inesperado: ${args[i]}`; }
     if (!aceitas.includes(args[i]) && /^--(un)?register$/.test(args[i])) { return "--register e --unregister só valem para `engine-kit ensure neural-link`"; }
     if (!aceitas.includes(args[i])) { return `${args[i]} não vale para \`${cmd}\``; }
     if (COM_VALOR.includes(args[i])) { i++; }
@@ -125,6 +128,11 @@ const motores = ((cmd === "ensure" && !deManifesto) || cmd === "pin") && !instal
 const lista = instalados ? instaladosAtualizaveis() : null;
 /** Os motores com pin gravado no trust.json, ou o motivo de não conseguir lê-lo. */
 const fixados = () => { try { return { ok: true, names: Object.entries(readTrust()).filter(([, e]) => e?.pin).map(([m]) => m) }; } catch (e) { return { ok: false, reason: e.message }; } };
+const USO_ESPELHO = "engine-kit fetch --instalados | --de-export <documento> [--com-assinaturas] [--dest <pasta>] [--registry-url <url>] [--json]";
+/** Recusa das formas em lote do `fetch`: as duas juntas, nomes de motor ou --version. */
+const recusaEspelho = () => !["--instalados", "--de-export"].some((f) => args.includes(f)) ? null
+  : args.includes("--instalados") && args.includes("--de-export") ? `--instalados e --de-export não combinam: ${USO_ESPELHO}`
+  : !(instalados || deExport) || posicionais().length || args.includes("--version") ? `--instalados e --de-export não combinam com nomes de motores nem com --version, e vêm logo depois de fetch: ${USO_ESPELHO}` : null;
 const asJson = args.includes("--json");
 const dryRun = args.includes("--dry-run");
 const falharSeDesatualizado = args.includes("--falhar-se-desatualizado");
@@ -146,7 +154,7 @@ const jsonOf = (verb, name, r) => {
   if (verb === "update") { return { ...base, state: r.state, detail: r.detail, ...(r.current ? { current: r.current } : {}), ...(r.available ? { available: r.available } : {}) }; }
   if (verb === "pin") { return { ...base, state: "FIXADO", detail: `v${r.pinned} fixado`, version: r.version }; }
   const state = r.reused ? "OK" : r.previous ? "ATUALIZADO" : "INSTALADO";
-  return { ...base, state, detail: r.previous ? `v${r.previous} → v${r.version}` : `v${r.version}${r.reused ? " reusado" : ""}`, version: r.version, signed: r.signed ?? null, entryPath: r.entryPath, kind: r.kind, ...(r.previous ? { previous: r.previous } : {}), ...(r.pointer ? { pointer: r.pointer } : {}), ...(r.restarted ? { restarted: r.restarted } : {}) };
+  return { ...base, state, detail: r.previous ? `v${r.previous} → v${r.version}` : `v${r.version}${r.reused ? " reusado" : ""}`, version: r.version, signed: r.signed ?? null, entryPath: r.entryPath, kind: r.kind, ...(r.previous ? { previous: r.previous } : {}), ...(r.pointer ? { pointer: r.pointer } : {}), ...(r.restarted ? { restarted: r.restarted } : {}), ...(r.quarantined ? { quarantined: r.quarantined } : {}) };
 };
 const done = (verb, r, text) => {
   if (asJson) { console.log(JSON.stringify(jsonOf(verb, name, r), null, 2)); if (!r.ok) { process.exitCode = 1; } return; }
@@ -155,14 +163,14 @@ const done = (verb, r, text) => {
 };
 const avisoCache = (r, nome = name) => { if (r.staleCache) { console.log(`aviso: registry inacessível; ${nome} usou o descritor em cache vencido`); } };
 const avisosDoPlano = (r) => { for (const w of r.warns ?? []) { console.log(`aviso: ${w}`); } };
-const semValor = ["--dest", "--registry-url", "--engine", "--de", "--de-arquivo"].find((f) => args.includes(f) && (flag(f) ?? "-").startsWith("-"));
+const semValor = ["--dest", "--registry-url", "--engine", "--de", "--de-arquivo", "--de-export"].find((f) => args.includes(f) && (flag(f) ?? "-").startsWith("-"));
 
 if (cmd === "--help" || cmd === "-h") {
   console.log(USAGE);
 } else if (VERBS.includes(cmd) && args.includes("--todos") && !(todos && args.length === 2)) {
   console.error(cmd === "unpin" ? "--todos não combina com nomes de motores nem com outras opções: engine-kit unpin --todos" : "--todos só vale para `engine-kit unpin --todos`");
   process.exitCode = 1;
-} else if (!VERBS.includes(cmd) || (!NOME_OPCIONAL.includes(cmd) && !deManifesto && !instalados && !todos && (!name || (name.startsWith("-") && !(cmd === "import" && name === "-"))))) {
+} else if (!VERBS.includes(cmd) || (!NOME_OPCIONAL.includes(cmd) && !deManifesto && !instalados && !deExport && !todos && (!name || (name.startsWith("-") && !(cmd === "import" && name === "-"))))) {
   console.error(cmd && !VERBS.includes(cmd) ? `comando desconhecido: ${cmd}\n${USAGE}` : USAGE);
   process.exitCode = 1;
 } else if (semValor) {
@@ -170,6 +178,9 @@ if (cmd === "--help" || cmd === "-h") {
   process.exitCode = 1;
 } else if (sobra()) {
   console.error(sobra());
+  process.exitCode = 1;
+} else if (cmd === "fetch" && recusaEspelho()) {
+  console.error(recusaEspelho());
   process.exitCode = 1;
 } else if (cmd === "pin" && args.includes("--instalados") && !instalados) {
   console.error("--instalados não combina com nomes de motores: engine-kit pin --instalados [--dry-run] [--registry-url <url>] [--json]");
@@ -349,15 +360,23 @@ if (cmd === "--help" || cmd === "-h") {
     const r = await stopCommand(name, { registryUrl: flag("--registry-url"), log });
     done("stop", r, () => { console.log(r.stopped ? `OK ${name} desligado` : `OK ${name}: nada vivo para desligar`); avisoCache(r); });
   } else if (cmd === "fetch") {
-    const pedido = { version: flag("--version"), registryUrl: flag("--registry-url"), destDir: flag("--dest"), comAssinaturas, log };
-    const rs = [];
-    for (const m of comAssinaturas ? motores : [name]) { rs.push([m, await fetchCommand(m, pedido)]); }
-    const linhas = (m, r) => { for (const f of r.files) { console.log(`OK ${m} v${r.version} (${f.sidecar ? `${f.sidecar} conferido contra o artefato` : f.signed ? "assinatura Ed25519 conferida" : "SEM assinatura no registry"}), não instalado: ${f.path}`); } avisoCache(r, m); };
-    if (motores.length < 2) { done("fetch", rs[0][1], () => linhas(name, rs[0][1])); }
-    else {
-      if (asJson) { console.log(JSON.stringify({ ok: rs.every(([, r]) => r.ok), engines: rs.map(([m, r]) => jsonOf("fetch", m, r)) }, null, 2)); }
-      else { for (const [m, r] of rs) { if (r.ok) { linhas(m, r); } else { console.error(`FALHOU ${m}: ${r.reason}`); } } }
-      if (rs.some(([, r]) => !r.ok)) { process.exitCode = 1; }
+    const doc = deExport ? lerDocumento(flag("--de-export")) : null;
+    if (doc && !doc.ok) {
+      if (asJson) { console.log(JSON.stringify(jsonOf("fetch", flag("--de-export"), doc), null, 2)); } else { console.error(`FALHOU fetch --de-export: ${doc.reason}`); }
+      process.exitCode = 1;
+    } else {
+      const pedido = { version: flag("--version"), registryUrl: flag("--registry-url"), destDir: flag("--dest"), comAssinaturas, soMotor: deExport, log };
+      const alvos = doc ? doc.doc.engines.map((e) => [e.name, e.version]) : lista ? lista.names.map((m) => [m]) : (comAssinaturas ? motores : [name]).map((m) => [m]);
+      if (!alvos.length) { log(doc ? "nenhum motor no documento" : "nenhum motor instalado por este kit para baixar"); }
+      const rs = [];
+      for (const [m, v] of alvos) { rs.push([m, await fetchCommand(m, v ? { ...pedido, version: v } : pedido)]); }
+      const linhas = (m, r) => { for (const f of r.files) { console.log(`OK ${m} v${r.version} (${f.sidecar ? `${f.sidecar} conferido contra o artefato` : f.signed ? "assinatura Ed25519 conferida" : "SEM assinatura no registry"}), não instalado: ${f.path}`); } avisoCache(r, m); };
+      if (!lista && !doc && motores.length < 2) { done("fetch", rs[0][1], () => linhas(name, rs[0][1])); }
+      else {
+        if (asJson) { console.log(JSON.stringify({ ok: rs.every(([, r]) => r.ok), engines: rs.map(([m, r]) => jsonOf("fetch", m, r)) }, null, 2)); }
+        else { for (const [m, r] of rs) { if (r.ok) { linhas(m, r); } else { console.error(`FALHOU ${m}: ${r.reason}`); } } }
+        if (rs.some(([, r]) => !r.ok)) { process.exitCode = 1; }
+      }
     }
   } else if (cmd === "pin" && motores.length < 2 && !lista) {
     const r = await pinCommand(name, { version: flag("--version"), registryUrl: flag("--registry-url"), dryRun, log });

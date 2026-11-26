@@ -188,10 +188,13 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-11-27 tooling 130200 → 134000: a quarentena visível nos verbos de leitura e o `engine-kit completion`, +3.97 KB medidos, 129757 → 133728 (kit/completion.mjs novo +2.17, kit/cli.mjs +1.02, kit/diagnose.mjs +0.50, kit/ensure.mjs +0.22, kit/inspect.mjs +0.05).
 //   `quarantineOf` e `quarantineWarn` (diagnose.mjs, reusam `failedVersions` do trust.mjs) põem o aviso em `warns` do doctor e do info, o campo `quarantined` no info e no plano do `ensure --dry-run`; as tools MCP herdam. O aviso não muda estado, exit code nem plano.
 //   `completion <bash|zsh|powershell>` gera o script de VERBS, FLAGS e dos nomes do manifest embarcado. Rodadas na mão de quem instala; o fecho de `kit/index.mjs` não mudou (runtime 38990/39000, a cifra de 39 KB da vitrine segue) e o cliente ficou em 10685/10700.
+//   2026-11-27 tooling 134000 → 137000: o espelho em lote do `fetch` e a quarentena no `ensure` do CLI, +3.03 KB medidos, 133728 → 136758 (kit/cli.mjs +2.39, kit/ensure.mjs +0.35, kit/fetch.mjs +0.15, kit/export-import.mjs +0.14).
+//   `fetch --instalados` e `fetch --de-export <documento>` baixam e conferem o artefato de vários motores sem instalar: reusam `instaladosAtualizaveis`, o `validarDocumento` (agora atrás de `lerDocumento`, que o `import` também usa), o laço e o envelope `{ ok, engines }` do `fetch` de vários motores e a opção `soMotor` do `fetchCommand`; o texto do uso e as recusas das flags são boa parte dos bytes.
+//   O `ensureCommand` passa a aplicar a quarentena como o `ensureEngine` (`quarantineOf` e `quarantineWarn` do diagnose.mjs, o ramo `manter` já existente): mantém a instalada, devolve `quarantined` e o `--dry-run` planeja `manter`; `--version`, pin e `--de-arquivo` mandam. Tudo no ferramental, fora do fecho de `kit/index.mjs` (runtime 38990/39000, a cifra de 39 KB da vitrine segue) e o cliente ficou em 10685/10700. Sem as flags novas e sem histórico de volta o comportamento é o de antes.
 const BUDGETS = {
   runtime: { codeBytes: 39000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10700, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 134000, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 137000, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

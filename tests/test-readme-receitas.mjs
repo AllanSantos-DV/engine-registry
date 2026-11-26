@@ -5,7 +5,7 @@
 //   • todo `engine-kit <verbo> ...` da seção usa um verbo de VERBS e só flags de FLAGS desse verbo, em `kit/cli.mjs`;
 //   • toda `--flag` citada em código na seção existe em algum verbo do cli;
 //   • a receita do hook cita os comandos certos e só estados do doctor que o `diagnose.mjs` produz;
-//   • as receitas de CI, de provisionamento e de mover o ambiente citam os comandos pedidos (check --json, --falhar-se-desatualizado, ensure <motor>, export | import -, fetch --com-assinaturas, ensure --de-arquivo);
+//   • as receitas de CI, de provisionamento e de mover o ambiente citam os comandos pedidos (check --json, --falhar-se-desatualizado, ensure <motor>, export | import -, fetch --com-assinaturas, fetch --de-export, fetch --instalados, ensure --de-arquivo);
 //   • o verificador recusa verbo e flag que não existem (controle), então um README errado não passaria.
 //
 //   node tests/test-readme-receitas.mjs
@@ -67,6 +67,7 @@ console.log("\n== o que cada receita cita ==");
   check("ambiente: export | import -", /engine-kit export[^\n]*\|[^\n]*engine-kit import -/.test(ambiente));
   check("completion: engine-kit completion bash, e só shells que o gerador atende", ha(completion, "completion") && /completion bash/.test(completion) && [...completion.matchAll(/engine-kit completion (\w+)/g)].every((m) => SHELLS.includes(m[1])), completion);
   check("ambiente: fetch --com-assinaturas e ensure --de-arquivo", ha(ambiente, "fetch", "--com-assinaturas") && ha(ambiente, "ensure", "--de-arquivo"));
+  check("ambiente: o espelho em lote, fetch --de-export <documento> e fetch --instalados", ha(ambiente, "fetch", "--de-export") && ha(ambiente, "fetch", "--instalados"));
 }
 
 console.log(failures ? `\n== ${failures} FALHA(S) ==` : "\n== TUDO VERDE ==");

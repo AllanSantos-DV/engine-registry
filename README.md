@@ -80,6 +80,8 @@ npx engine-kit ensure neural-link --unregister  # instala e desfaz esse registro
 npx engine-kit fetch vxk                      # só baixa e confere (sha256 + Ed25519); nada é instalado
 npx engine-kit fetch agent-launcher           # idem para um app de `manifest.apps`
 npx engine-kit fetch vxk motor-de-grafo --com-assinaturas   # grava também o .sha256 e o .sig conferidos, para `ensure <motor> --de-arquivo`
+npx engine-kit fetch --instalados --dest espelho            # espelho em lote: baixa e confere o artefato de cada motor instalado aqui, sem instalar
+npx engine-kit fetch --de-export ambiente.json --dest espelho   # idem para cada motor do documento do `export`, na versão registrada nele
 ```
 
 `fetch` grava na pasta atual (ou em `--dest <pasta>`) o artefato que passou na conferência, com a mesma chave do
@@ -87,6 +89,8 @@ primeiro contato do `ensure`. Não extrai, não executa e não toca o HOME do mo
 nenhum arquivo. `--dest` dentro do home de um motor é recusado: o `doctor --fix` trata o artefato ali como sobra de instalação.
 
 `fetch <motor> [<motor>...] --com-assinaturas` grava, ao lado de cada `.tgz` conferido, o `<artefato>.sha256` e o `<artefato>.sig` da release: a pasta que `ensure <motor> --de-arquivo <artefato.tgz>` aceita (ele exige os três). Os sidecars gravados são os que o kit conferiu, sem segundo download: o sha256 do sidecar é o hash do artefato gravado e a assinatura Ed25519 confere com a chave do manifest embarcado, e cada arquivo entra por `.part` e rename. Falha de conferência ou de gravação apaga o que foi gravado daquele motor. Vários motores numa chamada, como no `ensure`: uma falha não esconde os outros, o exit é 1 se algum falhou e o resultado (texto e `--json`, `{ ok, engines }` com mais de um motor) lista os três arquivos de cada um. Vale só para motor (app é recusado), `--version` não vale com vários motores e `--dest` dentro do home continua recusado. Sem a flag nada muda: dois motores sem ela seguem sendo argumento inesperado.
+
+`fetch --instalados` e `fetch --de-export <documento>` são o espelho em lote: baixam e conferem (sha256 + Ed25519, com os sidecars quando há `--com-assinaturas`) o artefato de vários motores para `--dest`, sem instalar nada. `--instalados` pega o mesmo conjunto do `ensure --instalados` (os motores instalados aqui; self-managed, motor de outra plataforma e motor não instalado ficam de fora) na versão que o `ensure` instalaria (a do registry, ou o pin); `--de-export` pega cada motor do documento do `export`, validado como no `import` (documento inválido é recusado inteiro, antes de baixar qualquer coisa), na versão registrada nele, e recusa nome que não é motor do kit (um app, por exemplo). O resultado é o de vários motores, texto e `--json` `{ ok, engines }`: uma falha não esconde os outros e o exit é 1 se algum falhou; sem motor a listar não é erro (exit 0, `engines: []`). As duas formas vêm logo depois de `fetch`, não combinam entre si, com nomes de motor nem com `--version`, e `--dest` dentro do home de um motor segue recusado para esse motor. O `fetch <motor>` com nomes explícitos não muda.
 
 O `npx` baixa o kit do npm e o kit baixa o motor da release, confere o **sha256**, a **assinatura Ed25519**
 e a **versão** do artefato; qualquer divergência aborta sem instalar nada. A chave pública do primeiro contato
@@ -102,8 +106,8 @@ registry, com o aviso `motor atualizado: <motor> vA → vB`. `ENGINE_KIT_NO_AUTO
 deixa só o aviso de versão nova disponível; `ensureEngine` respeita a mesma variável e devolve a versão nova em `engine.updateAvailable`. `--version` explícito sempre vale.
 
 Quarentena: a versão que o motor não conseguiu subir nesta máquina (a volta automática grava `rollback` em `history.jsonl`) fica de lado. Enquanto o registry
-oferecer só ela, o `ensure` não baixa, não derruba o motor e não troca: mantém a instalada, avisa `v<x> em quarentena` e devolve `engine.quarantined = { version }`
-(e `engine.updateAvailable`). Sai da quarentena quando o registry oferece outra versão, ou na hora com `--version <x>`.
+oferecer só ela, o `ensure` (o comando e o `ensureEngine`) não baixa, não derruba o motor e não troca: mantém a instalada, avisa `v<x> em quarentena` e devolve `engine.quarantined = { version }`
+(e `engine.updateAvailable`); o comando devolve `quarantined: { version }` no resultado e no `--json`, com o aviso em `warns`, e o `--dry-run` planeja `manter`. Sai da quarentena quando o registry oferece outra versão, ou na hora com `--version <x>`; o pin e o `--de-arquivo` também mandam.
 
 Desligar: `npx engine-kit stop <motor>` pede ao motor que se encerre pelo `shutdownPath` que o registry declara (o mesmo pedido
 que o kit faz antes de trocar a instalação); motor sem `shutdownPath` declarado é recusado com o motivo, e motor parado
@@ -236,7 +240,7 @@ Estado atual:
 - No `engine-kit mcp`, `engine_doctor` aceita `engine` (só esse motor) e `verify` (confere a integridade dos arquivos instalados, o `ADULTERADO` do `doctor --verify`), `engine_list` aceita `apps` (os apps do manifest) e a tool nova `engine_export` devolve o documento do `export` (o mesmo que o `import -` lê) sem gravar arquivo. Sem argumentos as duas primeiras devolvem o que devolviam.
 
 **Quarentena e completion.** Aditivos; sem histórico de volta, ou sem o verbo novo, o comportamento é o de antes.
-- Quando o `history` marca como volta (`via: rollback`) a versão que o registry ainda oferece ao motor instalado, o `doctor` (também o `doctor --json` e a tool `engine_doctor`) acrescenta a `warns` `vX em quarentena: não subiu aqui; sai com versão nova ou --version X`; o `info` mostra a linha `quarentena: vX` e, em `--json`, `quarantined: { version }`; o plano do `ensure --dry-run` traz o mesmo aviso e `quarantined` (as tools `engine_info` e `engine_plan` herdam). O aviso não muda estado, `needsWork`, exit code nem plano: o `ensure` do CLI segue o que o plano diz, e quem mantém a versão instalada em quarentena é o `ensureEngine` dos consumidores. Motor fixado e `--version` não recebem o aviso.
+- Quando o `history` marca como volta (`via: rollback`) a versão que o registry ainda oferece ao motor instalado, o `doctor` (também o `doctor --json` e a tool `engine_doctor`) acrescenta a `warns` `vX em quarentena: não subiu aqui; sai com versão nova ou --version X`; o `info` mostra a linha `quarentena: vX` e, em `--json`, `quarantined: { version }`; o plano do `ensure --dry-run` traz o mesmo aviso e `quarantined` (as tools `engine_info` e `engine_plan` herdam). O aviso não muda estado, `needsWork` nem exit code do doctor; o plano do `ensure --dry-run` diz `manter`, o mesmo que o `ensure` real faz (`quarantined`, sem `available`). Motor fixado e `--version` não recebem o aviso.
 - `engine-kit completion <bash|zsh|powershell>` só imprime o script no stdout (exit 0): os verbos e as flags de cada verbo vêm do próprio CLI e os motores, do manifest embarcado; não usa a rede nem grava nada. Shell ausente ou desconhecido e argumento sobrando recusam com o uso (exit 1). Bash: `eval "$(engine-kit completion bash)"` no `~/.bashrc`; zsh: o mesmo com `zsh`, depois do `compinit`; PowerShell: `engine-kit completion powershell | Out-String | Invoke-Expression` no `$PROFILE`.
 
 **Endereço do daemon.** `engine-kit url <motor>` imprime a `url`, a `version` e o `pid` que o motor anuncia (`discover`, de `kit/client.mjs`), depois de conferir que ele responde.
@@ -320,10 +324,12 @@ O `export` imprime (ou grava) nome, versão instalada e pin de cada motor, sem c
 
 ```sh
 engine-kit fetch vxk skill-engine --com-assinaturas --dest espelho
+engine-kit fetch --de-export ambiente.json --com-assinaturas --dest espelho
+engine-kit fetch --instalados --com-assinaturas --dest espelho
 engine-kit ensure vxk --de-arquivo espelho/<artefato.tgz>
 ```
 
-O `fetch` grava ao lado de cada `.tgz` o `.sha256` e o `.sig` da release, já conferidos; o `--de-arquivo` instala do disco com sha256, Ed25519 e versão obrigatórios.
+O `fetch` grava ao lado de cada `.tgz` o `.sha256` e o `.sig` da release, já conferidos; `fetch --de-export` baixa tudo o que o documento do `export` registrou e `fetch --instalados` espelha o que está instalado aqui, numa chamada; o `--de-arquivo` instala do disco com sha256, Ed25519 e versão obrigatórios.
 
 ### Completion no shell
 

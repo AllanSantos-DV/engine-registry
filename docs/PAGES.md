@@ -25,6 +25,7 @@ docs/ROTEIRO-APRESENTACAO.md  # cenas e falas, e o que o vídeo deve mostrar
 .github/workflows/pages.yml   # publicação, por disparo manual e a cada push na main que muda site/, o manifest.json ou o schema.json
 manifest.json                 # fora de site/: o publish o copia para a raiz do site publicado
 schema.json                   # idem: o publish o copia para a raiz, onde o manifest publicado o referencia (`$schema: ./schema.json`)
+engines/<nome>.json           # não existe no repositório: o publish gera um por motor e app do manifest.json (e engines/index.json), na árvore publicada
 ```
 
 O site abre direto do disco (`site/index.html`); não há servidor, bundler nem dependência. A CSP da página só aceita
@@ -84,9 +85,9 @@ conta bloqueia o `deploy-pages`). `.github/workflows/pages.yml` roda por disparo
 a cada push que muda o site ou o manifesto (`push` com `paths: ['site/**', 'manifest.json', 'schema.json']`); só roda a partir da `main` (um passo
 falha cedo em qualquer outra branch); executa, em ordem: o vídeo da apresentação,
 `tests/test-site.mjs --require-media` (só no runner local), `tools/pages-branch.mjs publish` e `tools/pages-branch.mjs verify`.
-O `publish` monta um commit órfão só com o conteúdo de `site/`, o `manifest.json` e o `schema.json` da raiz do repositório e `.nojekyll`, e o envia
+O `publish` monta um commit órfão só com o conteúdo de `site/`, o `manifest.json` e o `schema.json` da raiz do repositório, os `engines/` gerados do manifest e `.nojekyll`, e o envia
 com push forçado a `gh-pages` pela chave de deploy do secret `PAGES_DEPLOY_KEY`; o `verify` lê a URL pública até ela servir o
-`index.html` do site, o `manifest.json` e o `schema.json` do repositório, e falha se não servir. Roda no runner `ubuntu-latest`; a suíte
+`index.html` do site, o `manifest.json` e o `schema.json` do repositório e os `engines/` gerados do manifest, e falha se não servir. Roda no runner `ubuntu-latest`; a suíte
 (`npm test`) roda antes, na checagem local. Uma publicação sempre refaz o site inteiro da `main`, venha do disparo manual ou
 de um push que muda o site, o manifest ou o schema.
 
@@ -118,6 +119,27 @@ O manifest publicado traz `$schema: ./schema.json`; sem o arquivo ao lado, esse 
   local (`--schema` muda o caminho), com as mesmas tentativas e o mesmo intervalo. Falha com a causa: `HTTP 404`, ou
   `o schema publicado difere do local`.
 
+### Os pontos de leitura por motor (engines/)
+
+Para consumir o catálogo sem baixar o `manifest.json` inteiro, o site publica um arquivo por motor e por app:
+`https://allansantos-dv.github.io/engine-registry/engines/<nome>.json`, mais `engines/index.json` com a lista de nomes e versões.
+
+- **Conteúdo:** só dado de produto, derivado do `manifest.json` da raiz. Cada `engines/<nome>.json` traz, nesta ordem, `name`, `version`,
+  `kind` (`app` para os de `manifest.apps`), `summary`, `platforms` e `release`, a página da release da versão
+  (`https://github.com/<repo>/releases/tag/<tag da versão>`). Nenhum caminho de usuário, e-mail, máquina, chave nem campo interno do manifest
+  entra ali. `engines/index.json` é `{ "entries": [ { "name", "version" } ] }`, na ordem do manifest (motores, depois apps).
+- **De onde vem:** `tools/pages-branch.mjs publish` gera os arquivos do `manifest.json` da raiz (ou do `--manifest`), na hora de montar a árvore;
+  eles não ficam em `site/` (uma pasta `engines/` dentro de `site/` é descartada) e não há outra fonte. O JSON sai com chaves em ordem fixa, indentação de 2
+  espaços e LF final, então os mesmos bytes saem de duas publicações do mesmo manifest, venha ele com CRLF ou com as chaves em outra ordem.
+- **O que recusa a publicação** (erro, código 1, nada é enviado): nome de motor ou app fora de `[a-z0-9._-]` (ou que não começa por letra ou
+  número), repetido entre motor e app, ou `index`, que é o nome do índice; entrada sem `version`, `summary` ou `kind`, ou sem `repo` e `tag` de
+  release com `{version}` resolvível. Um manifest sem motor nem app não gera arquivo nem a pasta `engines/`.
+- **Como se verifica:** o `verify` também lê cada `engines/<nome>.json?v=<stamp>` e o `engines/index.json?v=<stamp>` e exige HTTP 200, JSON
+  válido e os mesmos bytes dos gerados do manifest local, com as mesmas tentativas e o mesmo intervalo. Falha com a causa: `HTTP 404`,
+  `o engines/<nome>.json publicado não é JSON válido` ou `o engines/<nome>.json publicado difere do gerado do manifest`.
+- **Quando republica:** o gatilho do `pages.yml` já cobre o `manifest.json`, então uma versão nova no manifest da `main` republica os pontos de leitura
+  junto com o resto; o workflow não mudou.
+
 Antes da primeira publicação, uma vez:
 
 1. Colocar `site/media/apresentacao.mp4` e `site/media/apresentacao-poster.jpg` (ver `docs/ROTEIRO-APRESENTACAO.md`).
@@ -144,6 +166,6 @@ git push origin --delete gh-pages                              # apaga a branch 
 ```
 
 O conteúdo editável continua em `site/` no `main`, o manifest em `manifest.json` e o schema em `schema.json`. Para tirar só o
-manifest ou o schema do ar sem derrubar o site: reverter a mudança de `tools/pages-branch.mjs` e do `pages.yml` e disparar o
+manifest, o schema ou os `engines/` do ar sem derrubar o site: reverter a mudança de `tools/pages-branch.mjs` e do `pages.yml` e disparar o
 workflow; a `gh-pages` é refeita sem o arquivo. Para impedir que uma mudança do site, do manifest ou do schema publique sozinha, remover o gatilho `push` do
 `pages.yml` (o disparo manual continua).

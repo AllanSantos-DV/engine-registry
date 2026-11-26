@@ -3,13 +3,14 @@
 // artefato do Actions.
 //
 //   publish: confere o site (index.html, referências sob a base /engine-registry/, sem link simbólico), monta um commit
-//            órfão só com o conteúdo do site, o manifest.json (--manifest) e o schema.json (--schema) da raiz do repositório e
-//            .nojekyll, e o envia
+//            órfão só com o conteúdo do site, o manifest.json (--manifest) e o schema.json (--schema) da raiz do repositório, os
+//            pontos de leitura engines/<nome>.json e engines/index.json derivados desse manifest, e .nojekyll, e o envia
 //            a gh-pages com push forçado (a branch é só do site e é refeita a cada publicação). Remoto SSH exige a chave
 //            de deploy em PAGES_DEPLOY_KEY (push com GITHUB_TOKEN não dispara a publicação do Pages).
-//   verify:  lê a URL pública até ela servir o mesmo index.html do build e o mesmo manifest.json e schema.json do repositório.
+//   verify:  lê a URL pública até ela servir o mesmo index.html do build, o mesmo manifest.json e schema.json do repositório e os
+//            engines/ gerados do manifest.
 //
-// Configuração inválida (site ausente, manifest ou schema ausente ou que não é JSON, referência fora da base, link simbólico,
+// Configuração inválida (site ausente, manifest ou schema ausente ou que não é JSON, nome de motor fora de [a-z0-9._-], referência fora da base, link simbólico,
 // branch fora de gh-pages, chave ausente) termina com código 1 e a causa no erro padrão. Reversão e processo: docs/PAGES.md.
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
@@ -72,10 +73,55 @@ function readRootJson(file, name) {
 export const readManifest = (file) => readRootJson(file, 'manifest.json');
 export const readSchema = (file) => readRootJson(file, 'schema.json');
 
-export function stageTree(site, destination, manifest, schema) {
+const NAME = /^[a-z0-9][a-z0-9._-]*$/;
+const json = (value) => Buffer.from(JSON.stringify(value, null, 2) + '\n');
+
+/**
+ * Os pontos de leitura por motor e app do manifest: engines/<nome>.json (nome, versão, tipo, resumo, plataformas e a página da release da versão)
+ * e engines/index.json (nomes e versões). Só dado de produto, derivado do manifest, com chaves em ordem fixa e LF final. Manifest sem motor nem app não gera arquivo.
+ * @param {Buffer} manifest bytes do manifest.json da raiz.
+ * @returns {Map<string, Buffer>} caminho relativo ao site publicado → bytes.
+ * @throws {PagesError} nome fora de [a-z0-9._-], repetido ou reservado, ou entrada sem versão, resumo, tipo ou release resolvível.
+ */
+export function engineFiles(manifest) {
+  const doc = JSON.parse(manifest.toString('utf8'));
+  const entries = [...(doc.engines ?? []).map((e) => [e, e.install, e.kind]), ...(doc.apps ?? []).map((a) => [a, a.release, 'app'])];
+  const files = new Map();
+  const index = [];
+  for (const [e, source, kind] of entries) {
+    if (typeof e.name !== 'string' || !NAME.test(e.name)) {
+      throw new PagesError('nome de motor ou app ' + JSON.stringify(e.name) + ' fora de [a-z0-9._-] (começando por letra ou número): ele vira o endereço engines/<nome>.json');
+    }
+    if (e.name === 'index' || files.has('engines/' + e.name + '.json')) { throw new PagesError('nome de motor ou app ' + e.name + ' repetido ou reservado (engines/index.json)'); }
+    for (const [campo, valor] of [['version', e.version], ['summary', e.summary], ['kind', kind]]) {
+      if (typeof valor !== 'string' || !valor) { throw new PagesError(e.name + ': o manifest não traz ' + campo + ', que o engines/' + e.name + '.json publica'); }
+    }
+    const tag = typeof source?.tag === 'string' ? source.tag.replaceAll('{version}', e.version) : '';
+    if (typeof source?.repo !== 'string' || !tag || /[{}]/.test(tag)) { throw new PagesError(e.name + ': sem release resolvível (repo e tag com {version}) no manifest'); }
+    files.set('engines/' + e.name + '.json', json({ name: e.name, version: e.version, kind, summary: e.summary, platforms: Array.isArray(e.platforms) ? e.platforms : [], release: 'https://github.com/' + source.repo + '/releases/tag/' + tag }));
+    index.push({ name: e.name, version: e.version });
+  }
+  if (index.length) { files.set('engines/index.json', json({ entries: index })); }
+  return files;
+}
+
+/**
+ * Monta a árvore a publicar: o site, o manifest.json e o schema.json da raiz, os engines/ gerados (um `engines/` vindo de site/ é descartado) e .nojekyll.
+ * @param {string} site pasta do site.
+ * @param {string} destination pasta vazia onde a árvore é montada.
+ * @param {Buffer} manifest bytes do manifest.json.
+ * @param {Buffer} schema bytes do schema.json.
+ * @param {Map<string, Buffer>=} engines saída de `engineFiles`.
+ */
+export function stageTree(site, destination, manifest, schema, engines = new Map()) {
   fs.cpSync(site, destination, { recursive: true });
   fs.writeFileSync(path.join(destination, 'manifest.json'), manifest);
   fs.writeFileSync(path.join(destination, 'schema.json'), schema);
+  fs.rmSync(path.join(destination, 'engines'), { recursive: true, force: true });
+  for (const [file, bytes] of engines) {
+    fs.mkdirSync(path.dirname(path.join(destination, file)), { recursive: true });
+    fs.writeFileSync(path.join(destination, file), bytes);
+  }
   fs.writeFileSync(path.join(destination, '.nojekyll'), '');
 }
 
@@ -102,6 +148,7 @@ export function publish(site, remote, branch, message, key, manifestFile = DEFAU
   checkSite(site);
   const manifest = readManifest(manifestFile);
   const schema = readSchema(schemaFile);
+  const engines = engineFiles(manifest);
   const overSsh = remote.startsWith('git@') || remote.startsWith('ssh://');
   if (overSsh && !key.includes('PRIVATE KEY')) {
     throw new PagesError(`${KEY_ENV} ausente ou não é uma chave privada: remoto SSH exige a chave de deploy`);
@@ -120,7 +167,7 @@ export function publish(site, remote, branch, message, key, manifestFile = DEFAU
         + `-o UserKnownHostsFile="${knownHosts}"`;
     }
     const tree = path.join(temp, 'tree');
-    stageTree(site, tree, manifest, schema);
+    stageTree(site, tree, manifest, schema, engines);
     git(['init', '-q', '-b', branch], tree);
     git(['add', '-A'], tree);
     git(['-c', 'user.name=github-actions[bot]', '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com',
@@ -173,10 +220,16 @@ async function verifyRootJson(url, expected, stamp, file, label, differs) {
 export const verifyManifest = (url, manifest, stamp) => verifyRootJson(url, manifest, stamp, 'manifest.json', 'manifest', 'do da main');
 export const verifySchema = (url, schema, stamp) => verifyRootJson(url, schema, stamp, 'schema.json', 'schema', 'do local');
 
+/** Cada engines/<nome>.json e o engines/index.json gerados do manifest local respondem 200, são JSON e têm os mesmos bytes. */
+export async function verifyEngines(url, engines, stamp) {
+  for (const [file, expected] of engines) { await verifyRootJson(url, expected, stamp, file, file, 'do gerado do manifest'); }
+}
+
 export async function verify(url, site, attempts, interval, stamp, manifestFile = DEFAULT_MANIFEST, schemaFile = DEFAULT_SCHEMA) {
   checkSite(site);
   const manifest = readManifest(manifestFile);
   const schema = readSchema(schemaFile);
+  const engines = engineFiles(manifest);
   let last = 'sem resposta';
   for (let attempt = 0; attempt < attempts; attempt++) {
     try {
@@ -189,6 +242,7 @@ export async function verify(url, site, attempts, interval, stamp, manifestFile 
       } else {
         await verifyManifest(url, manifest, stamp);
         await verifySchema(url, schema, stamp);
+        await verifyEngines(url, engines, stamp);
         const video = await verifyVideo(url, site, stamp);
         if (video) { console.log(`vídeo no ar: ${video.type}, ${video.bytes} B, sha256 ${video.sha256}`); }
         return;

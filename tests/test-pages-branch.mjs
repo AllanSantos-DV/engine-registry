@@ -30,7 +30,7 @@ function makeSite(html = INDEX) {
   fs.writeFileSync(path.join(site, 'media', '_x.bin'), 'x');
   return site;
 }
-const MANIFEST = '{\n  "engines": [\n    { "name": "x", "version": "1.0.0" }\n  ]\n}\n';
+const MANIFEST = '{\n  "engines": [\n    { "name": "x", "version": "1.0.0", "kind": "cli", "summary": "Motor de teste.", "platforms": ["win32-x64"], "install": { "repo": "dono/repo", "tag": "x-v{version}" } }\n  ]\n}\n';
 function makeManifest(text = MANIFEST) {
   const file = path.join(tmp(), 'manifest.json');
   fs.writeFileSync(file, text);
@@ -50,10 +50,14 @@ function makeSchema(text = SCHEMA) {
   return file;
 }
 const SCHEMA_DA_RAIZ = fs.readFileSync(path.join(ROOT, 'schema.json'), 'utf8').replace(/\r\n/g, '\n');
-async function live(index, { manifest = MANIFEST, manifestStatus = 200, schema = SCHEMA_DA_RAIZ, schemaStatus = 200, status = 200 } = {}) {
+async function live(index, { manifest = MANIFEST, manifestStatus = 200, schema = SCHEMA_DA_RAIZ, schemaStatus = 200, status = 200, engines = {} } = {}) {
+  let geradas = new Map();
+  try { geradas = pages.engineFiles(Buffer.from(manifest)); } catch { /* manifest que o teste serve quebrado */ }
   const server = http.createServer((req, res) => {
-    const name = new URL(req.url, 'http://x').pathname.split('/').pop();
-    const [code, body] = name === 'manifest.json' ? [manifestStatus, manifest] : name === 'schema.json' ? [schemaStatus, schema] : [status, index];
+    const pathname = new URL(req.url, 'http://x').pathname;
+    const name = pathname.split('/').pop();
+    const daPasta = pathname.includes('/engines/') ? (engines[name] ?? (geradas.has('engines/' + name) ? [200, geradas.get('engines/' + name)] : [404, 'nao achei'])) : null;
+    const [code, body] = daPasta ?? (name === 'manifest.json' ? [manifestStatus, manifest] : name === 'schema.json' ? [schemaStatus, schema] : [status, index]);
     res.writeHead(code);
     res.end(body);
   });
@@ -122,13 +126,13 @@ await ok('nenhum workflow do registry usa runner Windows/macOS nem roda a suíte
     assert.ok(!/npm (run )?test\s*$/m.test(code), `${file}: roda a suíte no runner hospedado`);
   }
 });
-await ok('publica commit órfão com .nojekyll, manifest.json, schema.json e arquivos "_"', () => {
+await ok('publica commit órfão com .nojekyll, manifest.json, schema.json, engines/ e arquivos "_"', () => {
   const remote = bareRemote(); const site = makeSite(); const manifest = makeManifest();
   const sha = pages.publish(site, remote, 'gh-pages', 'p', '', manifest);
   assert.equal(gitOut(remote, 'rev-parse', 'gh-pages'), sha);
   assert.equal(gitOut(remote, 'rev-list', '--count', 'gh-pages'), '1');
   const tree = gitOut(remote, 'ls-tree', '-r', '--name-only', 'gh-pages').split('\n').sort();
-  assert.deepEqual(tree, ['.nojekyll', 'index.html', 'manifest.json', 'media/_x.bin', 'schema.json']);
+  assert.deepEqual(tree, ['.nojekyll', 'engines/index.json', 'engines/x.json', 'index.html', 'manifest.json', 'media/_x.bin', 'schema.json']);
   pages.publish(site, remote, 'gh-pages', 'p2', '', manifest);
   assert.equal(gitOut(remote, 'rev-list', '--count', 'gh-pages'), '1', 'segunda publicação refaz o commit órfão');
 });
@@ -289,6 +293,134 @@ await ok('verify falha quando o schema publicado não é JSON válido', async ()
 await ok('verify recusa antes de ler a URL se o schema local falta', async () => {
   const server = await live(INDEX);
   try { await assert.rejects(() => pages.verify(server.url, makeSite(), 1, 0, 'a', makeManifest(), path.join(tmp(), 'schema.json')), /schema\.json/); } finally { await server.close(); }
+});
+const ENGINE_X = '{\n  "name": "x",\n  "version": "1.0.0",\n  "kind": "cli",\n  "summary": "Motor de teste.",\n  "platforms": [\n    "win32-x64"\n  ],\n  "release": "https://github.com/dono/repo/releases/tag/x-v1.0.0"\n}\n';
+const INDEX_X = '{\n  "entries": [\n    {\n      "name": "x",\n      "version": "1.0.0"\n    }\n  ]\n}\n';
+const MANIFEST_COM_APP = JSON.stringify({
+  engines: [{ name: 'x', version: '1.0.0', kind: 'cli', summary: 'Motor de teste.', platforms: ['win32-x64'], home: '~/.x', install: { repo: 'dono/repo', tag: 'x-v{version}', publicKey: 'abc' } }],
+  apps: [{ name: 'app-y', version: '2.1.0', summary: 'App de teste.', homepage: 'https://exemplo.test/', release: { repo: 'dono/apps', tag: 'app-y-v{version}', assets: [] } }],
+}, null, 2) + '\n';
+const lerEngine = (remote, nome) => gitBytes(remote, 'show', 'gh-pages:engines/' + nome + '.json');
+const arvore = (remote) => gitOut(remote, 'ls-tree', '-r', '--name-only', 'gh-pages').split('\n').sort();
+const semEntradas = ['{"engines":[]}', '{}', '{"engines":[],"apps":[]}'];
+const PESSOAL = /[A-Za-z]:[\\/]+Users|\/Users\/|\/home\/\w|[\w.+-]+@[\w-]+\.[a-z]{2,}|%USERPROFILE%|%LOCALAPPDATA%|~\/\./i;
+
+await ok('a árvore publicada leva engines/<nome>.json de cada motor e app do manifest e engines/index.json, fora de site/', () => {
+  const remote = bareRemote();
+  pages.publish(makeSite(), remote, 'gh-pages', 'p', '', makeManifest(MANIFEST_COM_APP));
+  assert.deepEqual(arvore(remote), ['.nojekyll', 'engines/app-y.json', 'engines/index.json', 'engines/x.json', 'index.html', 'manifest.json', 'media/_x.bin', 'schema.json']);
+  assert.equal(lerEngine(remote, 'x').toString('utf8'), ENGINE_X);
+  assert.equal(lerEngine(remote, 'app-y').toString('utf8'),
+    '{\n  "name": "app-y",\n  "version": "2.1.0",\n  "kind": "app",\n  "summary": "App de teste.",\n  "platforms": [],\n  "release": "https://github.com/dono/apps/releases/tag/app-y-v2.1.0"\n}\n');
+  assert.equal(lerEngine(remote, 'index').toString('utf8'),
+    '{\n  "entries": [\n    {\n      "name": "x",\n      "version": "1.0.0"\n    },\n    {\n      "name": "app-y",\n      "version": "2.1.0"\n    }\n  ]\n}\n');
+  assert.ok(!fs.existsSync(path.join(ROOT, 'site', 'engines')), 'os pontos de leitura vêm do manifest da raiz, não de site/');
+});
+await ok('os pontos de leitura do manifest da raiz são só de produto: chaves fixas, valores do manifest e nada de usuário, e-mail ou máquina', () => {
+  const remote = bareRemote();
+  pages.publish(makeSite(), remote, 'gh-pages', 'p', '');
+  const raiz = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'utf8'));
+  const entradas = [...raiz.engines, ...raiz.apps];
+  const nomes = arvore(remote).filter((f) => f.startsWith('engines/') && f !== 'engines/index.json');
+  assert.deepEqual(nomes, entradas.map((e) => 'engines/' + e.name + '.json').sort());
+  for (const e of entradas) {
+    const texto = lerEngine(remote, e.name).toString('utf8');
+    const j = JSON.parse(texto);
+    assert.deepEqual(Object.keys(j), ['name', 'version', 'kind', 'summary', 'platforms', 'release'], e.name);
+    assert.deepEqual([j.name, j.version, j.kind, j.summary, j.platforms], [e.name, e.version, e.kind ?? 'app', e.summary, e.platforms ?? []], e.name);
+    const dono = e.install?.repo ?? e.release.repo;
+    assert.equal(j.release, 'https://github.com/' + dono + '/releases/tag/' + (e.install?.tag ?? e.release.tag).replace('{version}', e.version), e.name);
+    assert.doesNotMatch(texto, PESSOAL, e.name + ' leva dado pessoal ou de máquina');
+    assert.ok(texto.endsWith('}\n') && !texto.includes('\r'), e.name + ': LF e newline final');
+  }
+  const indice = lerEngine(remote, 'index').toString('utf8');
+  assert.deepEqual(JSON.parse(indice).entries, entradas.map((e) => ({ name: e.name, version: e.version })));
+  assert.doesNotMatch(indice, PESSOAL);
+});
+await ok('gera igual e estável: mesma entrada, mesmos bytes (chaves em ordem fixa, LF), venha o manifest com CRLF ou com as chaves em outra ordem', () => {
+  const a = pages.engineFiles(Buffer.from(MANIFEST_COM_APP)); const b = pages.engineFiles(Buffer.from(MANIFEST_COM_APP));
+  assert.deepEqual([...a.keys()], [...b.keys()]);
+  for (const [nome, bytes] of a) { assert.ok(bytes.equals(b.get(nome)), nome); }
+  const embaralhado = JSON.parse(MANIFEST_COM_APP);
+  embaralhado.engines[0] = Object.fromEntries(Object.entries(embaralhado.engines[0]).reverse());
+  const c = pages.engineFiles(Buffer.from(JSON.stringify(embaralhado)));
+  for (const [nome, bytes] of a) { assert.ok(bytes.equals(c.get(nome)), nome + ' mudou com a ordem das chaves do manifest'); }
+  const remote1 = bareRemote(); const remote2 = bareRemote();
+  pages.publish(makeSite(), remote1, 'gh-pages', 'p', '', makeManifest(MANIFEST_COM_APP));
+  pages.publish(makeSite(), remote2, 'gh-pages', 'p', '', makeManifest(MANIFEST_COM_APP.replace(/\n/g, '\r\n')));
+  for (const nome of ['x', 'app-y', 'index']) { assert.ok(lerEngine(remote1, nome).equals(lerEngine(remote2, nome)), nome); }
+  assert.equal(lerEngine(remote1, 'x').toString('utf8'), ENGINE_X);
+});
+await ok('manifest sem entradas não gera arquivo nem a pasta engines/', () => {
+  for (const texto of semEntradas) {
+    const remote = bareRemote();
+    pages.publish(makeSite(), remote, 'gh-pages', 'p', '', makeManifest(texto));
+    assert.deepEqual(arvore(remote), ['.nojekyll', 'index.html', 'manifest.json', 'media/_x.bin', 'schema.json'], texto);
+    assert.equal(pages.engineFiles(Buffer.from(texto)).size, 0, texto);
+  }
+});
+await ok('nome de motor ou app fora de [a-z0-9._-] recusa a publicação e não publica nada', () => {
+  const ruins = ['Maiusculo', 'com espaço', 'a/b', 'a\\b', '..', '.', '.oculto', 'acentuação', 'x?y', ''];
+  for (const nome of ruins) {
+    for (const lista of ['engines', 'apps']) {
+      const texto = JSON.stringify({ [lista]: [{ name: nome, version: '1.0.0', install: { repo: 'a/b', tag: 't-v{version}' }, release: { repo: 'a/b', tag: 't-v{version}' } }] });
+      const remote = bareRemote();
+      assert.throws(() => pages.publish(makeSite(), remote, 'gh-pages', 'p', '', makeManifest(texto)), (e) => e instanceof pages.PagesError && /nome/.test(e.message) && e.message.includes(JSON.stringify(nome)), JSON.stringify(nome) + ' em ' + lista);
+      assert.equal(gitOut(remote, 'branch', '--list'), '', 'nada foi publicado com ' + JSON.stringify(nome));
+    }
+  }
+});
+await ok('nome repetido entre motor e app, nome "index" e release sem tag resolvida recusam a publicação', () => {
+  const entrada = (name, extra = {}) => ({ name, version: '1.0.0', kind: 'cli', summary: 's', install: { repo: 'a/b', tag: 't-v{version}' }, ...extra });
+  const casos = [
+    [{ engines: [entrada('x')], apps: [{ name: 'x', version: '1', summary: 's', release: { repo: 'a/b', tag: 'x-v{version}' } }] }, /repetido/],
+    [{ engines: [entrada('index')] }, /index/],
+    [{ engines: [entrada('x', { install: { repo: 'a/b' } })] }, /release/],
+    [{ engines: [entrada('x', { install: { repo: 'a/b', tag: 'x-v{versao}' } })] }, /release/],
+    [{ engines: [entrada('x', { version: undefined })] }, /version/],
+  ];
+  for (const [manifest, razao] of casos) {
+    const remote = bareRemote();
+    assert.throws(() => pages.publish(makeSite(), remote, 'gh-pages', 'p', '', makeManifest(JSON.stringify(manifest))), (e) => e instanceof pages.PagesError && razao.test(e.message), JSON.stringify(manifest));
+    assert.equal(gitOut(remote, 'branch', '--list'), '');
+  }
+});
+await ok('verify confere cada engines/<nome>.json e o engines/index.json: passa quando iguais aos gerados do manifest local, mesmo com CRLF', async () => {
+  const site = makeSite(); const server = await live(INDEX, { manifest: MANIFEST_COM_APP });
+  try {
+    await pages.verify(server.url, site, 1, 0, 'a', makeManifest(MANIFEST_COM_APP));
+    await pages.verify(server.url, site, 1, 0, 'a', makeManifest(MANIFEST_COM_APP.replace(/\n/g, '\r\n')));
+  } finally { await server.close(); }
+});
+await ok('verify falha com a causa quando um engines/<nome>.json publicado dá 404', async () => {
+  const server = await live(INDEX, { manifest: MANIFEST_COM_APP, engines: { 'app-y.json': [404, 'nao achei'] } });
+  try { await assert.rejects(() => pages.verify(server.url, makeSite(), 1, 0, 'a', makeManifest(MANIFEST_COM_APP)), /engines\/app-y\.json.*HTTP 404/); } finally { await server.close(); }
+});
+await ok('verify falha quando um engines/<nome>.json publicado difere do gerado do manifest local', async () => {
+  const server = await live(INDEX, { manifest: MANIFEST_COM_APP, engines: { 'x.json': [200, ENGINE_X.replace('1.0.0', '9.9.9')] } });
+  try { await assert.rejects(() => pages.verify(server.url, makeSite(), 1, 0, 'a', makeManifest(MANIFEST_COM_APP)), /o engines\/x\.json publicado difere do gerado do manifest/); } finally { await server.close(); }
+});
+await ok('verify falha quando um engines/<nome>.json publicado não é JSON válido', async () => {
+  const server = await live(INDEX, { manifest: MANIFEST_COM_APP, engines: { 'x.json': [200, '<html>404</html>'] } });
+  try { await assert.rejects(() => pages.verify(server.url, makeSite(), 1, 0, 'a', makeManifest(MANIFEST_COM_APP)), /engines\/x\.json publicado não é JSON válido/); } finally { await server.close(); }
+});
+await ok('verify falha quando o engines/index.json publicado dá 404 ou difere', async () => {
+  const falta = await live(INDEX, { manifest: MANIFEST_COM_APP, engines: { 'index.json': [404, 'x'] } });
+  const outro = await live(INDEX, { manifest: MANIFEST_COM_APP, engines: { 'index.json': [200, INDEX_X] } });
+  try {
+    await assert.rejects(() => pages.verify(falta.url, makeSite(), 1, 0, 'a', makeManifest(MANIFEST_COM_APP)), /engines\/index\.json.*HTTP 404/);
+    await assert.rejects(() => pages.verify(outro.url, makeSite(), 1, 0, 'a', makeManifest(MANIFEST_COM_APP)), /o engines\/index\.json publicado difere/);
+  } finally { await Promise.all([falta.close(), outro.close()]); }
+});
+await ok('verify de manifest sem entradas não lê engines/ (nada foi publicado ali)', async () => {
+  const server = await live(INDEX, { manifest: '{"engines":[]}', engines: { 'index.json': [404, 'x'] } });
+  try { await pages.verify(server.url, makeSite(), 1, 0, 'a', makeManifest('{"engines":[]}')); } finally { await server.close(); }
+});
+await ok('docs/PAGES.md documenta os pontos de leitura por motor e o workflow segue disparando só pelo manifest da raiz', () => {
+  const doc = fs.readFileSync(path.join(ROOT, 'docs', 'PAGES.md'), 'utf8');
+  assert.match(doc, /engines\/<nome>\.json/);
+  assert.match(doc, /engines\/index\.json/);
+  assert.match(GATILHOS, /paths: \['site\/\*\*', 'manifest\.json', 'schema\.json'\]/);
 });
 const sha = (b) => createHash('sha256').update(b).digest('hex');
 const MP4 = Buffer.from('mp4-de-teste-com-alguns-bytes');

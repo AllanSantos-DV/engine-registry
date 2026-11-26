@@ -86,7 +86,7 @@ export function listCommand({ bundled, platform = target(), apps = false } = {})
 
 /** O que o kit faria, em texto, a partir do retorno de `ensure`, `pin` ou `rollback` com `dryRun:true`. */
 export const planoEm = (r) => { const plano = ({
-  instalar: `instalaria v${r.version}`, atualizar: `atualizaria v${r.installed} → v${r.version}`, reusar: `reusaria v${r.version}, já em dia`, manter: `manteria v${r.version} (v${r.available} disponível; ENGINE_KIT_NO_AUTO_UPDATE ligado)`,
+  instalar: `instalaria v${r.version}`, atualizar: `atualizaria v${r.installed} → v${r.version}`, reusar: `reusaria v${r.version}, já em dia`, manter: r.quarantined ? `manteria v${r.version} (v${r.quarantined.version} em quarentena)` : `manteria v${r.version} (v${r.available} disponível; ENGINE_KIT_NO_AUTO_UPDATE ligado)`,
   fixar: `fixaria v${r.version} (já instalada)`, "instalar-e-fixar": `instalaria v${r.version} e fixaria`, "trocar-e-fixar": `trocaria v${r.installed} → v${r.version} e fixaria`, reverter: `reverteria v${r.installed} → v${r.version} e fixaria`,
 })[r.plan]; return plano && plano + (r.religaria ? "; derrubaria e religaria o daemon vivo" : ""); };
 
@@ -107,7 +107,7 @@ const fetcherDeArquivo = (tgz) => async (url, _prazo, { stream } = {}) => {
  * @param {string} name motor.
  * @param {string} tgz artefato, com `<tgz>.sha256` e `<tgz>.sig` ao lado.
  */
-export const ensureDeArquivo = (name, tgz, { log = () => {}, ...opts } = {}) => ensureCommand(name, { ...opts, autoUpdate: true, fetcher: fetcherDeArquivo(tgz), log: (m) => log(m.replace(/baixando \S+/, `lendo ${tgz} (sem baixar)`)) });
+export const ensureDeArquivo = (name, tgz, { log = () => {}, ...opts } = {}) => ensureCommand(name, { ...opts, autoUpdate: true, quarentena: false, fetcher: fetcherDeArquivo(tgz), log: (m) => log(m.replace(/baixando \S+/, `lendo ${tgz} (sem baixar)`)) });
 
 /**
  * Os motores que `engine-kit ensure --instalados` atualiza: os instalados aqui que o ensure sabe atualizar (self-managed e motor de outra plataforma ficam de fora).
@@ -130,15 +130,16 @@ export function instaladosAtualizaveis(opts) {
  *        (`available`). Default true. Um `version` explícito sempre vale: foi pedido.
  *        Motor fixado (`engine-kit pin`) fica sempre na versão fixada; `version` diferente dela é recusado.
  * @param {boolean=} opts.dryRun true = só diz o que faria, sem baixar nem gravar: devolve `{ ok:true, dryRun:true, plan }` com `plan` = instalar, atualizar, reusar ou manter.
+ * @param {boolean=} opts.quarentena false = a versão que o histórico marca como volta é instalada mesmo sem `version` (default true: motor instalado, sem `version` nem pin, fica na instalada, como o `ensureEngine`).
  * @param {boolean=} opts.fixar com `dryRun` e `version`: o plano de um `pin --version`, em que o pin gravado não contradiz a versão pedida porque ela é a que vai ser fixada.
  * @param {number=} opts.religarPrazoMs prazo para o daemon religado anunciar e responder o `/health` (default `PRAZO_RELIGAR_MS`, 60 s).
  * Daemon vivo que o ensure derruba para trocar a instalação é religado com o executável novo (`restarted: {ok:true, pid, version, bootLog}`); se não sobe, o retorno é
  * `{ ok:false, reason, restarted: {ok:false, reason, bootLog, pid?}, version }` (a instalação ficou feita, o daemon NÃO está no ar). Se a troca falha depois de o daemon cair, o retorno é `{ ok:false, reason, restarted }` e `restarted` é o religar da instalação ANTIGA (a razão diz se subiu). Daemon parado antes não é lançado. No `dryRun`, `religaria:true` avisa o que o ensure faria.
  * @returns {Promise<{ok:true, entryPath:string, version:string, kind:string, reused?:boolean, signed?:boolean,
- *          previous?:string, available?:string, pinned?:string} | {ok:false, reason:string}>} `previous` = versão
- *          substituída; `pinned` = versão em que o motor está fixado.
+ *          previous?:string, available?:string, pinned?:string, quarantined?:{version:string}} | {ok:false, reason:string}>} `previous` = versão
+ *          substituída; `pinned` = versão em que o motor está fixado; `quarantined` = versão oferecida que não subiu aqui e ficou de lado.
  */
-export async function ensureCommand(name, { version, registryUrl, bundled, manifest, fetcher, autoUpdate = true, dryRun = false, fixar = false, religarPrazoMs, log = () => {} } = {}) {
+export async function ensureCommand(name, { version, registryUrl, bundled, manifest, fetcher, autoUpdate = true, dryRun = false, fixar = false, quarentena = true, religarPrazoMs, log = () => {} } = {}) {
   const { local, reason } = embarcado(bundled);
   if (!local) { return { ok: false, reason }; }
 
@@ -159,7 +160,8 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
 
   const engine = r.engine;
   const previous = installedOf(engine);
-  const manter = (!autoUpdate || engine.runtime?.updatePath) && !version && !pin && previous && !satisfiesPin(previous, engine.version);
+  const quarantined = quarentena && !version && !pin ? quarantineOf(name, engine.version, previous) : undefined;
+  const manter = (!autoUpdate || engine.runtime?.updatePath || quarantined) && !version && !pin && previous && !satisfiesPin(previous, engine.version);
   if (dryRun) {
     const serve = previous && (version || pin ? previous === engine.version : engine.runtime?.updatePath || satisfiesPin(previous, engine.version));
     const religaria = !manter && !serve && previous && await vivoParaReligar(engine);
@@ -167,18 +169,19 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
     if (engine.status === "self-managed" && !serve && !manter) { return { ok: false, reason: instaladorProprio(engine, `${name}: ${AUTO_GERIDO}`) }; }
     const rb = !manter && !serve && !version && !pin && rollbackReason(name, engine.version);
     if (rb) { return { ok: false, reason: rb }; }
-    const quarantined = !version && !pin ? quarantineOf(name, engine.version, previous) : undefined;
     return {
       ok: true, dryRun: true, plan: manter ? "manter" : serve ? "reusar" : previous ? "atualizar" : "instalar", kind: engine.kind,
       version: manter || serve ? previous : engine.version,
-      ...(previous ? { installed: previous } : {}), ...(manter ? { available: engine.version } : {}), ...(pin ? { pinned: pin } : {}), ...(engine.staleCache ? { staleCache: true } : {}),
+      ...(previous ? { installed: previous } : {}), ...(manter && !quarantined ? { available: engine.version } : {}), ...(pin ? { pinned: pin } : {}), ...(engine.staleCache ? { staleCache: true } : {}),
       ...(religaria ? { religaria: true } : {}),
       ...(quarantined ? { quarantined, warns: [quarantineWarn(quarantined.version)] } : {}),
     };
   }
   if (manter) {
+    if (quarantined) { log(`aviso: ${name}: ${quarantineWarn(quarantined.version)}`); }
     return {
-      ok: true, entryPath: join(engine.homeDir, engine.install.entry), version: previous, kind: engine.kind, reused: true, available: engine.version,
+      ok: true, entryPath: join(engine.homeDir, engine.install.entry), version: previous, kind: engine.kind, reused: true,
+      ...(quarantined ? { quarantined, warns: [quarantineWarn(quarantined.version)] } : { available: engine.version }),
       ...(engine.staleCache ? { staleCache: true } : {}),
       ...(engine.kind === "cli" ? { pointer: pointerOf(engine) } : {}),
     };

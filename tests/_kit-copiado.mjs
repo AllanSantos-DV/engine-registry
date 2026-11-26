@@ -10,10 +10,10 @@ import { pathToFileURL } from "node:url";
 
 /**
  * @param {string} RUN pasta temporária do teste (HOME dele).
- * @param {{manifest:object, artefatos:object, kitHome?:string, env?:object}} o `manifest` e `artefatos` de `registry()` em `_registro-falso.mjs`; `env` acrescenta variáveis ao ambiente do CLI (vale sobre as de sempre); `STDIN_TTY_FALSO` não vazio faz o processo ver a entrada padrão como terminal; `LOOPBACK_REAL` não vazio deixa passar ao fetch de verdade só as chamadas a `http://127.0.0.1:` (daemon falso do teste).
+ * @param {{manifest:object, artefatos:object, kitHome?:string, env?:object}} o `manifest` e `artefatos` de `registry()` em `_registro-falso.mjs`; `extras` mapeia URL → Buffer de downloads a mais (outras versões); `env` acrescenta variáveis ao ambiente do CLI (vale sobre as de sempre); `STDIN_TTY_FALSO` não vazio faz o processo ver a entrada padrão como terminal; `LOOPBACK_REAL` não vazio deixa passar ao fetch de verdade só as chamadas a `http://127.0.0.1:` (daemon falso do teste).
  * @returns {Promise<{cli:(...args:string[])=>{status:number, stdout:string, stderr:string}, comEntrada:(input:string, ...args:string[])=>{status:number, stdout:string, stderr:string}}>} `comEntrada` roda o CLI com `input` na entrada padrão.
  */
-export async function criarCliOffline(RUN, { manifest, artefatos, kitHome = join(RUN, "kit-home-cli"), env: extra = {} }) {
+export async function criarCliOffline(RUN, { manifest, artefatos, kitHome = join(RUN, "kit-home-cli"), env: extra = {}, extras = {} }) {
   const { DEFAULT_REGISTRY_URL } = await import("../kit/resolve.mjs");
   const raiz = join(RUN, "kit-copiado");
   const aqui = new URL("..", import.meta.url);
@@ -31,6 +31,7 @@ export async function criarCliOffline(RUN, { manifest, artefatos, kitHome = join
     const base = `https://github.com/x/y/releases/download/${e.name}-v${e.version}/${e.name}.tgz`;
     Object.assign(mapa, { [base]: b64(a.tgz), [`${base}.sha256`]: b64(a.sha256), [`${base}.sig`]: b64(a.sig) });
   }
+  for (const [url, bytes] of Object.entries(extras)) { mapa[url] = b64(bytes); }
   const rede = join(RUN, "rede-falsa.json");
   writeFileSync(rede, JSON.stringify(mapa));
   const preload = join(RUN, "preload-rede.mjs");
