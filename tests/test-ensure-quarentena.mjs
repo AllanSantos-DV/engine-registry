@@ -7,7 +7,8 @@
 //   • --version, pin e --de-arquivo mandam: a versão em quarentena é instalada;
 //   • o registry oferecendo outra versão tira o motor da quarentena e atualiza; sem histórico de volta, ou sem versão instalada, nada muda;
 //   • a versão que voltou a subir por escolha depois da volta (linha posterior com `to` igual) deixa de ser quarentena; a subida anterior à volta não livra;
-//   • `doctor --fix` pula o motor em quarentena (PULADO, exit 0), não instala e não derruba o daemon vivo, e atualiza quando o registry oferece outra versão;
+//   • `doctor --fix` pula o motor DESATUALIZADO em quarentena (PULADO, exit 0), não instala e não derruba o daemon vivo, e atualiza quando o registry oferece outra versão;
+//   • `doctor --fix --verify` num motor ADULTERADO com a versão oferecida em quarentena não repara: diz que nada foi reparado, conta falha e sai com 1;
 //   • pelo CLI: o texto traz uma linha `aviso:` com o motor e o --json traz `quarantined`, em um motor e em vários, também no `ensure --de` (real e --dry-run).
 // Hermético: HOME e ENGINE_KIT_HOME isolados, registry e downloads de memória (o .tgz é real), o CLI roda numa cópia do kit sem rede, nenhum daemon.
 //
@@ -160,6 +161,24 @@ console.log("\n== doctor --fix respeita a quarentena ==");
   check("--fix não derruba o daemon vivo", await vivo(), f.stdout + f.stderr);
   const n = cli("doctor", "--fix", "--engine", "d-nova");
   check("com a versão nova no registry o --fix atualiza", n.status === 0 && instalado("d-nova") === "1.1.1" && !/PULADO/.test(n.stdout), n.stdout + n.stderr);
+}
+
+console.log("\n== doctor --fix com motor ADULTERADO em quarentena ==");
+{
+  const { hashTree, FILES_MANIFEST } = await import("../kit/provision.mjs");
+  const a = registry({ "a-adulterado": "1.1.0" });
+  preinstalar("a-adulterado", "1.0.0");
+  const bin = join(homeOf("a-adulterado"), "bin"), exe = join(bin, "a-adulterado.mjs");
+  writeFileSync(join(bin, FILES_MANIFEST), JSON.stringify(hashTree(bin)));
+  writeFileSync(exe, "adulterado");
+  recordSwap("a-adulterado", "1.1.0", "1.0.0", "rollback");
+  const { cli } = await criarCliOffline(RUN, { manifest: a.manifest, artefatos: a.artefatos, kitHome: KIT_HOME, env: { ENGINE_KIT_NO_AUTO_UPDATE: "0" } });
+  const antes = historico();
+
+  const f = cli("doctor", "--fix", "--verify", "--engine", "a-adulterado");
+  check("--fix diz que nada foi reparado e como reinstalar, e sai com 1", f.status === 1 && f.stdout.includes("ADULTERADO e v1.1.0 em quarentena: nada foi reparado (--version 1.1.0 reinstala)"), f.stdout + f.stderr);
+  check("--fix conta a adulteração como falha: o rodapé não diz conciliado", /== 1 falha\(s\) ==/.test(f.stdout) && !/conciliado/.test(f.stdout), f.stdout);
+  check("--fix deixa o binário e o histórico intactos", readFileSync(exe, "utf8") === "adulterado" && instalado("a-adulterado") === "1.0.0" && historico() === antes);
 }
 
 rmSync(RUN, { recursive: true, force: true });

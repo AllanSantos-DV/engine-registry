@@ -82,7 +82,9 @@ for (const r of pending) {
     continue;
   }
   if (r.quarantined) {
-    console.log(`  PULADO ${r.name}: v${r.quarantined.version} em quarentena (--version ${r.quarantined.version} força)`);
+    const v = r.quarantined.version;
+    if (r.state === "ADULTERADO") { failures++; console.log(` FALHA ${r.name} — ADULTERADO e v${v} em quarentena: nada foi reparado (--version ${v} reinstala)`); }
+    else { console.log(`  PULADO ${r.name}: v${v} em quarentena (--version ${v} força)`); }
     continue;
   }
   const p = await provision(r.engine, {

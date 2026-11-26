@@ -35,11 +35,15 @@ const fimDoLog = (log, token) => {
   } catch { return ""; }
 };
 
+/** Versão sem o sufixo `+metadata` de semver, que não distingue versões. */
+const semMeta = (v) => String(v).replace(/^v/, "").replace(/\+.*$/, "");
+
 const foraDoHome = (home, p) => { const r = relative(home, resolve(home, p)); return /^\.\.([\\/]|$)/.test(r) || isAbsolute(r); };
 
 /**
  * Sobe o executável e espera o anúncio da `versao`; no prazo, ou se o processo morre, devolve a causa e o `bootLog`.
- * Daemon já no ar na `versao` (outro consumidor subiu durante a troca) é devolvido sem lançar nada; o anúncio de um pid vivo nunca é apagado.
+ * Daemon já no ar na `versao` (outro consumidor subiu durante a troca) é devolvido sem lançar nada; o anúncio de um pid vivo nunca é apagado e esse pid é esperado, não duplicado.
+ * A versão anunciada vale sem o sufixo `+metadata`; daemon saudável que anuncia outra versão devolve ok:false e continua vivo.
  */
 async function subir(engine, versao, prazoMs) {
   const { homeDir, install, runtime } = engine;
@@ -49,26 +53,39 @@ async function subir(engine, versao, prazoMs) {
   const falha = (reason, pid) => ({ ok: false, reason, bootLog, ...(pid ? { pid } : {}) });
   const fora = [install.entry, runtime.runtimeFile].find((p) => foraDoHome(homeDir, p));
   if (fora) { return falha(`${fora} fica fora do home ${homeDir}: não lancei nem apaguei nada`); }
-  const noAr = async (boot) => {
+  const olhar = async (boot) => {
     const d = await discover(engine.name, { manifest });
-    const version = String(d.version ?? versao ?? "").replace(/^v/, "");
-    return d.ok && (!versao || version === versao) ? { ok: true, pid: d.pid ?? boot?.pid, version, bootLog } : null;
+    return d.ok ? { ok: true, pid: d.pid ?? boot?.pid, version: String(d.version ?? versao ?? "").replace(/^v/, ""), bootLog } : null;
   };
+  const noAr = async (boot) => { const o = await olhar(boot); return o && (!versao || semMeta(o.version) === semMeta(versao)) ? o : null; };
+  const esperar = async (boot, segue) => {
+    let up = await noAr(boot);
+    for (const fim = Date.now() + prazoMs; !up && segue() && Date.now() < fim; up = await noAr(boot)) { await sleep(250); }
+    return up ?? noAr(boot);
+  };
+  const divergiu = async (boot) => { const o = await olhar(boot); return o && falha(`o daemon está no ar mas anuncia v${o.version}, esperado v${versao}`, o.pid); };
   const ja = await noAr();
   if (ja) { return ja; }
+  const anterior = readRuntime(engine)?.pid;
+  if (anterior && alive(anterior)) {
+    const up = await esperar(undefined, () => alive(anterior));
+    if (up) { return up; }
+    if (alive(anterior)) { return (await divergiu()) ?? falha(`o pid ${anterior} anunciado está vivo mas não respondeu o /health em ${prazoMs}ms: não lancei um segundo daemon`, anterior); }
+  }
   const anuncio = readRuntime(engine);
   if (!(anuncio?.pid && alive(anuncio.pid))) { rmSync(join(homeDir, runtime.runtimeFile), { force: true }); }
   const opts = { cwd: dirname(entry), env: { ...process.env, NODE_OPTIONS: "", COPILOT_SDK_PATH: "" } };
   let boot;
-  try { boot = /\.[cm]?js$/.test(entry) ? launchDetached(process.execPath, bootLog, [entry], opts) : launchDetached(entry, bootLog, [], opts); }
+  try { boot = /.[cm]?js$/.test(entry) ? launchDetached(process.execPath, bootLog, [entry], opts) : launchDetached(entry, bootLog, [], opts); }
   catch (e) { return falha(`não consegui subir ${entry} (${e?.message ?? e})`); }
-  let up = await noAr(boot);
-  for (const fim = Date.now() + prazoMs; !up && !boot.dead && Date.now() < fim; up = await noAr(boot)) { await sleep(250); }
-  if (up || (boot.dead && (up = await noAr(boot)))) { return up; }
+  const up = await esperar(boot, () => !boot.dead);
+  if (up) { return up; }
   if (boot.dead) {
     const { code, signal, error } = boot.dead;
     return falha(`${entry} saiu ao subir (${error ?? (signal ? `sinal ${signal}` : `código ${code}`)}); últimas linhas: ${fimDoLog(bootLog, readRuntime(engine)?.[runtime.shutdownTokenField]) || "(vazio)"}`, boot.pid);
   }
+  const div = await divergiu(boot);
+  if (div) { return div; }
   try { process.kill(boot.pid); } catch { /* já saiu */ }
   return falha(`${entry} subiu mas não anunciou em ${prazoMs}ms (encerrei o pid ${boot.pid})`, boot.pid);
 }

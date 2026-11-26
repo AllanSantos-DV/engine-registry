@@ -8,6 +8,8 @@
 //   • `--dry-run` não derruba nem religa (o plano avisa que derrubaria e religaria); motor com `runtime.updatePath` não é trocado nem religado;
 //   • kind=cli que não é a casa nem o grafo (o vxk) é derrubado como antes e NÃO é religado;
 //   • o daemon novo que outro consumidor já subiu é reconhecido (nada lançado, anúncio intacto); o anúncio de um pid ainda vivo nunca é apagado, e o lançado que perde a corrida não vira falha;
+//   • o daemon que anuncia a versão com sufixo `+build` é aceito; o saudável que anuncia outra versão devolve ok:false com a razão e NÃO é morto;
+//   • o anúncio de um pid vivo que ainda não responde o /health é esperado até o prazo, sem lançar um segundo daemon;
 //   • a troca que falha depois de o daemon cair religa a instalação ANTIGA e diz se subiu; se também não sobe, diz que o daemon NÃO está no ar;
 //   • a razão não leva o shutdownToken do runtime.json nem hexadecimal de 32+ caracteres do fim do boot.log (viram [omitido]); as outras linhas ficam;
 //   • entry e runtimeFile fora do home são recusados sem apagar nem lançar; o daemon religado roda na pasta do executável, sem NODE_OPTIONS nem COPILOT_SDK_PATH;
@@ -260,6 +262,35 @@ console.log("\n== o anúncio de um pid ainda vivo nunca é apagado; o lançado q
   const r = await rel.religar("1.1.0");
   check("o daemon vivo que ainda subia é o religado: ok com o pid dele, não 'saiu ao subir'", r?.ok === true && r.pid === pidLento, JSON.stringify(r));
   check("o anúncio é o dele e ele segue vivo", daemonJson(c.home)?.pid === pidLento && vivo(pidLento));
+}
+
+console.log("\n== a versão anunciada: '+metadata' de semver não conta; versão diferente não mata o daemon saudável ==");
+{
+  const anunciando = (expr) => SOBE.replace(/const version = (.*);/, `const version = ${expr};`);
+  const c = await preparar("sufixo", { v2: anunciando("$1 + '+build.7'") });
+  const r = await ensureCommand(c.name, { ...c.r2.opts, religarPrazoMs: 3000 });
+  guardar(r);
+  check("daemon que anuncia 1.1.0+build.7 é o religado da v1.1.0", r.ok && r.restarted?.ok === true && r.restarted.version === "1.1.0+build.7" && vivo(r.restarted.pid) && (await saude(c.home)) === 200, JSON.stringify(r));
+  const d = await preparar("diverge", { v2: anunciando("'9.9.9'") });
+  const t0 = Date.now();
+  const rd = await ensureCommand(d.name, { ...d.r2.opts, religarPrazoMs: 1500 });
+  guardar(rd);
+  check("versão realmente diferente: ok:false com a razão 'no ar mas anuncia vX, esperado vY' e o pid do daemon", rd.ok === false && rd.restarted?.ok === false && /o daemon está no ar mas anuncia v9\.9\.9, esperado v1\.1\.0/.test(rd.restarted.reason) && rd.restarted.pid > 0, JSON.stringify(rd.restarted));
+  check("o daemon saudável que anuncia outra versão não é morto: segue vivo e o /health responde", vivo(rd.restarted?.pid) && daemonJson(d.home)?.pid === rd.restarted?.pid && (await saude(d.home)) === 200 && Date.now() - t0 < 20000);
+}
+
+console.log("\n== pid vivo anunciado que ainda não responde o /health: espera, sem lançar um segundo daemon ==");
+{
+  const marcador = join(RUN, "marcador-segundo");
+  const c = await preparar("espera", { v2: FORA(marcador) });
+  const rel = await derrubadoEInstalado(c);
+  const lento = join(RUN, "w-lento-espera.mjs");
+  writeFileSync(lento, LENTO);
+  const pidLento = await subirComo(c, [lento, c.home]);
+  const r = await rel.religar("1.1.0");
+  await sleep(500);
+  check("o religado é o daemon vivo que ainda subia", r?.ok === true && r.pid === pidLento && vivo(pidLento), JSON.stringify(r));
+  check("nenhum segundo daemon foi lançado: sem marcador e sem boot.log", !existsSync(marcador) && !existsSync(c.bootLog));
 }
 
 console.log("\n== a troca que falha depois de o daemon cair religa a instalação antiga ==");

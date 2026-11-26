@@ -5,6 +5,7 @@
 //   • pin diferente da versão instalada não derruba o export: o motor sai sem pin, listado em `pinOmitido`, e o CLI avisa em uma linha no stderr;
 //   • o motor cujo entry muda por plataforma (`install.byPlatform`) conta como instalado na plataforma dele, no export e na trava de rebaixamento do import;
 //   • dois motores que dividem home e entrada na plataforma (o do sufixo `-linux-x64`) são o mesmo binário: export e `--instalados` ficam com o de nome canônico, uma vez só;
+//   • o pin gravado só em um dos nomes do mesmo binário vale para o canônico (export, plano do ensure, recusa de outra versão), sem gravar pin novo no trust.json;
 //   • o documento nunca leva chave pública, assinatura, caminho local, usuário nem máquina: só as chaves conhecidas, com os valores no formato esperado;
 //   • sem arquivo o export imprime o JSON; com arquivo grava por .part e rename e nunca deixa metade;
 //   • o import instala a versão REGISTRADA (não a do registry), pelo ensure (sha256 + Ed25519 + chave do manifest embarcado), e fixa só quem estava fixado;
@@ -32,7 +33,7 @@ const { criarRegistroFalso } = await import("./_registro-falso.mjs");
 const { criarCliOffline } = await import("./_kit-copiado.mjs");
 const mod = await import("../kit/export-import.mjs").catch((e) => ({ erro: e }));
 const { ensureCommand, listCommand, pinCommand, planoEm, instaladosAtualizaveis } = await import("../kit/ensure.mjs");
-const { pinOf, trustPath, historyPath } = await import("../kit/trust.mjs");
+const { pinOf, setPin, trustPath, historyPath } = await import("../kit/trust.mjs");
 const { ownVersion } = await import("../kit/update.mjs");
 const { RUNTIME, SOBE } = await import("./_daemon-falso.mjs");
 const { homeOf, registry, instalado, preinstalar, owner } = await criarRegistroFalso(RUN);
@@ -439,6 +440,19 @@ console.log("\n== motor cujo entry muda por plataforma ==");
   check("o ensure --instalados no linux-x64 trata o mesmo binário uma vez, pelo nome canônico", atualizaveis.ok && atualizaveis.names.join() === "pl-grafo", JSON.stringify(atualizaveis));
   const soSufixo = await comoEm("linux", "x64", () => instaladosAtualizaveis({ bundled: { engines: [gemeo] } }));
   check("sem o motor canônico no manifest, o do sufixo segue valendo", soSufixo.ok && soSufixo.names.join() === "pl-grafo-linux-x64", JSON.stringify(soSufixo));
+
+  const novo = JSON.parse(JSON.stringify(dois));
+  for (const e of novo.engines) { e.version = "1.2.0"; }
+  setPin("pl-grafo-linux-x64", "1.1.0");
+  const trustAntes = readFileSync(trustPath(), "utf8");
+  const exFix = await comoEm("linux", "x64", () => exportar(undefined, { bundled: dois }));
+  check("pin gravado só no nome do sufixo: o export leva o canônico com o pin", exFix.ok && JSON.stringify(exFix.doc.engines) === JSON.stringify([{ name: "pl-grafo", version: "1.1.0", pin: "1.1.0" }]) && !exFix.pinOmitido, JSON.stringify(exFix));
+  const planoFix = await comoEm("linux", "x64", () => ensureCommand("pl-grafo", { bundled: novo, manifest: novo, dryRun: true }));
+  check("pin só no nome do sufixo: o ensure do canônico fica na versão fixada, sem atualizar", planoFix.ok && planoFix.plan === "reusar" && planoFix.version === "1.1.0" && planoFix.pinned === "1.1.0", JSON.stringify(planoFix));
+  const outra = await comoEm("linux", "x64", () => ensureCommand("pl-grafo", { bundled: novo, manifest: novo, dryRun: true, version: "1.2.0" }));
+  check("versão diferente do pin herdado é recusada e a razão manda soltar o nome que tem o pin", outra.ok === false && /fixado em v1.1.0/.test(outra.reason) && /unpin pl-grafo-linux-x64/.test(outra.reason), JSON.stringify(outra));
+  check("o canônico não ganha pin no trust.json", pinOf("pl-grafo") === undefined && readFileSync(trustPath(), "utf8") === trustAntes);
+  setPin("pl-grafo-linux-x64", null);
   rmSync(homeOf("pl-grafo"), { recursive: true, force: true });
 }
 

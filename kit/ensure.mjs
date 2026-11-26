@@ -35,15 +35,36 @@ export function embarcado(bundled) {
   catch (e) { return { reason: `manifest embarcado ilegível: ${e.message}` }; }
 }
 
+/** Motores que dividem home e entrada na `platform` são o mesmo binário: a chave da instalação. */
+const instalacaoDe = (e, platform) => {
+  const entry = { ...e.install, ...e.install?.byPlatform?.[platform] }.entry;
+  return e.home && entry ? `${expandHome(e.home)}|${entry}` : e.name;
+};
+
 /**
- * Pin do motor (`trust.json`), recusando uma `version` pedida que o contradiz.
+ * Pin do motor ou, sem ele, o de outro nome da mesma instalação (o do sufixo `-<plataforma>`); nada é gravado. Lança se o `trust.json` é ilegível.
+ * @returns {{pin?:string, dono?:string}} `dono` = o nome que tem o pin gravado.
+ */
+export function pinDaInstalacao(local, name, platform = target()) {
+  const proprio = pinOf(name);
+  if (proprio) { return { pin: proprio, dono: name }; }
+  const todos = local?.engines ?? [], eu = todos.find((e) => e.name === name);
+  for (const e of eu ? todos : []) {
+    const pin = e.name !== name && instalacaoDe(e, platform) === instalacaoDe(eu, platform) ? pinOf(e.name) : undefined;
+    if (pin) { return { pin, dono: e.name }; }
+  }
+  return {};
+}
+
+/**
+ * Pin do motor (`trust.json`, ou o de um nome da mesma instalação no manifest `local`), recusando uma `version` pedida que o contradiz.
  * @returns {{pin?:string, reason?:string}}
  */
-export function pinFor(name, version) {
-  let pin;
-  try { pin = pinOf(name); } catch (e) { return { reason: e.message }; }
+export function pinFor(name, version, local) {
+  let pin, dono;
+  try { ({ pin, dono } = pinDaInstalacao(local, name)); } catch (e) { return { reason: e.message }; }
   return pin && version && version !== pin
-    ? { reason: `${name} está fixado em v${pin} → engine-kit pin ${name} --version ${version} troca a versão fixada; engine-kit unpin ${name} solta` }
+    ? { reason: `${name} está fixado em v${pin}${dono === name ? "" : ` (por ${dono}, que divide a instalação)`} → engine-kit pin ${name} --version ${version} troca a versão fixada; engine-kit unpin ${dono} solta` }
     : { pin };
 }
 
@@ -115,7 +136,7 @@ export const ensureDeArquivo = (name, tgz, { log = () => {}, ...opts } = {}) => 
 export function semDuplicados(local, nomes, platform) {
   const dono = new Map(), chave = new Map();
   for (const e of (local.engines ?? []).filter((x) => nomes.includes(x.name))) {
-    const entry = { ...e.install, ...e.install?.byPlatform?.[platform] }.entry, k = e.home && entry ? `${expandHome(e.home)}|${entry}` : e.name;
+    const k = instalacaoDe(e, platform);
     chave.set(e.name, k);
     if (!dono.has(k) || dono.get(k).endsWith(`-${platform}`)) { dono.set(k, e.name); }
   }
@@ -165,7 +186,7 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
     return { ok: false, reason: `${name}: o manifest embarcado não traz publicKey → sem chave do primeiro contato não instalo (ABORT)` };
   }
 
-  const { pin, reason: recusa } = dryRun && fixar ? { pin: version } : pinFor(name, version);
+  const { pin, reason: recusa } = dryRun && fixar ? { pin: version } : pinFor(name, version, local);
   if (recusa) { return { ok: false, reason: recusa }; }
   // refresh: instalar quer a verdade do registry, não um descritor de cache.
   const r = await resolve(name, { version: version ?? pin, registryUrl, refresh: true, ...(manifest ? { manifest } : {}) });

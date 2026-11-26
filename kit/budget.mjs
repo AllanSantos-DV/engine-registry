@@ -195,10 +195,13 @@ const ROOT = resolvePath(KIT, "..");
 //   O `doctor --fix` pula o motor em quarentena (`PULADO`) em vez de reinstalar a versão que não subiu; o `ensure --de` devolve `quarantined` e `warns` do motor mantido (o texto do --dry-run mostra o aviso); `semDuplicados` reduz o export e o `--instalados` (ensure, pin e fetch)
 //   a um motor por home e entrada na plataforma, o de nome canônico, para o `motor-de-grafo` e o `motor-de-grafo-linux-x64` não contarem o mesmo binário duas vezes; o `completion` recusa nome de motor fora de /^[a-z0-9][a-z0-9._-]*$/; o uso e o README do `fetch --instalados` dizem "versão do registry (ou o pin)".
 //   Runtime 38990 → 38974 de 39000 (a cifra de 39 KB da vitrine segue): `failedVersions` (kit/trust.mjs) ignora o `from` de uma volta se uma linha posterior do motor tem `to` igual (a versão voltou a subir por escolha), +0.09 KB pagos mudando para linha própria um comentário que o kill-switch contava como código. O cliente ficou em 10685/10700.
+//   2026-11-27 tooling 138500 → 140000: três correções P2 da revisão independente, +1.74 KB medidos, 138170 → 139912 (kit/religar.mjs +0.85, kit/ensure.mjs +0.66, kit/doctor.mjs +0.17, kit/export-import.mjs +0.06, kit/fetch.mjs +0.01).
+//   O `doctor --fix` conta como falha (exit 1) o motor ADULTERADO cuja versão oferecida está em quarentena, em vez de pulá-lo e dizer "conciliado"; o `subir` do religar compara a versão anunciada sem o sufixo `+metadata`, devolve ok:false sem matar o daemon saudável que anuncia outra versão e espera o pid vivo já anunciado em vez de lançar um segundo;
+//   `pinDaInstalacao` (kit/ensure.mjs, reusado pelo `pinFor`, pelo export e pelo fetch) faz o canônico herdar o pin gravado em outro nome do mesmo home e entrada, e `instalacaoDe` passou a ser a chave única que o `semDuplicados` também usa. Runtime 38974/39000 e cliente 10685/10700 não mudaram.
 const BUDGETS = {
   runtime: { codeBytes: 39000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10700, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 138500, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 140000, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

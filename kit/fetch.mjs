@@ -94,7 +94,7 @@ export async function fetchCommand(name, { version, registryUrl, destDir = proce
   if (pinned) {
     const publicKey = pinned.install?.publicKey;
     if (!publicKey) { return { ok: false, reason: `${name}: o manifest embarcado não traz publicKey → sem chave do primeiro contato não baixo (ABORT)` }; }
-    const { pin, reason: recusa } = pinFor(name, version);
+    const { pin, reason: recusa } = pinFor(name, version, local);
     if (recusa) { return { ok: false, reason: recusa }; }
     const r = await resolve(name, { version: version ?? pin, registryUrl, refresh: true, ...(manifest ? { manifest } : {}) });
     if (r.ok && r.engine.status === "pending-release") { return { ok: false, reason: `${name} ainda não publicou release (status: pending-release)` }; }
