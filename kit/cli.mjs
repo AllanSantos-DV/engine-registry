@@ -20,6 +20,7 @@
 //   npx engine-kit trust [motor] [--json]            # o que o trust.json guarda por motor (só chave pública), sem gravar
 //   npx engine-kit export [arquivo]                  # os motores instalados aqui (nome, versão, pin) num documento JSON, sem chave nem caminho
 //   npx engine-kit import <arquivo|-> [--dry-run]    # instala a versão registrada de cada motor do documento (sha256 + Ed25519) e refixa o que estava fixado; `-` lê a entrada padrão
+//   npx engine-kit completion <bash|zsh|powershell>  # imprime o script de completion do shell, sem rede e sem gravar nada
 //   npx engine-kit mcp                               # servidor MCP (stdio) só de leitura sobre os verbos acima
 //
 // Por padrão o kit se atualiza (roda de novo como a última versão do npm) e atualiza o motor instalado.
@@ -31,6 +32,7 @@ import { registerNeuralLink, unregisterNeuralLink } from "./register.mjs";
 import { fetchCommand } from "./fetch.mjs";
 import { exportCommand, importCommand } from "./export-import.mjs";
 import { historyCommand, checkCommand, urlCommand, updateCommand, reportCommand, trustCommand, trustRestoreCommand, pathCommand, infoCommand } from "./inspect.mjs";
+import { completionScript, SHELLS } from "./completion.mjs";
 import { selfUpdate, autoUpdateEnabled } from "./update.mjs";
 import { pinOf, readTrust } from "./trust.mjs";
 
@@ -65,6 +67,7 @@ const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-ur
   "     engine-kit url <motor> [--json]              endereço do daemon vivo (url, versão e pid) lido do anúncio dele; nunca imprime o token\n" +
   "     engine-kit export [arquivo]                  grava (ou imprime, sem arquivo) um JSON com, por motor instalado aqui, o nome, a versão instalada e o pin; nunca leva chave, assinatura, caminho, usuário nem máquina\n" +
   "     engine-kit import <arquivo|-> [--dry-run] [--permitir-rebaixar] [--registry-url <url>] [--json]   instala a versão registrada de cada motor do documento do export (sha256 + Ed25519 como no ensure) e fixa o que estava fixado; `-` lê o documento da entrada padrão (engine-kit export | engine-kit import -); --dry-run mostra só o plano; documento inválido é recusado inteiro, um motor recusado não impede os outros (exit 1 se algum falhou)\n" +
+  "     engine-kit completion <bash|zsh|powershell>  imprime o script de completion do shell (verbos, flags e motores), sem rede e sem gravar nada; ex.: eval \"$(engine-kit completion bash)\"\n" +
   "     engine-kit mcp                               servidor MCP (stdio) que não instala nem fixa nada: engine_list, engine_history, engine_check, engine_path, engine_url, engine_trust, engine_doctor, engine_info, engine_export, engine_report e, com rede, engine_plan e engine_check com rede:true (atualizam só o cache do descritor); não atualiza o kit\n" +
   "     engine-kit doctor [--fix|--json|--verify] [--engine <motor>] [--local] [--registry-url <url>]   diagnostica os motores instalados (--fix instala o que falta e atualiza o que está velho)\n" +
   "     engine-kit doctor --report [--engine <motor>] [--local] [--verify]   texto colável para suporte (kit, Node, plataforma, motores, sobras, hooks); sem token nem chave\n" +
@@ -73,7 +76,7 @@ const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-ur
 
 const args = process.argv.slice(2);
 const flag = (n) => { const i = args.indexOf(n); return i === -1 ? undefined : args[i + 1]; };
-const VERBS = ["ensure", "pin", "unpin", "fetch", "stop", "doctor", "list", "history", "check", "url", "rollback", "trust", "path", "update", "info", "export", "import", "mcp"];
+const VERBS = ["ensure", "pin", "unpin", "fetch", "stop", "doctor", "list", "history", "check", "url", "rollback", "trust", "path", "update", "info", "export", "import", "completion", "mcp"];
 const NOME_OPCIONAL = ["doctor", "list", "history", "trust", "export", "mcp"];
 const [cmd, name] = args;
 const nomeOpcional = name?.startsWith("-") ? undefined : name;
@@ -99,6 +102,7 @@ const FLAGS = {
   export: [],
   import: ["--json", "--dry-run", "--registry-url", "--retry", "--permitir-rebaixar"],
   update: ["--json", "--check"],
+  completion: [],
   mcp: [],
 };
 /** Primeira flag que o verbo não aceita, ou argumento solto além do nome do motor. */
@@ -131,11 +135,12 @@ const jsonOf = (verb, name, r) => {
   if (!r.ok) { return { name, ok: false, state: "ERRO", detail: r.reason, warns: [], pin: null, ...(r.restarted ? { version: r.version, restarted: r.restarted } : {}) }; }
   const warns = [
     ...(r.staleCache ? ["registry inacessível: descritor do cache vencido"] : []),
+    ...(r.warns ?? []),
     ...(r.available ? [`v${r.available} disponível; ENGINE_KIT_NO_AUTO_UPDATE ligado`] : []),
     ...(r.pointer && !["OK", "AUSENTE"].includes(r.pointer.state) ? [`ponteiro cli.json ${r.pointer.state}: ${r.pointer.detail}`] : []),
   ];
   const base = { name, ok: true, warns, pin: r.pinned ?? null };
-  if (r.dryRun) { return { ...base, state: "PLANO", plan: r.plan, detail: planoEm(r), version: r.version, ...(r.installed ? { installed: r.installed } : {}), ...(r.available ? { available: r.available } : {}) }; }
+  if (r.dryRun) { return { ...base, state: "PLANO", plan: r.plan, detail: planoEm(r), version: r.version, ...(r.installed ? { installed: r.installed } : {}), ...(r.available ? { available: r.available } : {}), ...(r.quarantined ? { quarantined: r.quarantined } : {}) }; }
   if (verb === "stop") { return { ...base, state: r.stopped ? "PARADO" : "SEM PROCESSO", detail: r.stopped ? "desligado" : "nada vivo para desligar", stopped: r.stopped }; }
   if (verb === "fetch") { return { ...base, state: "BAIXADO", detail: `v${r.version} conferido, não instalado`, version: r.version, files: r.files }; }
   if (verb === "update") { return { ...base, state: r.state, detail: r.detail, ...(r.current ? { current: r.current } : {}), ...(r.available ? { available: r.available } : {}) }; }
@@ -149,6 +154,7 @@ const done = (verb, r, text) => {
   text();
 };
 const avisoCache = (r, nome = name) => { if (r.staleCache) { console.log(`aviso: registry inacessível; ${nome} usou o descritor em cache vencido`); } };
+const avisosDoPlano = (r) => { for (const w of r.warns ?? []) { console.log(`aviso: ${w}`); } };
 const semValor = ["--dest", "--registry-url", "--engine", "--de", "--de-arquivo"].find((f) => args.includes(f) && (flag(f) ?? "-").startsWith("-"));
 
 if (cmd === "--help" || cmd === "-h") {
@@ -207,6 +213,13 @@ if (cmd === "--help" || cmd === "-h") {
 } else if (args.includes("--version") && !/^\d+\.\d+\.\d+$/.test(flag("--version") ?? "")) {
   console.error(`--version precisa de x.y.z (recebi: ${flag("--version") ?? "nada"})`);
   process.exitCode = 1;
+} else if (cmd === "completion" && !SHELLS.includes(name)) {
+  console.error(`shell desconhecido: ${name} (${SHELLS.join(", ")})\n${USAGE}`);
+  process.exitCode = 1;
+} else if (cmd === "completion") {
+  const l = listCommand();
+  if (l.ok) { console.log(completionScript(name, { verbs: VERBS, flags: FLAGS, engines: l.engines.map((e) => e.name) })); }
+  else { console.error(`FALHOU completion: ${l.reason}`); process.exitCode = 1; }
 } else if (cmd === "mcp") {
   await (await import("./mcp.mjs")).serve();
 } else {
@@ -269,6 +282,7 @@ if (cmd === "--help" || cmd === "-h") {
       console.log(`versão no manifest: v${r.version}   instalado: ${r.app ? "fora do alcance do kit" : r.installed ? `v${r.installed}` : "não instalado"}   estado: ${r.state} (${r.detail})`);
       console.log(`pin: ${r.pin ?? "-"}   plataformas: ${r.platforms.join(",") || "todas"}${r.supported ? "" : " (esta máquina não é atendida)"}`);
       console.log(`release: ${r.release ?? "-"}`);
+      if (r.quarantined) { console.log(`quarentena: v${r.quarantined.version}`); }
       for (const w of r.warns) { console.log(`aviso: ${w}`); }
     }
     if (!r.ok) { process.exitCode = 1; }
@@ -353,7 +367,7 @@ if (cmd === "--help" || cmd === "-h") {
     if (lista && !lista.names.length) { log(`nenhum motor instalado por este kit para ${cmd === "pin" ? "fixar" : "atualizar"}`); }
     for (const m of lista ? lista.names : motores) { rs.push([m, cmd === "pin" ? await pinCommand(m, { registryUrl: flag("--registry-url"), dryRun, log }) : await ensureCommand(m, { registryUrl: flag("--registry-url"), autoUpdate: autoUpdateEnabled(), dryRun, log })]); }
     if (asJson) { console.log(JSON.stringify({ ok: rs.every(([, r]) => r.ok), engines: rs.map(([m, r]) => jsonOf(cmd, m, r)) }, null, 2)); }
-    else { for (const [m, r] of rs) { if (r.ok && r.dryRun) { console.log(`PLANO ${m}: ${planoEm(r)}`); } else if (r.ok && cmd === "pin") { console.log(`OK ${m} fixado em v${r.pinned}`); } else if (r.ok) { console.log(`OK ${m} v${r.version} (${r.reused ? "já instalado, reusado" : r.previous ? `atualizado de v${r.previous}` : "instalado"}) em ${r.entryPath}`); } else { console.error(`FALHOU ${m}: ${r.reason}`); } } }
+    else { for (const [m, r] of rs) { if (r.ok && r.dryRun) { console.log(`PLANO ${m}: ${planoEm(r)}`); avisosDoPlano(r); } else if (r.ok && cmd === "pin") { console.log(`OK ${m} fixado em v${r.pinned}`); } else if (r.ok) { console.log(`OK ${m} v${r.version} (${r.reused ? "já instalado, reusado" : r.previous ? `atualizado de v${r.previous}` : "instalado"}) em ${r.entryPath}`); } else { console.error(`FALHOU ${m}: ${r.reason}`); } } }
     if (rs.some(([, r]) => !r.ok || (falharSeDesatualizado && r.plan !== "reusar"))) { process.exitCode = 1; }
   } else {
     const autoUpdate = autoUpdateEnabled();
@@ -361,7 +375,7 @@ if (cmd === "--help" || cmd === "-h") {
     const r = arquivo ? await ensureDeArquivo(name, arquivo, pedido) : await ensureCommand(name, pedido);
     if (falharSeDesatualizado && r.plan !== "reusar") { process.exitCode = 1; }
     if (asJson) { done("ensure", r); }
-    else if (r.ok && r.dryRun) { console.log(`PLANO ${name}: ${planoEm(r)}`); avisoCache(r); }
+    else if (r.ok && r.dryRun) { console.log(`PLANO ${name}: ${planoEm(r)}`); avisoCache(r); avisosDoPlano(r); }
     else if (r.ok) {
       const how = r.reused ? "já instalado, reusado" : r.signed ? "assinatura Ed25519 conferida" : "SEM assinatura no registry";
       if (r.previous) { console.log(`motor atualizado: ${name} v${r.previous} → v${r.version}`); }

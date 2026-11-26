@@ -185,10 +185,13 @@ const ROOT = resolvePath(KIT, "..");
 //   O runtime não mudou (38990/39000, a cifra de 39 KB da vitrine segue); o cliente compartilhado ficou em 10685/10700 (+15 bytes: `launchDetached` repassa `opts` ao `spawn`), teto mantido.
 //   2026-11-26 tooling 127500 → 129500: `engine-kit pin` com vários motores e com `--instalados`, e `engine-kit unpin --todos`, +1.87 KB medidos, 127139 → 129013 (só kit/cli.mjs; o texto do uso e as mensagens de recusa são boa parte dos bytes). O `pin` de vários motores reusa o laço de vários motores do `ensure` e o `pinCommand`; `--instalados` reusa o `instaladosAtualizaveis`; o `unpin --todos` lê os pins do `trust.json` (`readTrust`, já exportada) e reusa o `unpinCommand`. Sem os nomes extras e as flags novas o comportamento é o de antes. O runtime não mudou (38990/39000, a cifra de 39 KB da vitrine segue) e o cliente compartilhado segue em 10685/10700.
 //   2026-11-26 tooling 129500 → 130200: cinco correções da revisão independente do diff main..develop, +0.74 KB medidos, 129013 → 129757 (kit/export-import.mjs +0.40, kit/religar.mjs +0.18, kit/ensure.mjs +0.16). O `import` compara o rebaixamento com a maior entre a versão instalada e a `maxVersion` do `trust.json` (motor não instalado também) e grava o pin do documento mesmo quando o daemon não sobe, dizendo na razão se foi aplicado; o `ensure --dry-run` recusa, com a razão do `rollbackReason`, o que o ensure real recusaria por anti-rollback; o fim do `boot.log` na razão do religar sai sem o `shutdownToken` do runtime.json e sem hexadecimal de 32+ caracteres. O runtime não mudou (38990/39000) e o cliente compartilhado segue em 10685/10700. As outras duas correções (a guarda do `pages.yml` e o texto do `docs/PAGES.md`) não contam bytes de código.
+//   2026-11-27 tooling 130200 → 134000: a quarentena visível nos verbos de leitura e o `engine-kit completion`, +3.97 KB medidos, 129757 → 133728 (kit/completion.mjs novo +2.17, kit/cli.mjs +1.02, kit/diagnose.mjs +0.50, kit/ensure.mjs +0.22, kit/inspect.mjs +0.05).
+//   `quarantineOf` e `quarantineWarn` (diagnose.mjs, reusam `failedVersions` do trust.mjs) põem o aviso em `warns` do doctor e do info, o campo `quarantined` no info e no plano do `ensure --dry-run`; as tools MCP herdam. O aviso não muda estado, exit code nem plano.
+//   `completion <bash|zsh|powershell>` gera o script de VERBS, FLAGS e dos nomes do manifest embarcado. Rodadas na mão de quem instala; o fecho de `kit/index.mjs` não mudou (runtime 38990/39000, a cifra de 39 KB da vitrine segue) e o cliente ficou em 10685/10700.
 const BUDGETS = {
   runtime: { codeBytes: 39000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10700, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 130200, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 134000, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

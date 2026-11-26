@@ -7,7 +7,7 @@ import { basename, dirname, isAbsolute, join, relative } from "node:path";
 import { readRuntime } from "./lifecycle.mjs";
 import { resolve, platformReason } from "./resolve.mjs";
 import { satisfiesPin, installedVersion, hashTree, FILES_MANIFEST, LOCK_STALE_MS } from "./provision.mjs";
-import { pinOf, readTrust, firstContactKeys } from "./trust.mjs";
+import { pinOf, readTrust, firstContactKeys, failedVersions } from "./trust.mjs";
 
 export const alive = (pid) => {
   try { process.kill(pid, 0); return true; } catch (e) { return e.code === "EPERM"; }
@@ -112,6 +112,12 @@ function hooksOf() {
   } catch { return { registered: false, events: [] }; }
 }
 
+/** Versão que o histórico marca como volta e que o registry ainda oferece ao motor instalado, a regra do `ensureEngine`; undefined se não há. */
+export const quarantineOf = (name, offered, installed) => installed && !satisfiesPin(installed, offered) && failedVersions(name).includes(offered) ? { version: offered } : undefined;
+
+/** O aviso de uma versão em quarentena, o mesmo no doctor, no info e no plano do ensure. */
+export const quarantineWarn = (version) => `v${version} em quarentena: não subiu aqui; sai com versão nova ou --version ${version}`;
+
 export const SEM_ACAO = ["OK", "SELF-MANAGED", "FIXADO", "SEM-BUILD", "SEM-RELEASE"];
 
 /** Raiz estável das conferências de artefato; o `verify-release` põe aqui o asset baixado. */
@@ -210,9 +216,11 @@ export async function diagnoseEngines({ only = null, local = false, verify = fal
     if (known && engine.install.publicKey && known !== engine.install.publicKey && !engine.install.rotation) warns.push("chave do registry ≠ chave gravada em trust.json e sem rotação assinada: o próximo ensure/--fix aborta");
     const first = !known && !registryUrl && firstContactKeys(name)?.[name];
     if (first && engine.install.publicKey && first !== engine.install.publicKey && !engine.install.rotation) warns.push("chave do registry ≠ chave embarcada no kit: o próximo ensure/--fix aborta já na primeira instalação (rotação chega com npx engine-kit@latest)");
+    const quarantined = pin ? undefined : quarantineOf(name, engine.version, inst);
+    if (quarantined) warns.push(quarantineWarn(quarantined.version));
     const left = engine.status === "self-managed" ? [] : leftovers(engine);
     if (left.length) warns.push(`${left.length} sobra(s) de instalação interrompida em ${engine.homeDir}: doctor --fix as remove`);
-    rows.push({ name, state, detail, warns, integrity, installed: inst, engine, pin, left, hooks: name === "neural-link" ? hooksOf() : undefined, needsWork: !SEM_ACAO.includes(state) });
+    rows.push({ name, state, detail, warns, integrity, installed: inst, engine, pin, quarantined, left, hooks: name === "neural-link" ? hooksOf() : undefined, needsWork: !SEM_ACAO.includes(state) });
   }
   return { ok: true, rows };
 }

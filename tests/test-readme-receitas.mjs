@@ -1,7 +1,7 @@
 // test-readme-receitas.mjs — a seção "Receitas" do README só cita comandos e flags que o CLI aceita de verdade.
 //
 // O que precisa ser verdade:
-//   • a seção existe e traz as quatro receitas (hook de início de sessão, porta de CI, provisionar, levar o ambiente), cada uma com ao menos um comando;
+//   • a seção existe e traz as cinco receitas (hook de início de sessão, porta de CI, provisionar, levar o ambiente, completion), cada uma com ao menos um comando;
 //   • todo `engine-kit <verbo> ...` da seção usa um verbo de VERBS e só flags de FLAGS desse verbo, em `kit/cli.mjs`;
 //   • toda `--flag` citada em código na seção existe em algum verbo do cli;
 //   • a receita do hook cita os comandos certos e só estados do doctor que o `diagnose.mjs` produz;
@@ -23,6 +23,7 @@ const check = (name, cond, detail = "") => { if (!cond) failures++; console.log(
 const VERBS = [...cli.match(/const VERBS = \[(.*?)\];/)[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
 const FLAGS = Object.fromEntries([...cli.match(/const FLAGS = \{([\s\S]*?)\n\};/)[1].matchAll(/^\s+(\w+): \[(.*)\],?$/gm)].map((m) => [m[1], [...m[2].matchAll(/"([^"]+)"/g)].map((f) => f[1])]));
 const TODAS = new Set(Object.values(FLAGS).flat());
+const SHELLS = [...readFileSync(join(RAIZ, "kit", "completion.mjs"), "utf8").match(/const GERADORES = \{([\s\S]*?)\n\};/)[1].matchAll(/^  (\w+): \(/gm)].map((m) => m[1]);
 
 /** Texto dos trechos de código (blocos e `spans`) de um markdown. */
 const codigo = (md) => [...md.matchAll(/```[^\n]*\n([\s\S]*?)```|`([^`\n]+)`/g)].map((m) => m[1] ?? m[2]).join("\n");
@@ -41,8 +42,8 @@ const cmds = comandos(doCodigo);
 
 console.log("== a seção ==");
 check("o README tem a seção Receitas", inicio !== -1);
-check("são quatro receitas, cada uma com ao menos um comando do kit", receitas.length === 4 && receitas.every((r) => comandos(codigo(r)).length > 0), receitas.map((r) => r.split("\n")[0]).join(" | "));
-check("os títulos são o hook de início de sessão, a porta de CI, o provisionamento e o ambiente em outra máquina", /sess[aã]o/i.test(receitas[0] ?? "") && /CI/.test(receitas[1] ?? "") && /(postinstall|primeira execu)/i.test((receitas[2] ?? "").split("\n")[0]) && /m[aá]quina/i.test((receitas[3] ?? "").split("\n")[0]), receitas.map((r) => r.split("\n")[0]).join(" | "));
+check("são cinco receitas, cada uma com ao menos um comando do kit", receitas.length === 5 && receitas.every((r) => comandos(codigo(r)).length > 0), receitas.map((r) => r.split("\n")[0]).join(" | "));
+check("os títulos são o hook de início de sessão, a porta de CI, o provisionamento, o ambiente em outra máquina e a completion", /completion/i.test((receitas[4] ?? "").split("\n")[0]) && /sess[aã]o/i.test(receitas[0] ?? "") && /CI/.test(receitas[1] ?? "") && /(postinstall|primeira execu)/i.test((receitas[2] ?? "").split("\n")[0]) && /m[aá]quina/i.test((receitas[3] ?? "").split("\n")[0]), receitas.map((r) => r.split("\n")[0]).join(" | "));
 
 console.log("\n== comandos e flags existem no cli ==");
 {
@@ -55,7 +56,7 @@ console.log("\n== comandos e flags existem no cli ==");
 
 console.log("\n== o que cada receita cita ==");
 {
-  const [hook = "", ci = "", provisionar = "", ambiente = ""] = receitas;
+  const [hook = "", ci = "", provisionar = "", ambiente = "", completion = ""] = receitas;
   const ha = (r, verbo, ...flags) => comandos(codigo(r)).some((c) => c.verbo === verbo && flags.every((f) => c.flags.includes(f)));
   check("hook: doctor --local --json", ha(hook, "doctor", "--local", "--json"));
   const estados = [...new Set([...hook.matchAll(/`([A-ZÀ-Ú][A-ZÀ-Ú -]+)`/g)].map((m) => m[1]))];
@@ -64,6 +65,7 @@ console.log("\n== o que cada receita cita ==");
   check("CI: --falhar-se-desatualizado no ensure --dry-run e no ensure --instalados --dry-run", ha(ci, "ensure", "--dry-run", "--falhar-se-desatualizado") && ha(ci, "ensure", "--instalados", "--dry-run", "--falhar-se-desatualizado"));
   check("provisionar: ensure <motor>", ha(provisionar, "ensure") && /postinstall/.test(provisionar));
   check("ambiente: export | import -", /engine-kit export[^\n]*\|[^\n]*engine-kit import -/.test(ambiente));
+  check("completion: engine-kit completion bash, e só shells que o gerador atende", ha(completion, "completion") && /completion bash/.test(completion) && [...completion.matchAll(/engine-kit completion (\w+)/g)].every((m) => SHELLS.includes(m[1])), completion);
   check("ambiente: fetch --com-assinaturas e ensure --de-arquivo", ha(ambiente, "fetch", "--com-assinaturas") && ha(ambiente, "ensure", "--de-arquivo"));
 }
 

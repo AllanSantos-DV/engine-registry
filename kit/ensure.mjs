@@ -17,7 +17,7 @@ import { provision, installedVersion, satisfiesPin } from "./provision.mjs";
 import { shutdown, stopEngine } from "./lifecycle.mjs";
 import { pinOf, setPin, rollbackReason } from "./trust.mjs";
 export { firstContactKeys } from "./trust.mjs";
-import { pointerOf } from "./diagnose.mjs";
+import { pointerOf, quarantineOf, quarantineWarn } from "./diagnose.mjs";
 import { checkCommand, historyCommand } from "./inspect.mjs";
 import { religador, vivoParaReligar } from "./religar.mjs";
 
@@ -167,11 +167,13 @@ export async function ensureCommand(name, { version, registryUrl, bundled, manif
     if (engine.status === "self-managed" && !serve && !manter) { return { ok: false, reason: instaladorProprio(engine, `${name}: ${AUTO_GERIDO}`) }; }
     const rb = !manter && !serve && !version && !pin && rollbackReason(name, engine.version);
     if (rb) { return { ok: false, reason: rb }; }
+    const quarantined = !version && !pin ? quarantineOf(name, engine.version, previous) : undefined;
     return {
       ok: true, dryRun: true, plan: manter ? "manter" : serve ? "reusar" : previous ? "atualizar" : "instalar", kind: engine.kind,
       version: manter || serve ? previous : engine.version,
       ...(previous ? { installed: previous } : {}), ...(manter ? { available: engine.version } : {}), ...(pin ? { pinned: pin } : {}), ...(engine.staleCache ? { staleCache: true } : {}),
       ...(religaria ? { religaria: true } : {}),
+      ...(quarantined ? { quarantined, warns: [quarantineWarn(quarantined.version)] } : {}),
     };
   }
   if (manter) {

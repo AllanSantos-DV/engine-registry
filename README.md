@@ -159,6 +159,7 @@ npx engine-kit trust --restaurar                  # devolve o trust.json a parti
 npx engine-kit path <motor> [--json]              # caminho do executável do motor instalado e o estado do cli.json; sem rede, não sobe nada
 npx engine-kit export [arquivo]                   # os motores instalados aqui (nome, versão instalada e pin) num JSON, gravado em arquivo ou impresso; nunca leva chave, assinatura, caminho, usuário nem máquina
 npx engine-kit import <arquivo|-> [--dry-run] [--permitir-rebaixar] [--json]   # `-` lê o documento da entrada padrão (engine-kit export | engine-kit import -); instala a versão registrada de cada motor do documento (sha256 + Ed25519) e fixa o que estava fixado; --dry-run mostra só o plano; versão abaixo da instalada só com --permitir-rebaixar
+npx engine-kit completion <bash|zsh|powershell>  # imprime o script de completion do shell (verbos, flags e motores), sem rede e sem gravar nada
 npx engine-kit mcp                                # servidor MCP (stdio) que não instala nem fixa nada: engine_list, engine_history, engine_check, engine_path, engine_url, engine_trust, engine_doctor, engine_info, engine_export, engine_report e, com rede, engine_plan e engine_check com rede:true; não atualiza o kit
 npx engine-kit check meu-plugin/plugin.json --rede   # além do check: diz se a versão publicada satisfaz a faixa do que falta ou está fora dela
 npx engine-kit check meu-plugin/plugin.json [outro/plugin.json ...] [--json]   # confere o bloco `engines` de um ou mais manifestos de plugin contra o instalado; com vários, --json devolve { ok, manifests }
@@ -234,6 +235,10 @@ Estado atual:
 - `list --json` traz `pin` em cada motor (a versão fixada, ou `null`); o texto e o `listCommand` não mudam. Com o `trust.json` ilegível o `--json` falha com o motivo em vez de inventar `pin: null`.
 - No `engine-kit mcp`, `engine_doctor` aceita `engine` (só esse motor) e `verify` (confere a integridade dos arquivos instalados, o `ADULTERADO` do `doctor --verify`), `engine_list` aceita `apps` (os apps do manifest) e a tool nova `engine_export` devolve o documento do `export` (o mesmo que o `import -` lê) sem gravar arquivo. Sem argumentos as duas primeiras devolvem o que devolviam.
 
+**Quarentena e completion.** Aditivos; sem histórico de volta, ou sem o verbo novo, o comportamento é o de antes.
+- Quando o `history` marca como volta (`via: rollback`) a versão que o registry ainda oferece ao motor instalado, o `doctor` (também o `doctor --json` e a tool `engine_doctor`) acrescenta a `warns` `vX em quarentena: não subiu aqui; sai com versão nova ou --version X`; o `info` mostra a linha `quarentena: vX` e, em `--json`, `quarantined: { version }`; o plano do `ensure --dry-run` traz o mesmo aviso e `quarantined` (as tools `engine_info` e `engine_plan` herdam). O aviso não muda estado, `needsWork`, exit code nem plano: o `ensure` do CLI segue o que o plano diz, e quem mantém a versão instalada em quarentena é o `ensureEngine` dos consumidores. Motor fixado e `--version` não recebem o aviso.
+- `engine-kit completion <bash|zsh|powershell>` só imprime o script no stdout (exit 0): os verbos e as flags de cada verbo vêm do próprio CLI e os motores, do manifest embarcado; não usa a rede nem grava nada. Shell ausente ou desconhecido e argumento sobrando recusam com o uso (exit 1). Bash: `eval "$(engine-kit completion bash)"` no `~/.bashrc`; zsh: o mesmo com `zsh`, depois do `compinit`; PowerShell: `engine-kit completion powershell | Out-String | Invoke-Expression` no `$PROFILE`.
+
 **Endereço do daemon.** `engine-kit url <motor>` imprime a `url`, a `version` e o `pid` que o motor anuncia (`discover`, de `kit/client.mjs`), depois de conferir que ele responde.
 O `shutdownToken` do anúncio nunca sai. Motor parado, sem anúncio ou com o anúncio apontando para um endereço morto: erro com a causa e o comando (`engine-kit ensure <motor>`), exit 1.
 Vale para os motores que anunciam `url` no `runtime.json` (a casa de embeddings e o motor de grafo).
@@ -274,7 +279,7 @@ o `shutdownPath` que o registry declara: no Windows, arquivo em uso não pode se
 
 ## Receitas
 
-Quatro usos prontos do kit, só com comandos que existem (o `tests/test-readme-receitas.mjs` confere cada verbo e cada flag contra o `cli.mjs`).
+Cinco usos prontos do kit, só com comandos que existem (o `tests/test-readme-receitas.mjs` confere cada verbo e cada flag contra o `cli.mjs`).
 
 ### Hook de início de sessão
 
@@ -319,6 +324,14 @@ engine-kit ensure vxk --de-arquivo espelho/<artefato.tgz>
 ```
 
 O `fetch` grava ao lado de cada `.tgz` o `.sha256` e o `.sig` da release, já conferidos; o `--de-arquivo` instala do disco com sha256, Ed25519 e versão obrigatórios.
+
+### Completion no shell
+
+```sh
+eval "$(engine-kit completion bash)"
+```
+
+Colocada no `~/.bashrc`, a linha dá completion aos verbos, às flags de cada verbo e aos motores do pacote (`zsh` e `powershell` no lugar de `bash` para os outros shells); o comando só imprime o script, sem rede e sem gravar nada.
 
 ## Como consumir
 

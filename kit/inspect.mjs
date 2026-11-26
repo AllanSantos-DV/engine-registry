@@ -165,7 +165,7 @@ function infoDeApp(a) {
  * Sem rede e sem gravar: `version` é a do manifest deste kit, não a publicada agora (para essa, `doctor` ou `check --rede`).
  * @param {string} name motor ou app.
  * @param {{bundled?:object}=} opts `bundled` = manifest embarcado (testes).
- * @returns {Promise<{ok:true, name:string, kind:string, summary:string, version:string, installed:string|null, state:string, detail:string, pin:string|null, platforms:string[], supported:boolean, selfManaged:boolean, release:string|null, warns:string[], app?:true} | {ok:false, reason:string}>}
+ * @returns {Promise<{ok:true, name:string, kind:string, summary:string, version:string, installed:string|null, state:string, detail:string, pin:string|null, platforms:string[], supported:boolean, selfManaged:boolean, release:string|null, warns:string[], quarantined?:{version:string}, app?:true} | {ok:false, reason:string}>}
  */
 export async function infoCommand(name, { bundled } = {}) {
   let local;
@@ -176,11 +176,11 @@ export async function infoCommand(name, { bundled } = {}) {
   }
   const d = await diagnoseEngines({ only: name, local: true, manifest: local });
   if (!d.ok) { return d; }
-  const { state, detail, installed, pin, engine: e, warns } = d.rows[0];
+  const { state, detail, installed, pin, engine: e, warns, quarantined } = d.rows[0];
   if (!e) { return { ok: false, reason: detail }; }
   return {
     ok: true, name, kind: e.kind, summary: e.summary, version: e.version, installed: installed ?? null, state, detail, pin: pin || null, platforms: e.platforms ?? [],
-    supported: platformReason(e) === null, selfManaged: e.status === "self-managed", release: releaseUrl(e.install.repo, e.install.tag, e.version), warns: warns ?? [],
+    supported: platformReason(e) === null, selfManaged: e.status === "self-managed", release: releaseUrl(e.install.repo, e.install.tag, e.version), warns: warns ?? [], ...(quarantined ? { quarantined } : {}),
   };
 }
 
