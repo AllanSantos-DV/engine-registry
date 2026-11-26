@@ -191,10 +191,14 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-11-27 tooling 134000 → 137000: o espelho em lote do `fetch` e a quarentena no `ensure` do CLI, +3.03 KB medidos, 133728 → 136758 (kit/cli.mjs +2.39, kit/ensure.mjs +0.35, kit/fetch.mjs +0.15, kit/export-import.mjs +0.14).
 //   `fetch --instalados` e `fetch --de-export <documento>` baixam e conferem o artefato de vários motores sem instalar: reusam `instaladosAtualizaveis`, o `validarDocumento` (agora atrás de `lerDocumento`, que o `import` também usa), o laço e o envelope `{ ok, engines }` do `fetch` de vários motores e a opção `soMotor` do `fetchCommand`; o texto do uso e as recusas das flags são boa parte dos bytes.
 //   O `ensureCommand` passa a aplicar a quarentena como o `ensureEngine` (`quarantineOf` e `quarantineWarn` do diagnose.mjs, o ramo `manter` já existente): mantém a instalada, devolve `quarantined` e o `--dry-run` planeja `manter`; `--version`, pin e `--de-arquivo` mandam. Tudo no ferramental, fora do fecho de `kit/index.mjs` (runtime 38990/39000, a cifra de 39 KB da vitrine segue) e o cliente ficou em 10685/10700. Sem as flags novas e sem histórico de volta o comportamento é o de antes.
+//   2026-11-27 tooling 137000 → 138500: cinco correções da revisão independente do diff main..develop, +1.41 KB medidos, 136758 → 138170 (kit/ensure.mjs +0.64, kit/completion.mjs +0.25, kit/cli.mjs +0.19, kit/export-import.mjs +0.17, kit/doctor.mjs +0.17).
+//   O `doctor --fix` pula o motor em quarentena (`PULADO`) em vez de reinstalar a versão que não subiu; o `ensure --de` devolve `quarantined` e `warns` do motor mantido (o texto do --dry-run mostra o aviso); `semDuplicados` reduz o export e o `--instalados` (ensure, pin e fetch)
+//   a um motor por home e entrada na plataforma, o de nome canônico, para o `motor-de-grafo` e o `motor-de-grafo-linux-x64` não contarem o mesmo binário duas vezes; o `completion` recusa nome de motor fora de /^[a-z0-9][a-z0-9._-]*$/; o uso e o README do `fetch --instalados` dizem "versão do registry (ou o pin)".
+//   Runtime 38990 → 38974 de 39000 (a cifra de 39 KB da vitrine segue): `failedVersions` (kit/trust.mjs) ignora o `from` de uma volta se uma linha posterior do motor tem `to` igual (a versão voltou a subir por escolha), +0.09 KB pagos mudando para linha própria um comentário que o kill-switch contava como código. O cliente ficou em 10685/10700.
 const BUDGETS = {
   runtime: { codeBytes: 39000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10700, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 137000, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 138500, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

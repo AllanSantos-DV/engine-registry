@@ -110,12 +110,25 @@ const fetcherDeArquivo = (tgz) => async (url, _prazo, { stream } = {}) => {
 export const ensureDeArquivo = (name, tgz, { log = () => {}, ...opts } = {}) => ensureCommand(name, { ...opts, autoUpdate: true, quarentena: false, fetcher: fetcherDeArquivo(tgz), log: (m) => log(m.replace(/baixando \S+/, `lendo ${tgz} (sem baixar)`)) });
 
 /**
- * Os motores que `engine-kit ensure --instalados` atualiza: os instalados aqui que o ensure sabe atualizar (self-managed e motor de outra plataforma ficam de fora).
+ * Um motor por instalação: os que dividem home e entrada na `platform` são o mesmo binário, e fica o de nome sem o sufixo `-<plataforma>` ou, sem ele, o primeiro do manifest.
+ */
+export function semDuplicados(local, nomes, platform) {
+  const dono = new Map(), chave = new Map();
+  for (const e of (local.engines ?? []).filter((x) => nomes.includes(x.name))) {
+    const entry = { ...e.install, ...e.install?.byPlatform?.[platform] }.entry, k = e.home && entry ? `${expandHome(e.home)}|${entry}` : e.name;
+    chave.set(e.name, k);
+    if (!dono.has(k) || dono.get(k).endsWith(`-${platform}`)) { dono.set(k, e.name); }
+  }
+  return nomes.filter((n) => dono.get(chave.get(n)) === n);
+}
+
+/**
+ * Os motores que `engine-kit ensure --instalados` atualiza: os instalados aqui que o ensure sabe atualizar (self-managed e motor de outra plataforma ficam de fora), um por instalação.
  * @returns {{ok:true, names:string[]} | {ok:false, reason:string}}
  */
 export function instaladosAtualizaveis(opts) {
   const l = listCommand(opts);
-  return l.ok ? { ok: true, names: l.engines.filter((e) => e.installed && !e.selfManaged && e.supported).map((e) => e.name) } : l;
+  return l.ok ? { ok: true, names: semDuplicados(embarcado(opts?.bundled).local, l.engines.filter((e) => e.installed && !e.selfManaged && e.supported).map((e) => e.name), l.platform) } : l;
 }
 
 /**
@@ -236,7 +249,7 @@ export async function ensureDeCommand(file, opts = {}) {
     if (!["AUSENTE", "FORA-DA-FAIXA"].includes(e.state)) { extra[e.name] = { acao: { OK: "reusado", "NAO-VERIFICAVEL": "pulado" }[e.state] ?? "recusado" }; continue; }
     const r = await ensureCommand(e.name, opts);
     extra[e.name] = r.ok
-      ? { acao: opts.dryRun ? { instalar: "instalaria", atualizar: "atualizaria" }[r.plan] ?? "mantido" : r.previous ? "atualizado" : r.reused ? "mantido" : "instalado", version: r.version, previous: r.previous ?? r.installed, available: r.available }
+      ? { acao: opts.dryRun ? { instalar: "instalaria", atualizar: "atualizaria" }[r.plan] ?? "mantido" : r.previous ? "atualizado" : r.reused ? "mantido" : "instalado", version: r.version, previous: r.previous ?? r.installed, available: r.available, ...(r.quarantined ? { quarantined: r.quarantined, warns: r.warns } : {}) }
       : { acao: "falhou", detail: r.reason };
   }
   if (opts.dryRun) {

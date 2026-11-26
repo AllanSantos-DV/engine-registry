@@ -4,6 +4,7 @@
 //   • ausente é instalado e fora da faixa é atualizado, pelo `ensureCommand` de sempre (sha256 + Ed25519);
 //   • motor que já satisfaz não é tocado (nenhum download); self-managed nunca é instalado e aparece como pulado, com o motivo;
 //   • faixa inválida aborta ANTES de instalar qualquer motor; depois do ensure o check reconfere, e a última versão que não satisfaz a faixa reprova;
+//   • o motor mantido por quarentena traz `quarantined` e `warns`, no ensure real e no --dry-run;
 //   • exit 0 só se todos satisfazem no fim.
 // Hermético: registry e downloads de memória (o .tgz é real), HOME e ENGINE_KIT_HOME isolados, nenhum daemon; o CLI roda sem rede.
 //
@@ -23,6 +24,7 @@ Object.assign(process.env, { HOME: RUN, USERPROFILE: RUN, ENGINE_KIT_HOME: KIT_H
 const { generateKeyPairHex, signBlob } = await import("../kit/index.mjs");
 const { tarBinary } = await import("../kit/provision.mjs");
 const { ensureDeCommand } = await import("../kit/ensure.mjs");
+const { recordSwap } = await import("../kit/trust.mjs");
 
 let failures = 0;
 const check = (name, cond, detail = "") => { if (!cond) failures++; console.log(`${cond ? "  OK  " : " FALHA"} ${name}${!cond && detail ? ` — ${detail}` : ""}`); };
@@ -112,6 +114,22 @@ console.log("\n== a última versão não satisfaz a faixa: reprova, sem fingir s
     check(`${n}: instalou a última, mas reprova como FORA-DA-FAIXA e pede --version`, l?.acao === "instalado" && l.state === "FORA-DA-FAIXA" && l.satisfied === false && /1\.2\.3/.test(l.detail) && /--version/.test(l.detail) && instalado(n) === "1.2.3", JSON.stringify(l));
   }
   check("ok:false", r.ok === false);
+}
+
+console.log("\n== a quarentena que mantém o motor aparece no retorno ==");
+{
+  preinstalar("motor-quar", "1.0.0");
+  recordSwap("motor-quar", "1.1.0", "1.0.0", "rollback");
+  const reg = registry({ "motor-quar": "1.1.0" });
+  const aviso = "v1.1.0 em quarentena: não subiu aqui; sai com versão nova ou --version 1.1.0";
+  const r = await ensureDeCommand(plugin({ "motor-quar": ">=1.1.0" }), reg.opts);
+  const l = linha(r, "motor-quar");
+  check("o ensure real mantém a instalada e diz a versão em quarentena e o aviso", l?.acao === "mantido" && l.version === "1.0.0" && l.quarantined?.version === "1.1.0" && l.warns?.join() === aviso && instalado("motor-quar") === "1.0.0" && !reg.baixados["motor-quar"], JSON.stringify(l));
+  const d = await ensureDeCommand(plugin({ "motor-quar": ">=1.1.0" }), { ...reg.opts, dryRun: true });
+  const ld = linha(d, "motor-quar");
+  check("o --dry-run traz o mesmo quarantined e o mesmo aviso", ld?.acao === "mantido" && ld.quarantined?.version === "1.1.0" && ld.warns?.join() === aviso, JSON.stringify(ld));
+  const limpo = await ensureDeCommand(plugin({ "motor-sem-q": ">=1.0.0" }), registry({ "motor-sem-q": "1.2.3" }).opts);
+  check("motor sem quarentena não ganha as chaves", linha(limpo, "motor-sem-q")?.acao === "instalado" && !("warns" in linha(limpo, "motor-sem-q")) && !("quarantined" in linha(limpo, "motor-sem-q")), JSON.stringify(limpo));
 }
 
 console.log("\n== falha de um motor não esconde os outros ==");

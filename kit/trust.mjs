@@ -54,7 +54,8 @@ export function updateEntry(name, change) {
   for (let i = 0; ; i++) {
     try { closeSync(openSync(lock, "wx")); break; }
     catch (e) {
-      if ((e.code !== "EEXIST" && e.code !== "EPERM") || i > 250) { throw e; } // EPERM: Windows, lock em remoção
+      // EPERM: Windows, lock em remoção
+      if ((e.code !== "EEXIST" && e.code !== "EPERM") || i > 250) { throw e; }
       dropStaleLock(lock, 10000);
       nap(20);
     }
@@ -136,8 +137,8 @@ export function recordSwap(engine, from, to, via) {
   catch (e) { console.warn(`[engine-kit] ${engine}: histórico não gravado em ${historyPath()} (${e.message})`); }
 }
 
-/** Versões do motor que não subiram aqui: o `from` de cada volta (via rollback) do histórico. Linha ilegível não conta. */
-export const failedVersions = (name) => { try { return readFileSync(historyPath(), "utf8").split("\n").flatMap((l) => { try { const e = JSON.parse(l); return e.engine === name && e.via === "rollback" ? [e.from] : []; } catch { return []; } }); } catch { return []; } };
+/** Versões do motor que não subiram aqui: o `from` de cada volta (via rollback) do histórico, salvo se a versão subiu de novo depois. Linha ilegível não conta. */
+export const failedVersions = (name) => { const s = new Set(); try { for (const l of readFileSync(historyPath(), "utf8").split("\n")) { try { const e = JSON.parse(l); if (e.engine === name) { s.delete(e.to); e.via === "rollback" && s.add(e.from); } } catch {} } } catch {} return [...s]; };
 
 /** O manifest embarcado no pacote. Lança se for ilegível. */
 export const embeddedManifest = () => JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8"));

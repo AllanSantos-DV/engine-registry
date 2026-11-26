@@ -7,6 +7,7 @@
 //   • nada é instalado: as versões instaladas, o home dos motores e o histórico ficam como estavam;
 //   • sai o envelope de vários motores ({ ok, engines }, texto e --json): uma falha não esconde os outros e o exit é 1 se algum falhou; sem motor não é erro;
 //   • --dest dentro do home de um motor segue recusado; app no documento é recusado como motor;
+//   • o uso e o README dizem que o `--instalados` baixa a versão do registry (ou o pin), não a que o `ensure` instalaria;
 //   • --instalados e --de-export juntos, com nomes de motor e com --version são recusados (e --instalados não com --de-export), e `fetch <motor>` com nomes explícitos segue como antes.
 // Hermético: registry e downloads de memória (o .tgz é real e assinado), HOME e ENGINE_KIT_HOME isolados, o CLI roda numa cópia do kit sem rede, nenhum daemon.
 //
@@ -139,6 +140,8 @@ console.log("\n== recusas das flags ==");
   recusa("as flags novas não valem para o ensure", ["ensure", "esp-b", "--de-export", doc], /--de-export não vale para `ensure`/);
   const uso = cli("--help").stdout;
   check("o uso documenta as duas formas", /fetch --instalados/.test(uso) && /fetch --de-export <documento>/.test(uso), uso.slice(0, 200));
+  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  check("o uso e o README dizem que a versão é a do registry (ou o pin), não a que o ensure instalaria", uso.includes("a versão é a do registry (ou o pin)") && readme.includes("na versão do registry (ou o pin)") && !uso.includes("a que o ensure instalaria") && !readme.includes("na versão que o `ensure` instalaria"));
   const igual = cli("fetch", "esp-a", "esp-b", "--dest", pasta());
   check("fetch com nomes explícitos e sem a flag segue como antes: dois motores são argumento inesperado", igual.status === 1 && /argumento inesperado: esp-b/.test(igual.stderr), igual.stderr);
   const d = pasta(), um = cli("fetch", "esp-b", "--dest", d);

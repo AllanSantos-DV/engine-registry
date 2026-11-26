@@ -50,7 +50,7 @@ const USAGE = "uso: engine-kit ensure <motor> [--version <x.y.z>] [--registry-ur
   "     engine-kit unpin --todos                     solta todos os pins gravados\n" +
   "     engine-kit fetch <motor|app> [--version <x.y.z>] [--dest <pasta>] [--registry-url <url>]   baixa e confere (sha256 + Ed25519) sem instalar\n" +
   "     engine-kit fetch <motor> [<motor>...] --com-assinaturas [--dest <pasta>] [--registry-url <url>] [--json]   grava ao lado de cada .tgz conferido o <artefato>.sha256 e o <artefato>.sig da release (também conferidos), a pasta que o ensure <motor> --de-arquivo aceita; vários motores numa chamada, uma falha não esconde os outros (exit 1 se algum falhou)\n" +
-  "     engine-kit fetch --instalados [--com-assinaturas] [--dest <pasta>] [--registry-url <url>] [--json]   espelho em lote: baixa e confere (sha256 + Ed25519) o artefato de cada motor instalado aqui (o conjunto do ensure --instalados: sem self-managed nem motor de outra plataforma), sem instalar nada; a versão é a que o ensure instalaria; envelope { ok, engines }, uma falha não esconde os outros (exit 1 se algum falhou); sem nomes, sem --version\n" +
+  "     engine-kit fetch --instalados [--com-assinaturas] [--dest <pasta>] [--registry-url <url>] [--json]   espelho em lote: baixa e confere (sha256 + Ed25519) o artefato de cada motor instalado aqui (o conjunto do ensure --instalados: sem self-managed nem motor de outra plataforma), sem instalar nada; a versão é a do registry (ou o pin), mesmo com quarentena, updatePath ou ENGINE_KIT_NO_AUTO_UPDATE; envelope { ok, engines }, uma falha não esconde os outros (exit 1 se algum falhou); sem nomes, sem --version\n" +
   "     engine-kit fetch --de-export <documento> [--com-assinaturas] [--dest <pasta>] [--registry-url <url>] [--json]   o mesmo para cada motor do documento do export, na versão registrada nele; documento inválido é recusado inteiro; sem nomes, sem --version, não combina com --instalados\n" +
   "     (ensure, pin, fetch e stop aceitam --json: um objeto JSON no formato das linhas do doctor --json, também na falha)\n" +
   "     engine-kit stop <motor> [--registry-url <url>]   desliga o motor pelo shutdownPath que o registry declara\n" +
@@ -229,8 +229,8 @@ if (cmd === "--help" || cmd === "-h") {
   process.exitCode = 1;
 } else if (cmd === "completion") {
   const l = listCommand();
-  if (l.ok) { console.log(completionScript(name, { verbs: VERBS, flags: FLAGS, engines: l.engines.map((e) => e.name) })); }
-  else { console.error(`FALHOU completion: ${l.reason}`); process.exitCode = 1; }
+  try { if (!l.ok) { throw new Error(l.reason); } console.log(completionScript(name, { verbs: VERBS, flags: FLAGS, engines: l.engines.map((e) => e.name) })); }
+  catch (e) { console.error(`FALHOU completion: ${e.message}`); process.exitCode = 1; }
 } else if (cmd === "mcp") {
   await (await import("./mcp.mjs")).serve();
 } else {
@@ -278,7 +278,7 @@ if (cmd === "--help" || cmd === "-h") {
         if (files.length > 1) { console.log(`${i ? "\n" : ""}-- ${files[i]} --`); }
         if (!r.engines) { console.error(`FALHOU ${cmd}: ${r.reason}`); continue; }
         const w = Math.max(0, ...r.engines.map((e) => e.name.length));
-        for (const e of r.engines) { console.log(`${e.satisfied ? "  OK  " : "  !!  "} ${e.name.padEnd(w)}  ${String(e.range).padEnd(10)} ${e.acao ? `[${e.acao}] ` : ""}${e.state === "OK" ? e.detail : `${e.state}: ${e.detail}`}${e.available ? ` (v${e.available} disponível; ENGINE_KIT_NO_AUTO_UPDATE ligado)` : ""}`); }
+        for (const e of r.engines) { console.log(`${e.satisfied ? "  OK  " : "  !!  "} ${e.name.padEnd(w)}  ${String(e.range).padEnd(10)} ${e.acao ? `[${e.acao}] ` : ""}${e.state === "OK" ? e.detail : `${e.state}: ${e.detail}`}${e.available ? ` (v${e.available} disponível; ENGINE_KIT_NO_AUTO_UPDATE ligado)` : ""}`); for (const w of r.dryRun ? e.warns ?? [] : []) { console.log(`aviso: ${e.name}: ${w}`); } }
         if (r.reason) { console.error(r.reason); }
         console.log(r.dryRun ? "\n== plano: nada foi instalado ==" : r.engines.length ? (r.ok ? `\n== os ${r.engines.length} motor(es) satisfazem o manifesto ==` : `\n== ${r.engines.filter((e) => !e.satisfied).length} motor(es) não satisfazem o manifesto ==`) : "nenhum motor declarado no bloco engines");
       }

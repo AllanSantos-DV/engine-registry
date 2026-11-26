@@ -4,6 +4,7 @@
 //   • o export diz, por motor instalado, o nome, a versão instalada e o pin do trust.json, mais a versão do kit; motor não instalado fica de fora;
 //   • pin diferente da versão instalada não derruba o export: o motor sai sem pin, listado em `pinOmitido`, e o CLI avisa em uma linha no stderr;
 //   • o motor cujo entry muda por plataforma (`install.byPlatform`) conta como instalado na plataforma dele, no export e na trava de rebaixamento do import;
+//   • dois motores que dividem home e entrada na plataforma (o do sufixo `-linux-x64`) são o mesmo binário: export e `--instalados` ficam com o de nome canônico, uma vez só;
 //   • o documento nunca leva chave pública, assinatura, caminho local, usuário nem máquina: só as chaves conhecidas, com os valores no formato esperado;
 //   • sem arquivo o export imprime o JSON; com arquivo grava por .part e rename e nunca deixa metade;
 //   • o import instala a versão REGISTRADA (não a do registry), pelo ensure (sha256 + Ed25519 + chave do manifest embarcado), e fixa só quem estava fixado;
@@ -30,7 +31,7 @@ Object.assign(process.env, { HOME: RUN, USERPROFILE: RUN, ENGINE_KIT_HOME: KIT_H
 const { criarRegistroFalso } = await import("./_registro-falso.mjs");
 const { criarCliOffline } = await import("./_kit-copiado.mjs");
 const mod = await import("../kit/export-import.mjs").catch((e) => ({ erro: e }));
-const { ensureCommand, listCommand, pinCommand, planoEm } = await import("../kit/ensure.mjs");
+const { ensureCommand, listCommand, pinCommand, planoEm, instaladosAtualizaveis } = await import("../kit/ensure.mjs");
 const { pinOf, trustPath, historyPath } = await import("../kit/trust.mjs");
 const { ownVersion } = await import("../kit/update.mjs");
 const { RUNTIME, SOBE } = await import("./_daemon-falso.mjs");
@@ -424,6 +425,20 @@ console.log("\n== motor cujo entry muda por plataforma ==");
   const pedido = gravar(doc([{ name: "pl-grafo", version: "1.0.0" }]));
   const imp = await comoEm("linux", "x64", () => importar(pedido, pl.opts));
   check("o import no linux-x64 recusa o rebaixamento sem --permitir-rebaixar e a instalada fica", imp.ok === false && /rebaix/.test(linha(imp, "pl-grafo")?.reason ?? "") && instalado("pl-grafo") === "1.1.0", JSON.stringify(imp));
+
+  const gemeo = JSON.parse(JSON.stringify(m));
+  Object.assign(gemeo, { name: "pl-grafo-linux-x64", platforms: ["linux-x64"] });
+  gemeo.install.entry = "bin/pl-grafo";
+  delete gemeo.install.byPlatform;
+  const dois = { engines: [gemeo, m] };
+  const nomes = (r) => (r.engines ?? r.doc?.engines ?? []).map((e) => e.name).join();
+  check("linux-x64: o list vê os dois motores do mesmo home e entry como instalados", (await comoEm("linux", "x64", () => listCommand({ bundled: dois }))).engines.filter((e) => e.installed).length === 2);
+  const exDois = await comoEm("linux", "x64", () => exportar(undefined, { bundled: dois }));
+  check("o export no linux-x64 leva o motor de nome canônico uma vez só, mesmo com o do sufixo antes no manifest", exDois.ok && nomes(exDois) === "pl-grafo", JSON.stringify(exDois));
+  const atualizaveis = await comoEm("linux", "x64", () => instaladosAtualizaveis({ bundled: dois }));
+  check("o ensure --instalados no linux-x64 trata o mesmo binário uma vez, pelo nome canônico", atualizaveis.ok && atualizaveis.names.join() === "pl-grafo", JSON.stringify(atualizaveis));
+  const soSufixo = await comoEm("linux", "x64", () => instaladosAtualizaveis({ bundled: { engines: [gemeo] } }));
+  check("sem o motor canônico no manifest, o do sufixo segue valendo", soSufixo.ok && soSufixo.names.join() === "pl-grafo-linux-x64", JSON.stringify(soSufixo));
   rmSync(homeOf("pl-grafo"), { recursive: true, force: true });
 }
 

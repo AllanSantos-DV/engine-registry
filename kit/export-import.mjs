@@ -4,7 +4,7 @@
 // Quem confere o que chega é o `ensureCommand` da máquina de destino (sha256, Ed25519 e a chave do manifest embarcado), como em qualquer instalação.
 // NUNCA lança: devolve { ok, reason }.
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
-import { ensureCommand, listCommand, pinCommand } from "./ensure.mjs";
+import { ensureCommand, embarcado, listCommand, pinCommand, semDuplicados } from "./ensure.mjs";
 import { cmpVer, dropFile, pinOf, readTrust } from "./trust.mjs";
 import { ownVersion } from "./update.mjs";
 
@@ -72,7 +72,8 @@ export function exportCommand(file, { bundled } = {}) {
   let engines;
   const pinOmitido = [];
   try {
-    engines = l.engines.filter((e) => e.installed).map((e) => {
+    const unicos = semDuplicados(embarcado(bundled).local, l.engines.filter((e) => e.installed).map((e) => e.name), l.platform);
+    engines = l.engines.filter((e) => unicos.includes(e.name)).map((e) => {
       const pin = pinOf(e.name);
       if (pin && pin !== e.installed) { pinOmitido.push(e.name); }
       return { name: e.name, version: e.installed, ...(pin && pin === e.installed ? { pin } : {}) };

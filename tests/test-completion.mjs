@@ -5,6 +5,7 @@
 //   • o script sai de VERBS e FLAGS de kit/cli.mjs: a lista do teste é lida do próprio cli, então um verbo novo sem completion reprova aqui;
 //   • o script não leva caminho de usuário nem da máquina e é o mesmo a cada chamada;
 //   • shell ausente ou desconhecido, argumento sobrando e flag recusam com uso e exit 1, sem nada no stdout;
+//   • nome de motor fora de /^[a-z0-9][a-z0-9._-]*$/ recusa o script inteiro, na função e no CLI, sem nada no stdout;
 //   • não usa a rede (nem a consulta de versão do npm) e não grava nada no HOME nem no ENGINE_KIT_HOME.
 // Hermético: HOME e ENGINE_KIT_HOME isolados; um preload troca o fetch por um que só marca a chamada.
 //
@@ -15,6 +16,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { completionScript } from "../kit/completion.mjs";
+import { criarCliOffline } from "./_kit-copiado.mjs";
 
 const RUN = mkdtempSync(join(tmpdir(), "ee-completion-"));
 const KIT_HOME = join(RUN, "kit-home");
@@ -76,6 +79,20 @@ console.log("\n== recusas ==");
   recusa("shell desconhecido: nomeia o shell, mostra o uso e exit 1", cli("completion", "fish"), /fish[\s\S]*uso: engine-kit/);
   recusa("argumento sobrando é recusado", cli("completion", "bash", "extra"), /argumento inesperado: extra/);
   recusa("flag que o verbo não tem é recusada", cli("completion", "bash", "--json"), /--json não vale para `completion`/);
+}
+
+console.log("\n== nome de motor que o shell interpretaria ==");
+{
+  const fonte = (engines) => ({ verbs: ["ensure", "completion"], flags: { ensure: ["--json"] }, engines });
+  for (const ruim of ["a b", "x;rm", "$(id)", "'q", "Maiuscula", "-inicio", ""]) {
+    let erro = null, saida = null;
+    try { saida = completionScript("bash", fonte(["bom", ruim])); } catch (e) { erro = e; }
+    check(`recusa o nome ${JSON.stringify(ruim)} e não gera script`, saida === null && /nome de motor inválido/.test(erro?.message ?? ""), String(saida ?? erro?.message).slice(0, 120));
+  }
+  check("nomes do formato do manifest passam", completionScript("zsh", fonte(["motor-de-grafo", "casa.v2", "0x"])).includes("motor-de-grafo"));
+  const { cli: cliRuim } = await criarCliOffline(join(RUN, "ruim"), { manifest: { engines: [{ name: "motor ruim", version: "1.0.0", kind: "cli", home: "~/ruim", install: { entry: "bin/x" } }] }, artefatos: {}, kitHome: join(RUN, "ruim", "kit-home") });
+  const r = cliRuim("completion", "bash");
+  check("pelo CLI: FALHOU completion com o nome, exit 1 e nada no stdout", r.status === 1 && r.stdout === "" && /FALHOU completion: .*motor ruim/.test(r.stderr), `${r.status} ${r.stdout.slice(0, 80)} ${r.stderr.slice(0, 200)}`);
 }
 
 console.log("\n== não usa a rede e não grava nada ==");

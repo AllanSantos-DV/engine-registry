@@ -6,12 +6,15 @@
 //   • o plano do --dry-run diz `manter`, o mesmo que o ensure real faz, e o texto do plano fala de quarentena (não da atualização automática desligada);
 //   • --version, pin e --de-arquivo mandam: a versão em quarentena é instalada;
 //   • o registry oferecendo outra versão tira o motor da quarentena e atualiza; sem histórico de volta, ou sem versão instalada, nada muda;
-//   • pelo CLI: o texto traz uma linha `aviso:` com o motor e o --json traz `quarantined`, em um motor e em vários.
+//   • a versão que voltou a subir por escolha depois da volta (linha posterior com `to` igual) deixa de ser quarentena; a subida anterior à volta não livra;
+//   • `doctor --fix` pula o motor em quarentena (PULADO, exit 0), não instala e não derruba o daemon vivo, e atualiza quando o registry oferece outra versão;
+//   • pelo CLI: o texto traz uma linha `aviso:` com o motor e o --json traz `quarantined`, em um motor e em vários, também no `ensure --de` (real e --dry-run).
 // Hermético: HOME e ENGINE_KIT_HOME isolados, registry e downloads de memória (o .tgz é real), o CLI roda numa cópia do kit sem rede, nenhum daemon.
 //
 //   node tests/test-ensure-quarentena.mjs
 import "./_tmp.mjs";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -25,7 +28,7 @@ const { criarCliOffline } = await import("./_kit-copiado.mjs");
 const { ensureCommand, ensureDeArquivo, planoEm } = await import("../kit/ensure.mjs");
 const { recordSwap } = await import("../kit/trust.mjs");
 const { pin } = await import("../kit/index.mjs");
-const { preinstalar, registry, instalado } = await criarRegistroFalso(RUN);
+const { preinstalar, registry, instalado, homeOf, plugin } = await criarRegistroFalso(RUN);
 
 let failures = 0;
 const check = (name, cond, detail = "") => { if (!cond) failures++; console.log(`${cond ? "  OK  " : " FALHA"} ${name}${!cond && detail ? ` — ${detail}` : ""}`); };
@@ -92,6 +95,19 @@ console.log("\n== sai da quarentena ou nem entra ==");
   check("sem versão instalada a quarentena não impede a instalação", ausente.ok && ausente.version === "1.1.0" && !("quarantined" in ausente) && instalado("q-ausente") === "1.1.0", JSON.stringify(ausente));
 }
 
+console.log("\n== a versão que voltou a subir por escolha sai da quarentena ==");
+{
+  const s = registry({ "s-subiu": "1.1.0", "s-depois": "1.1.0" });
+  preinstalar("s-subiu", "1.0.0"); preinstalar("s-depois", "1.0.0");
+  recordSwap("s-subiu", "1.0.0", "1.1.0", "auto-update"); recordSwap("s-subiu", "1.1.0", "1.0.0", "rollback");
+  recordSwap("s-subiu", "1.0.0", "1.1.0", "version"); recordSwap("s-subiu", "1.1.0", "1.0.0", "version");
+  recordSwap("s-depois", "1.0.0", "1.1.0", "version"); recordSwap("s-depois", "1.1.0", "1.0.0", "rollback");
+  const subiu = await ensureCommand("s-subiu", s.opts);
+  check("v2 falhou, subiu por --version e voltou à mão: o ensure atualiza para ela", subiu.ok && subiu.version === "1.1.0" && !("quarantined" in subiu) && instalado("s-subiu") === "1.1.0", JSON.stringify(subiu));
+  const depois = await ensureCommand("s-depois", s.opts);
+  check("a subida ANTERIOR à volta que falhou não livra a versão da quarentena", depois.ok && depois.quarantined?.version === "1.1.0" && instalado("s-depois") === "1.0.0", JSON.stringify(depois));
+}
+
 console.log("\n== pelo CLI ==");
 {
   const c = registry({ "c-ruim": "1.1.0", "c-limpo": "1.1.0" });
@@ -112,8 +128,38 @@ console.log("\n== pelo CLI ==");
   const lote = json(cli("ensure", "c-ruim", "c-limpo", "--json"));
   check("vários motores: o que está em quarentena fica e o outro atualiza", lote?.ok === true && lote.engines?.[0]?.quarantined?.version === "1.1.0" && lote.engines[1].state === "ATUALIZADO" && lote.engines[1].version === "1.1.0" && !("quarantined" in lote.engines[1]), JSON.stringify(lote));
   check("o ensure em quarentena não gravou histórico (só o do motor atualizado)", historico().replace(antes, "").trim().split("\n").filter(Boolean).every((l) => JSON.parse(l).engine === "c-limpo"), historico());
+  const manifesto = plugin({ "c-ruim": ">=1.1.0" });
+  const dej = json(cli("ensure", "--de", manifesto, "--json"));
+  check("ensure --de --json: mantido, com quarantined e o aviso do motor", dej?.engines?.[0]?.acao === "mantido" && dej.engines[0].quarantined?.version === "1.1.0" && quarentena(dej.engines[0].warns).join() === aviso("1.1.0"), JSON.stringify(dej));
+  const det = cli("ensure", "--de", manifesto);
+  check("ensure --de em texto: a linha `aviso:` com o motor e a razão", /^aviso: c-ruim: .*em quarentena/m.test(det.stdout), det.stdout + det.stderr);
+  const ded = cli("ensure", "--de", manifesto, "--dry-run");
+  check("ensure --de --dry-run em texto: a linha `aviso:` com o motor e a razão", /^aviso: c-ruim: .*em quarentena/m.test(ded.stdout), ded.stdout + ded.stderr);
   const v = json(cli("ensure", "c-ruim", "--version", "1.1.0", "--json"));
   check("--version pelo CLI instala a versão em quarentena", v?.ok === true && v.version === "1.1.0" && v.state === "ATUALIZADO" && !("quarantined" in v), JSON.stringify(v));
+}
+
+console.log("\n== doctor --fix respeita a quarentena ==");
+{
+  const { RUNTIME, SOBE } = await import("./_daemon-falso.mjs");
+  const d = registry({ "d-ruim": "1.1.0", "d-nova": "1.1.1" }, { extra: { "d-ruim": { runtime: RUNTIME } } });
+  preinstalar("d-ruim", "1.0.0"); preinstalar("d-nova", "1.0.0");
+  writeFileSync(join(homeOf("d-ruim"), "bin", "d-ruim.mjs"), SOBE);
+  recordSwap("d-ruim", "1.1.0", "1.0.0", "rollback"); recordSwap("d-nova", "1.1.0", "1.0.0", "rollback");
+  const { cli } = await criarCliOffline(RUN, { manifest: d.manifest, artefatos: d.artefatos, kitHome: KIT_HOME, env: { ENGINE_KIT_NO_AUTO_UPDATE: "0", LOOPBACK_REAL: "1" } });
+  const anuncio = join(homeOf("d-ruim"), "run", "daemon.json");
+  const daemon = spawn(process.execPath, [join(homeOf("d-ruim"), "bin", "d-ruim.mjs")], { stdio: "ignore", windowsHide: true });
+  process.on("exit", () => { try { process.kill(daemon.pid); } catch { /* já saiu */ } });
+  for (let i = 0; i < 100 && !existsSync(anuncio); i++) { await new Promise((r) => setTimeout(r, 50)); }
+  const vivo = async () => { try { return (await fetch(`http://127.0.0.1:${JSON.parse(readFileSync(anuncio, "utf8")).port}/health`)).status === 200; } catch { return false; } };
+  const antes = historico();
+
+  const f = cli("doctor", "--fix", "--engine", "d-ruim");
+  check("--fix pula a versão em quarentena com a linha PULADO e sai com 0", f.status === 0 && f.stdout.includes("PULADO d-ruim: v1.1.0 em quarentena (--version 1.1.0 força)") && !/ FALHA /.test(f.stdout), f.stdout + f.stderr);
+  check("--fix não instala a versão em quarentena nem grava histórico", instalado("d-ruim") === "1.0.0" && historico() === antes, instalado("d-ruim"));
+  check("--fix não derruba o daemon vivo", await vivo(), f.stdout + f.stderr);
+  const n = cli("doctor", "--fix", "--engine", "d-nova");
+  check("com a versão nova no registry o --fix atualiza", n.status === 0 && instalado("d-nova") === "1.1.1" && !/PULADO/.test(n.stdout), n.stdout + n.stderr);
 }
 
 rmSync(RUN, { recursive: true, force: true });

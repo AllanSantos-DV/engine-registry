@@ -81,6 +81,10 @@ for (const r of pending) {
     console.log(`  PULADO ${r.name} — ENGINE_KIT_NO_AUTO_UPDATE desliga a troca de versão; engine-kit ensure ${r.name} --version ${r.engine.version} atualiza de propósito`);
     continue;
   }
+  if (r.quarantined) {
+    console.log(`  PULADO ${r.name}: v${r.quarantined.version} em quarentena (--version ${r.quarantined.version} força)`);
+    continue;
+  }
   const p = await provision(r.engine, {
     exact: Boolean(r.pin),
     repair: r.state === "ADULTERADO",

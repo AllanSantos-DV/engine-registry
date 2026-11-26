@@ -1,5 +1,6 @@
 // engine-kit/completion.mjs — `engine-kit completion <shell>`: o script de completion, gerado dos verbos, das flags e dos motores que o cli já conhece.
 
+const NOME = /^[a-z0-9][a-z0-9._-]*$/;
 const COM_MOTOR = ["ensure", "pin", "unpin", "fetch", "stop", "rollback", "update", "info", "path", "url", "history", "trust"];
 
 const GERADORES = {
@@ -55,8 +56,11 @@ export const SHELLS = Object.keys(GERADORES);
  * @param {string} shell um de `SHELLS`.
  * @param {{verbs:string[], flags:Record<string,string[]>, engines:string[]}} fonte os verbos e as flags do cli e os nomes dos motores do manifest embarcado.
  * @returns {string}
+ * @throws {Error} se algum nome de motor não casa com `NOME`: o shell interpretaria o resto.
  */
 export function completionScript(shell, { verbs, flags, engines }) {
+  const ruim = engines.find((e) => !NOME.test(e));
+  if (ruim !== undefined) { throw new Error(`nome de motor inválido para o completion: ${JSON.stringify(ruim)} (minúsculas, números, ponto e hífen)`); }
   const tabela = verbs.map((v) => [v, [...(v === "completion" ? SHELLS : COM_MOTOR.includes(v) ? engines : []), ...(flags[v] ?? [])]]);
   return GERADORES[shell](verbs, tabela).join("\n");
 }
