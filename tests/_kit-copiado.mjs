@@ -10,10 +10,10 @@ import { pathToFileURL } from "node:url";
 
 /**
  * @param {string} RUN pasta temporária do teste (HOME dele).
- * @param {{manifest:object, artefatos:object, kitHome?:string}} o `manifest` e `artefatos` de `registry()` em `_registro-falso.mjs`.
- * @returns {Promise<{cli:(...args:string[])=>{status:number, stdout:string, stderr:string}}>}
+ * @param {{manifest:object, artefatos:object, kitHome?:string, env?:object}} o `manifest` e `artefatos` de `registry()` em `_registro-falso.mjs`; `env` acrescenta variáveis ao ambiente do CLI (vale sobre as de sempre).
+ * @returns {Promise<{cli:(...args:string[])=>{status:number, stdout:string, stderr:string}, comEntrada:(input:string, ...args:string[])=>{status:number, stdout:string, stderr:string}}>} `comEntrada` roda o CLI com `input` na entrada padrão.
  */
-export async function criarCliOffline(RUN, { manifest, artefatos, kitHome = join(RUN, "kit-home-cli") }) {
+export async function criarCliOffline(RUN, { manifest, artefatos, kitHome = join(RUN, "kit-home-cli"), env: extra = {} }) {
   const { DEFAULT_REGISTRY_URL } = await import("../kit/resolve.mjs");
   const raiz = join(RUN, "kit-copiado");
   const aqui = new URL("..", import.meta.url);
@@ -40,7 +40,7 @@ export async function criarCliOffline(RUN, { manifest, artefatos, kitHome = join
     'globalThis.fetch = async (url) => (String(url) in mapa ? new Response(Buffer.from(mapa[String(url)], "base64")) : new Response("nao encontrado", { status: 404 }));',
   ].join("\n"));
 
-  const env = { ...process.env, HOME: RUN, USERPROFILE: RUN, ENGINE_KIT_HOME: kitHome, ENGINE_KIT_UPDATED_FROM: "teste", ENGINE_KIT_NO_AUTO_UPDATE: "1", REDE_FALSA: rede };
-  const cli = (...args) => spawnSync(process.execPath, ["--import", pathToFileURL(preload).href, join(raiz, "kit", "cli.mjs"), ...args], { cwd: RUN, env, encoding: "utf8", windowsHide: true });
-  return { cli };
+  const env = { ...process.env, HOME: RUN, USERPROFILE: RUN, ENGINE_KIT_HOME: kitHome, ENGINE_KIT_UPDATED_FROM: "teste", ENGINE_KIT_NO_AUTO_UPDATE: "1", REDE_FALSA: rede, ...extra };
+  const roda = (input, args) => spawnSync(process.execPath, ["--import", pathToFileURL(preload).href, join(raiz, "kit", "cli.mjs"), ...args], { cwd: RUN, env, encoding: "utf8", windowsHide: true, ...(input === undefined ? {} : { input }) });
+  return { cli: (...args) => roda(undefined, args), comEntrada: (input, ...args) => roda(input, args) };
 }

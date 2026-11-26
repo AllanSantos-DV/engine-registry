@@ -77,17 +77,17 @@ export function exportCommand(file, { bundled } = {}) {
 }
 
 /**
- * `engine-kit import <arquivo> [--dry-run]`: instala, pelo `ensureCommand` com `version`, a versão registrada de cada motor do documento (sha256, Ed25519 e chave do
+ * `engine-kit import <arquivo|-> [--dry-run]`: instala, pelo `ensureCommand` com `version`, a versão registrada de cada motor do documento (sha256, Ed25519 e chave do
  * manifest embarcado como em qualquer instalação) e, se havia pin, fixa depois pelo `pinCommand`. Documento inválido é recusado inteiro, antes de instalar qualquer coisa;
  * a partir daí um motor recusado (desconhecido, sem build para a plataforma, versão ausente, artefato adulterado, pin local diferente) não impede os outros.
  * Com `dryRun` devolve o plano do `ensure --dry-run` (com `fixar` quando havia pin), sem baixar, instalar nem fixar.
- * @param {string} file documento do `export`.
+ * @param {string} file documento do `export`; `-` lê a entrada padrão.
  * @param {object=} opts as do `ensureCommand`, menos `version`.
  * @returns {Promise<{ok:boolean, dryRun?:true, engines:[string, object][]} | {ok:false, reason:string}>} `engines` traz, na ordem do documento, o retorno do ensure de cada motor (com `pinned` se fixou).
  */
 export async function importCommand(file, opts = {}) {
   let doc;
-  try { doc = JSON.parse(readFileSync(file, "utf8")); } catch (e) { return { ok: false, reason: `não consegui ler ${file}: ${e.message}` }; }
+  try { doc = JSON.parse(readFileSync(file === "-" ? 0 : file, "utf8")); } catch (e) { return { ok: false, reason: `não consegui ler ${file === "-" ? "a entrada padrão" : file}: ${e.message}` }; }
   const v = validarDocumento(doc);
   if (!v.ok) { return v; }
   const engines = [];

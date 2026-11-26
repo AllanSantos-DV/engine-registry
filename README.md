@@ -130,11 +130,11 @@ npx engine-kit doctor --fix [--engine <motor>]    # aplica e limpa as sobras de 
 npx engine-kit doctor --json [--engine <motor>]   # mesmo diagnóstico em JSON, para agentes e hooks
 npx engine-kit doctor --verify [--engine <motor>] # confere o sha256 de cada arquivo instalado: alterado ou ausente = ADULTERADO
 npx engine-kit doctor --report [--engine <motor>] # texto colável para suporte: kit, Node, plataforma, variáveis, motores, sobras e hooks; sem token nem chave
-npx engine-kit list [--json] [--apps]             # os motores do pacote, a plataforma de cada um e a versão instalada (sem rede); --apps acrescenta os apps de manifest.apps, com a plataforma e o pin de cada um
+npx engine-kit list [--json] [--apps]             # os motores do pacote, a plataforma de cada um e a versão instalada (sem rede); no --json cada motor traz também o pin; --apps acrescenta os apps de manifest.apps, com a plataforma e o pin de cada um
 npx engine-kit history [motor] [--json]           # as trocas de versão gravadas nesta máquina: de → para e a origem
 npx engine-kit ensure <motor> <motor> [...] [--registry-url <url>] [--json]   # vários motores numa chamada; uma falha não esconde os outros, exit 1 se algum falhou, --json devolve { ok, engines }
-npx engine-kit ensure <motor> --dry-run [--version <x.y.z>] [--json]   # diz o que o ensure faria (instalaria, atualizaria, reusaria, manteria) sem baixar nem gravar; vale com vários motores e com --de
-npx engine-kit ensure --instalados [--dry-run] [--json]   # atualiza, numa chamada, os motores instalados aqui (pin respeitado; self-managed e motor de outra plataforma ficam de fora)
+npx engine-kit ensure <motor> --dry-run [--version <x.y.z>] [--json] [--falhar-se-desatualizado]   # diz o que o ensure faria (instalaria, atualizaria, reusaria, manteria) sem baixar nem gravar; vale com vários motores e com --de; --falhar-se-desatualizado (não vale com --de) sai com exit 1 se algum motor teria plano diferente de reusar
+npx engine-kit ensure --instalados [--dry-run] [--json] [--falhar-se-desatualizado]   # atualiza, numa chamada, os motores instalados aqui (pin respeitado; self-managed e motor de outra plataforma ficam de fora); com --dry-run, --falhar-se-desatualizado sai com exit 1 se algum teria plano diferente de reusar
 npx engine-kit ensure <motor> --de-arquivo <artefato.tgz>   # instala do artefato local, com <artefato>.sha256 e <artefato>.sig ao lado (os três assets da release); sha256, Ed25519 e versão continuam obrigatórios
 npx engine-kit info <motor|app> [--json]          # descritor, versão no manifest, versão instalada, estado, pin, plataformas e release de um motor (de um app: o descritor e o pin, sem versão instalada); só lê, sem rede
 npx engine-kit update <motor> [--check] [--json]       # pede ao updater do daemon vivo (motor com runtime.updatePath, como o motor-de-grafo) que se atualize; --check só compara as versões; o token do anúncio vai só no cabeçalho
@@ -145,8 +145,8 @@ npx engine-kit trust [motor] [--json]             # o que o trust.json guarda po
 npx engine-kit trust --restaurar                  # devolve o trust.json a partir do .bak quando ele está ilegível (a cópia é validada, a troca é atômica)
 npx engine-kit path <motor> [--json]              # caminho do executável do motor instalado e o estado do cli.json; sem rede, não sobe nada
 npx engine-kit export [arquivo]                   # os motores instalados aqui (nome, versão instalada e pin) num JSON, gravado em arquivo ou impresso; nunca leva chave, assinatura, caminho, usuário nem máquina
-npx engine-kit import <arquivo> [--dry-run] [--permitir-rebaixar] [--json]   # instala a versão registrada de cada motor do documento (sha256 + Ed25519) e fixa o que estava fixado; --dry-run mostra só o plano; versão abaixo da instalada só com --permitir-rebaixar
-npx engine-kit mcp                                # servidor MCP (stdio) que não instala nem fixa nada: engine_list, engine_history, engine_check, engine_path, engine_url, engine_trust, engine_doctor, engine_info, engine_report e, com rede, engine_plan e engine_check com rede:true; não atualiza o kit
+npx engine-kit import <arquivo|-> [--dry-run] [--permitir-rebaixar] [--json]   # `-` lê o documento da entrada padrão (engine-kit export | engine-kit import -); instala a versão registrada de cada motor do documento (sha256 + Ed25519) e fixa o que estava fixado; --dry-run mostra só o plano; versão abaixo da instalada só com --permitir-rebaixar
+npx engine-kit mcp                                # servidor MCP (stdio) que não instala nem fixa nada: engine_list, engine_history, engine_check, engine_path, engine_url, engine_trust, engine_doctor, engine_info, engine_export, engine_report e, com rede, engine_plan e engine_check com rede:true; não atualiza o kit
 npx engine-kit check meu-plugin/plugin.json --rede   # além do check: diz se a versão publicada satisfaz a faixa do que falta ou está fora dela
 npx engine-kit check meu-plugin/plugin.json [outro/plugin.json ...] [--json]   # confere o bloco `engines` de um ou mais manifestos de plugin contra o instalado; com vários, --json devolve { ok, manifests }
 npx engine-kit ensure --de meu-plugin/plugin.json [outro/plugin.json ...] [--registry-url <url>] [--json]   # instala ou atualiza o que o check reprova e reconfere
@@ -215,6 +215,12 @@ Estado atual:
 - `import <arquivo>` valida o formato antes de tocar em qualquer coisa (só as chaves conhecidas, `name` em minúsculas, `version` e `pin` em `x.y.z`, motor repetido, `__proto__`; documento inválido é recusado inteiro). Depois, para cada motor, roda o `ensure` com `--version` da versão registrada (sha256, assinatura Ed25519 e a chave do manifest embarcado, como em qualquer instalação; a versão do registry de hoje não importa) e, se havia pin, fixa. Um motor recusado (desconhecido deste kit, sem build para a plataforma, versão que o registry não tem, artefato adulterado, pin local diferente) não impede os outros; o exit é 1 se algum falhou. `--json` devolve `{ ok, engines }` na linha do `ensure`; `--registry-url` e `--retry` valem como no `ensure`.
 - `import --dry-run` mostra o plano do `ensure --dry-run` por motor (`instalaria v1.0.0 e fixaria`, `reusaria v1.0.0, já em dia`, `atualizaria v1.0.0 → v1.1.0`): não baixa, não instala, não fixa e não grava histórico.
 
+**Portas de CI, entrada padrão e parâmetros do MCP.** Aditivos; sem a flag, o argumento ou o parâmetro novo o comportamento é o de antes:
+- `--falhar-se-desatualizado`, no `ensure <motor>... --dry-run` e no `ensure --instalados --dry-run`, faz o exit ser 1 se algum motor teria plano diferente de `reusar` (`atualizar`, `instalar`, `manter`, ou recusado); o plano sai igual, em texto e em `--json`. Fora de `--dry-run`, com `--de` e nos outros verbos a flag é recusada.
+- `import -` lê o documento do `export` da entrada padrão (`engine-kit export | engine-kit import -`); a validação e o resultado são os de `import <arquivo>`.
+- `list --json` traz `pin` em cada motor (a versão fixada, ou `null`); o texto e o `listCommand` não mudam. Com o `trust.json` ilegível o `--json` falha com o motivo em vez de inventar `pin: null`.
+- No `engine-kit mcp`, `engine_doctor` aceita `engine` (só esse motor) e `verify` (confere a integridade dos arquivos instalados, o `ADULTERADO` do `doctor --verify`), `engine_list` aceita `apps` (os apps do manifest) e a tool nova `engine_export` devolve o documento do `export` (o mesmo que o `import -` lê) sem gravar arquivo. Sem argumentos as duas primeiras devolvem o que devolviam.
+
 **Endereço do daemon.** `engine-kit url <motor>` imprime a `url`, a `version` e o `pid` que o motor anuncia (`discover`, de `kit/client.mjs`), depois de conferir que ele responde.
 O `shutdownToken` do anúncio nunca sai. Motor parado, sem anúncio ou com o anúncio apontando para um endereço morto: erro com a causa e o comando (`engine-kit ensure <motor>`), exit 1.
 Vale para os motores que anunciam `url` no `runtime.json` (a casa de embeddings e o motor de grafo).
@@ -252,6 +258,54 @@ Desatualizado → atualiza. Ausente → baixa. **Atualizado → reusa**. Fixado 
 versão fixada; instalado diferente do pin → `FORA DO PIN`, e o `--fix` instala a versão fixada. O diagnóstico não baixa nada,
 porque reusar é o caminho comum e precisa ser barato. Antes de trocar um daemon vivo, o doctor pede
 o `shutdownPath` que o registry declara: no Windows, arquivo em uso não pode ser sobrescrito.
+
+## Receitas
+
+Quatro usos prontos do kit, só com comandos que existem (o `tests/test-readme-receitas.mjs` confere cada verbo e cada flag contra o `cli.mjs`).
+
+### Hook de início de sessão
+
+```sh
+ENGINE_KIT_NO_AUTO_UPDATE=1 engine-kit doctor --local --json
+```
+
+Imprime uma lista JSON, uma linha por motor do manifest do pacote: `name`, `state`, `detail`, `warns`, `pin` e, nos motores que não são self-managed, `life` e `pointer`. O `--local` não consulta o registry de motores e o `ENGINE_KIT_NO_AUTO_UPDATE=1` impede que o hook atualize o kit. Leia o `state`: `OK`, `FIXADO`, `SELF-MANAGED`, `SEM-BUILD` e `SEM-RELEASE` não pedem ação; `AUSENTE`, `DESATUALIZADO`, `FORA DO PIN`, `ILEGÍVEL` e `ERRO` pedem (`ADULTERADO`, com `--verify`). O exit é 1 sempre que algum motor pede ação, inclusive `AUSENTE`, que numa máquina que não usa todos os motores é o normal: num hook, filtre o `state` dos motores que importam em vez de olhar o exit. A conciliação é `engine-kit doctor --fix`, na mão de quem decide.
+
+### Porta de CI
+
+```sh
+engine-kit check meu-plugin/plugin.json --json
+engine-kit ensure --instalados --dry-run --falhar-se-desatualizado
+engine-kit ensure vxk skill-engine --dry-run --falhar-se-desatualizado
+```
+
+O `check` sai com exit 1 quando um motor da faixa `engines` do plugin está ausente ou fora da faixa, e o `--json` traz o motivo de cada um. O `ensure --dry-run` sai 0 como sempre; com `--falhar-se-desatualizado` (só vale com `--dry-run`, com um ou vários motores ou com `--instalados`) sai com exit 1 se algum motor teria plano diferente de `reusar`: atualizaria, instalaria, manteria ou recusaria. Nada é baixado nem gravado.
+
+### Provisionar no postinstall ou na primeira execução
+
+```json
+{ "scripts": { "postinstall": "engine-kit ensure vxk" } }
+```
+
+`engine-kit ensure vxk` é idempotente: com o motor em dia só reusa, sem baixar; senão instala ou atualiza conferindo sha256 e Ed25519. Falha (rede fora, artefato adulterado, plataforma sem build) é exit 1 com o motivo, e o `postinstall` falha junto: não há instalação calada pela metade. Na primeira execução do seu programa o comando é o mesmo; `ENGINE_KIT_NO_AUTO_UPDATE=1` mantém a versão instalada.
+
+### Levar o ambiente para outra máquina
+
+```sh
+engine-kit export | ssh <outra-maquina> engine-kit import -
+engine-kit export ambiente.json
+engine-kit import ambiente.json --dry-run
+engine-kit import ambiente.json
+```
+
+O `export` imprime (ou grava) nome, versão instalada e pin de cada motor, sem chave, caminho nem usuário; o `import` (`-` lê a entrada padrão) instala a versão registrada de cada motor com a conferência de sempre e refixa o que estava fixado; `--dry-run` mostra só o plano. Sem rede na outra ponta, leve os artefatos e as assinaturas:
+
+```sh
+engine-kit fetch vxk skill-engine --com-assinaturas --dest espelho
+engine-kit ensure vxk --de-arquivo espelho/<artefato.tgz>
+```
+
+O `fetch` grava ao lado de cada `.tgz` o `.sha256` e o `.sig` da release, já conferidos; o `--de-arquivo` instala do disco com sha256, Ed25519 e versão obrigatórios.
 
 ## Como consumir
 

@@ -175,10 +175,12 @@ const ROOT = resolvePath(KIT, "..");
 //   fecho de `kit/index.mjs` (runtime 38990/39000, a cifra de 39 KB da vitrine segue). Sem os verbos novos o comportamento é o de antes.
 //   2026-11-25 tooling 119000 → 119500: correções da revisão independente dos verbos novos, +71 bytes — o `fetch --com-assinaturas` confere os sidecars com a chave que o `fetchArtifact` aceitou (rotação legítima), o `import` recusa documento com `pin` diferente da versão e só rebaixa com `--permitir-rebaixar`. O runtime não mudou (38990/39000).
 //   2026-11-25 tooling 119500 → 120000: segunda rodada da revisão independente, +545 bytes (kit/ensure.mjs +214, kit/export-import.mjs +177, kit/cli.mjs +154) — o `list` aplica o `install.byPlatform` da plataforma atual ao achar o motor instalado (o export e a trava de rebaixamento do `import` passam a enxergá-lo), o `export` omite o pin que difere da versão instalada e devolve `pinOmitido` (o CLI avisa em stderr), e o `pin --version --dry-run` recusa motor self-managed como o pin de verdade. O runtime não mudou (38990/39000).
+//   2026-11-26 tooling 120000 → 122000: cinco candidatos aditivos, +2.2 KB medidos, 119638 → 121803 (kit/cli.mjs +1.2, kit/mcp.mjs +0.9, kit/export-import.mjs +0.06). No MCP, `engine_doctor` aceita `engine` e `verify`, `engine_list` aceita `apps` e a tool de leitura `engine_export` devolve o documento do `exportCommand` sem gravar (reusam `diagnoseEngines`, `listCommand` e `exportCommand`; as descrições das tools são a maior parte dos bytes);
+//   no CLI, `--falhar-se-desatualizado` no `ensure --dry-run` e no `ensure --instalados --dry-run` (exit 1 se algum motor teria plano diferente de reusar), `import -` (lê o documento da entrada padrão, a validação é a do `importCommand`) e o `pin` de cada motor no `list --json`; o texto do uso cresceu junto. A seção Receitas do README não pesa aqui. Tudo no ferramental, fora do fecho de `kit/index.mjs` (runtime 38990/39000, a cifra de 39 KB da vitrine segue). Sem as flags, argumentos e tools novos o comportamento é o de antes.
 const BUDGETS = {
   runtime: { codeBytes: 39000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10700, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 120000, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 122000, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

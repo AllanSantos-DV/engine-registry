@@ -39,7 +39,7 @@ console.log("== engine-kit mcp ==\n");
 {
   const l = (await handleMessage({ jsonrpc: "2.0", id: 4, method: "tools/list" })).result.tools;
   const nomes = l.map((t) => t.name).sort().join();
-  check("tools/list traz as dez tools de leitura, cada uma com inputSchema", nomes === "engine_check,engine_doctor,engine_history,engine_info,engine_list,engine_path,engine_plan,engine_report,engine_trust,engine_url" && l.every((t) => t.inputSchema?.type === "object" && t.description && !("run" in t)), nomes);
+  check("tools/list traz as onze tools de leitura, cada uma com inputSchema", nomes === "engine_check,engine_doctor,engine_export,engine_history,engine_info,engine_list,engine_path,engine_plan,engine_report,engine_trust,engine_url" && l.every((t) => t.inputSchema?.type === "object" && t.description && !("run" in t)), nomes);
   check("nenhuma tool de escrita é exposta", !l.some((t) => /ensure|pin|stop|update|rollback|restaur|fetch|register/i.test(t.name)));
   check("TOOLS exporta o mesmo conjunto que o tools/list", TOOLS.length === l.length);
 }

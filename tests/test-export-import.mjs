@@ -260,7 +260,7 @@ console.log("\n== pelo CLI, offline ==");
   const json = (s) => { try { return JSON.parse(s); } catch { return null; } };
   const avisos = (r) => r.stderr.split("\n").filter((l) => l.startsWith("aviso:"));
   const uso = cli("--help").stdout;
-  check("o uso documenta export e import", /engine-kit export \[arquivo\]/.test(uso) && /engine-kit import <arquivo> .*--dry-run/.test(uso), uso.slice(0, 200));
+  check("o uso documenta export e import", /engine-kit export \[arquivo\]/.test(uso) && /engine-kit import <arquivo|-> .*--dry-run/.test(uso), uso.slice(0, 200));
 
   const vazio = cli("export");
   check("export sem arquivo com nada instalado: JSON válido só no stdout, lista vazia", vazio.status === 0 && json(vazio.stdout)?.formato === 1 && json(vazio.stdout).engines.length === 0, vazio.stdout + vazio.stderr);

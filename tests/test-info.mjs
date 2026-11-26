@@ -75,7 +75,7 @@ console.log("\n== pelo CLI ==");
   const desc = cli("info", "motor-que-nao-existe");
   check("motor desconhecido pelo CLI: exit 1 com o motivo", desc.status === 1 && /não está no manifest/.test(desc.stderr), desc.stderr);
   const l = cli("list", "--json");
-  check("o list segue com as mesmas chaves de antes", l.status === 0 && Object.keys(JSON.parse(l.stdout).engines[0]).sort().join() === "installed,kind,name,platforms,selfManaged,supported,version", l.stdout.slice(0, 200));
+  check("o list segue com as chaves de antes, mais o pin", l.status === 0 && Object.keys(JSON.parse(l.stdout).engines[0]).sort().join() === "installed,kind,name,pin,platforms,selfManaged,supported,version", l.stdout.slice(0, 200));
 }
 
 rmSync(RUN, { recursive: true, force: true });
