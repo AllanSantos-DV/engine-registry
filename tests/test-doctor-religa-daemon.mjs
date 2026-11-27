@@ -126,6 +126,6 @@ else {
 
 for (const p of lancados) { matar(p); }
 for (const p of lancados) { await sumiu(p); }
-rmSync(RUN, { recursive: true, force: true });
+rmSync(RUN, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
 console.log(failures === 0 ? "\n== TUDO VERDE ==" : `\n== ${failures} FALHA(S) ==`);
 process.exitCode = failures === 0 ? 0 : 1;

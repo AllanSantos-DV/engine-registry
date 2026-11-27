@@ -108,7 +108,7 @@ console.log("== engine-kit fetch ==\n");
   const permissivo = permissivoDe(ENGINE_BODY, engineSig);
   const hostil = (asset, home) => { const m = manifestWith(owner.publicKeyHex, home); m.engines[0].install.asset = asset; return m; };
   const arquivos = (d) => (existsSync(d) ? readdirSync(d, { recursive: true }) : []);
-  for (const asset of ["../../fora.tgz", "sub/a.tgz", "..\\..\\fora.tgz", "..", "c:foo.tgz", "x.tgz:stream", "nul", "CON.tgz", "com1", "LPT9.tar.gz", "prn.x.tgz", "aux", "a b.tgz"]) {
+  for (const asset of ["../../fora.tgz", "sub/a.tgz", "..\\..\\fora.tgz", "..", "c:foo.tgz", "x.tgz:stream", "nul", "CON.tgz", "com1", "LPT9.tar.gz", "prn.x.tgz", "aux", "a b.tgz", "a@b.tgz", "a~b.tgz", "ação.tgz", "_a.tgz", "-a.tgz", ".a.tgz"]) {
     const base = dest(), m = hostil(asset);
     const r = await fetchCommand("fake-engine", { bundled: m, manifest: m, fetcher: permissivo, destDir: join(base, "a", "b") });
     check(`fetch recusa o asset "${asset}" dizendo que não é um nome de arquivo`, !r.ok && /não é um nome de arquivo/.test(r.reason), r.ok ? "baixou!" : r.reason);

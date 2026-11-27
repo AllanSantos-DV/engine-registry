@@ -89,7 +89,7 @@ async function subir(engine, versao, prazoMs, pisoMs) {
   const lancadoEm = Date.now();
   const fimDoFilho = Math.max(fim, lancadoEm + Math.min(pisoMs, prazoMs));
   const up = await esperar(() => !boot.dead, fimDoFilho);
-  if (up) { return up.pid && up.pid !== boot.pid ? (matar(), up) : up; }
+  if (up) { return up.pid && up.pid !== boot.pid && !boot.dead ? (matar(), up) : up; }
   if (boot.dead) {
     const { code, signal, error } = boot.dead;
     return falha(`${entry} saiu ao subir (${error ?? (signal ? `sinal ${signal}` : `código ${code}`)}); últimas linhas: ${fimDoLog(bootLog, readRuntime(engine)?.[runtime.shutdownTokenField]) || "(vazio)"}`, boot.pid);
