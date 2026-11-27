@@ -80,9 +80,7 @@ export async function ensureEngine(name, opts = {}) {
 
   let pin;
   try { pin = pinOf(name); } catch (e) { return unavailable(e.message); }
-  if (pin && version && !satisfiesPin(pin, version)) {
-    return unavailable(`${name} fixado em v${pin}; o consumidor pede v${version} → engine-kit unpin ${name}`);
-  }
+  if (pin && version && !satisfiesPin(pin, version)) { return unavailable(`${name} fixado em v${pin}; o consumidor pede v${version} → engine-kit unpin ${name}`); }
   const r = await resolve(name, { version: pin ?? version, allowNetwork, registryUrl, refresh });
   if (!r.ok) { return await vivoSemRegistry(name, healthCheck, r.reason) ?? unavailable(r.reason); }
 
@@ -110,11 +108,7 @@ export async function ensureEngine(name, opts = {}) {
   let rolledBack;
   if (!l.available && previousDir) {
     const failed = { version: installed, reason: l.reason };
-    try {
-      await shutdown(r.engine, { log });
-      rmTree(bin);
-      await renameRetry(previousDir, bin);
-    } catch (e) { return unavailable(`${l.reason}; a volta para v${previous} falhou (${e.code || e.message}); a versão anterior está em ${previousDir}`); }
+    try { await shutdown(r.engine, { log }); rmTree(bin); await renameRetry(previousDir, bin); } catch (e) { return unavailable(`${l.reason}; a volta para v${previous} falhou (${e.code || e.message}); a versão anterior está em ${previousDir}`); }
     installed = previous;
     recordSwap(name, failed.version, previous, "rollback");
     log(`[engine-kit] ${name}: v${failed.version} não subiu (${failed.reason}) — voltei para v${previous}`);

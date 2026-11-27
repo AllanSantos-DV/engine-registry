@@ -25,6 +25,9 @@ export async function renameRetry(a, b, tries = 8) {
   }
 }
 
+/** A versão do registry vira nome de pasta: só semver simples (com pré-release ou metadata) entra num caminho. */
+export const SEMVER = /^\d+\.\d+\.\d+([-+][\w.+-]*)?$/;
+
 /** Apaga `p` e tudo sob ele; não falha se não existe. */
 export const rmTree = (p) => rmSync(p, { recursive: true, force: true });
 
@@ -72,11 +75,7 @@ export async function extractTgz(tgz, dest, tar = [tarBinary()]) {
  * `openSync` e o `finally` travaria todos os consumidores para sempre. Quem está provisionando renova o mtime (`provision`).
  */
 function claimLock(lock, staleMs) {
-  const open = () => {
-    const fd = openSync(lock, "wx");
-    try { writeFileSync(lock, String(process.pid)); } catch { /* diagnóstico é best-effort */ }
-    return fd;
-  };
+  const open = () => { const fd = openSync(lock, "wx"); try { writeFileSync(lock, String(process.pid)); } catch { /* diagnóstico é best-effort */ } return fd; };
   try { return open(); } catch { dropStaleLock(lock, staleMs); }
   try { return open(); } catch { return null; }
 }
@@ -256,8 +255,9 @@ async function verifyAuthenticity(engine, digest, { log, fetcher, trustedKeys })
  * @returns {Promise<{ok:true, path:string, version:string, signed:boolean} | {ok:false, reason:string}>} nunca lança.
  */
 export async function fetchArtifact(engine, { log = () => {}, destDir: dir = process.cwd(), idleTimeoutMs, downloadTimeoutMs, fetcher = fetchBuf, trustedKeys, intoHome = false } = {}) {
-  const { assetName: a } = engine;
-  if (/[\\/]|^\.\.?$/.test(a)) { return refuse(engine, `asset "${a}" não é um nome de arquivo`); }
+  const { assetName: a, version: v } = engine;
+  const bad = !/^[A-Za-z0-9][\w.+-]*$/.test(a) || /^(con|prn|aux|nul|(com|lpt)[1-9])(\.|$)/i.test(a) ? `asset "${a}" não é um nome de arquivo` : !SEMVER.test(v) && `versão "${v}" não é semver (x.y.z)`;
+  if (bad) { return refuse(engine, bad); }
   const dentro = relative(resolvePath(engine.homeDir), resolvePath(dir));
   if (!intoHome && !dentro.startsWith("..") && !isAbsolute(dentro)) {
     return refuse(engine, `destino ${dir} está dentro do home de ${engine.name} (${engine.homeDir}): o doctor --fix trata o artefato ali como sobra de instalação e o apagaria → escolha outra pasta`);
@@ -302,9 +302,7 @@ export async function provision(engine, { log = () => {}, allowNetwork = true, o
     if (!inst && engine.status !== "self-managed") {
       say(log, engine, `instalação em estado desconhecido (versão ilegível) → reprovisionando`);
       if (!allowNetwork) { return refuse(engine, `instalação em estado desconhecido (package.json ausente/corrompido em ${binDir}) e rede desabilitada: sem como reparar`); }
-    } else if (inst) {
-      say(log, engine, `instalada v${inst} não satisfaz o pin v${engine.version} → atualizando`);
-    }
+    } else if (inst) { say(log, engine, `instalada v${inst} não satisfaz o pin v${engine.version} → atualizando`); }
   }
 
   // Antes de qualquer teste de rede/estado local: o que o kit NÃO faz com este motor vale

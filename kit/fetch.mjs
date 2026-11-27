@@ -5,7 +5,7 @@
 // embarcado, conferidos por `verifyAppRelease`. O que passou na conferência vai para `destDir`; nada é extraído nem
 // executado, e o HOME do motor não é tocado. NUNCA lança: devolve { ok, reason }.
 import { resolve } from "./resolve.mjs";
-import { fetchArtifact, fetchBuf, extractTgz, installedVersion, rmTree } from "./provision.mjs";
+import { fetchArtifact, fetchBuf, extractTgz, installedVersion, rmTree, SEMVER } from "./provision.mjs";
 import { dropFile } from "./trust.mjs";
 import { verifyDigest, DEFAULT_ALGORITHM } from "./signature.mjs";
 import { createReadStream, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
@@ -31,6 +31,7 @@ const digestDe = async (arquivo) => {
  */
 export async function versaoDivergente(arquivo, engine) {
   if (!/\.(tgz|tar\.gz)$/i.test(arquivo)) { return null; }
+  if (!SEMVER.test(engine.version)) { return `${engine.name}: versão "${engine.version}" não é semver (x.y.z)`; }
   const dir = join(verifyRoot(), `${engine.name}-${engine.version}`);
   const marker = join(dir, ".sha256");
   const hash = (await digestDe(arquivo)).toString("hex");

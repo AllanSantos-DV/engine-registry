@@ -11,7 +11,10 @@
 //   • o daemon que anuncia a versão com sufixo `+build` é aceito; o saudável que anuncia outra versão devolve ok:false com a razão e NÃO é morto;
 //   • o anúncio de um pid vivo que ainda não responde o /health é esperado até o prazo, sem lançar um segundo daemon;
 //   • a troca que falha depois de o daemon cair religa a instalação ANTIGA e diz se subiu; se também não sobe, diz que o daemon NÃO está no ar;
-//   • a razão não leva o shutdownToken do runtime.json nem hexadecimal de 32+ caracteres do fim do boot.log (viram [omitido]); as outras linhas ficam;
+//   • a razão não leva o shutdownToken do runtime.json nem sequência de 24+ caracteres [A-Za-z0-9_-] (hexadecimal, base64, ?token=) do fim do boot.log (viram [omitido]); as outras linhas ficam, em até 5 linhas e 400 caracteres;
+//   • daemon com o /health lento (TRAVADO: pid vivo e porta, mas sem resposta em 2 s) é derrubado e religado como o VIVO; o motor não religável que o gancho derrubou deixa uma linha de aviso "derrubado e NÃO religado por este comando", sem mudar o exit;
+//   • "o daemon anterior foi religado" só aparece se a instalação anterior existe no disco e subiu; sem ela a razão diz que não existe mais e o daemon NÃO está no ar, sem lançar nada;
+//   • anúncio sem pid: nenhum processo é encerrado e a razão diz que o anúncio não traz pid;
 //   • entry e runtimeFile fora do home são recusados sem apagar nem lançar; o daemon religado roda na pasta do executável, sem NODE_OPTIONS nem COPILOT_SDK_PATH;
 //   • motor que se relança sozinho (shutdownPath com relaunch=1) não é religável; plano desconhecido não vira a palavra "undefined";
 //   • só o entry .js, .mjs ou .cjs é lançado por node; o que apenas termina em "js" (bin/foo-js, bin/nodejs) é lançado direto, como executável;
@@ -23,8 +26,9 @@
 //
 //   node tests/test-ensure-religa-daemon.mjs
 import "./_tmp.mjs";
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
-import { spawn } from "node:child_process";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -37,7 +41,10 @@ const { ensureCommand, pinCommand, planoEm } = await import("../kit/ensure.mjs")
 const { pinOf } = await import("../kit/trust.mjs");
 const religar = await import("../kit/religar.mjs").catch(() => null);
 const { resolve: resolverMotor } = await import("../kit/resolve.mjs");
-const { homeOf, registry, instalado } = await criarRegistroFalso(RUN);
+const { lifeOf } = await import("../kit/diagnose.mjs");
+const { signBlob } = await import("../kit/index.mjs");
+const { tarBinary } = await import("../kit/provision.mjs");
+const { owner, homeOf, registry, instalado } = await criarRegistroFalso(RUN);
 
 let failures = 0;
 const check = (name, cond, detail = "") => { if (!cond) failures++; console.log(`${cond ? "  OK  " : " FALHA"} ${name}${!cond && detail ? ` — ${detail}` : ""}`); };
@@ -117,7 +124,14 @@ ${extra}
 console.error('boom: motor novo quebrado');
 process.exit(3);
 `;
+const SOBE_SAUDE_LENTA = SOBE.replace("if (req.url === '/health') { res.writeHead(200).end('ok'); return; }", "if (req.url === '/health') { setTimeout(() => res.writeHead(200).end('ok'), 3000); return; }");
+const SEM_PID = SOBE.replace("pid: process.pid, ", "");
+const SEGREDO_B64 = Buffer.from("segredo-do-daemon-que-nao-pode-vazar").toString("base64url");
+const SEGREDO_URL = "AbCdEfGhIjKlMnOpQrStUvWx12";
 Object.assign(FONTES, {
+  vazaBase64: VAZA(`console.error('token ${SEGREDO_B64} fim');`),
+  vazaUrl: VAZA(`console.error('GET http://127.0.0.1:8080/cb?token=${SEGREDO_URL} falhou');`),
+  vazaLongo: VAZA("for (let i = 0; i < 7; i++) { console.error('linha-' + i + ' ' + 'texto comum '.repeat(30)); }"),
   perde: PERDE,
   vazaToken: VAZA(`mkdirSync(join(aqui, '..', 'run'), { recursive: true });
 writeFileSync(join(aqui, '..', 'run', 'daemon.json'), JSON.stringify({ port: 1, pid: process.pid, version: '1.1.0', shutdownToken: 'segredo-do-shutdown' }));
@@ -151,6 +165,7 @@ async function preparar(nome, { v2 = "sobe", v1 = SOBE, vivoAntes = true, extraE
   return { name, home, pid1, r2, bootLog: join(home, "run", "boot.log") };
 }
 const guardar = (r) => { if (r?.restarted?.pid) { lancados.add(r.restarted.pid); } };
+const AVISO_NAO_RELIGADO = /daemon derrubado e NÃO religado por este comando \(quem o sobe é o consumidor\)/;
 const sumiu = async (pid, ms = 5000) => { for (let i = 0; i < ms / 100 && vivo(pid); i++) { await sleep(100); } return !vivo(pid); };
 
 console.log("== o ensure religa o daemon que ele derrubou ==");
@@ -166,6 +181,19 @@ console.log("== o ensure religa o daemon que ele derrubou ==");
   check("o /health do daemon novo responde 200", (await saude(c.home)) === 200);
   check("a saída do daemon novo vai para run/boot.log", existsSync(c.bootLog) && r.restarted?.bootLog === c.bootLog, String(r.restarted?.bootLog));
   check("o log diz que religou, antes e depois", linhas.some((l) => l.includes(`${c.name}: religando o daemon que estava no ar...`)) && linhas.some((l) => l.includes(`${c.name}: daemon religado (pid ${r.restarted?.pid}`)), linhas.join(" | "));
+  check("o daemon religado não gera o aviso de 'derrubado e NÃO religado'", !linhas.some((l) => AVISO_NAO_RELIGADO.test(l)), linhas.join(" | "));
+}
+
+console.log("\n== daemon com o /health lento (TRAVADO) é derrubado e religado ==");
+{
+  const c = await preparar("travado", { v1: SOBE_SAUDE_LENTA });
+  const motor = await resolverMotor(c.name, { manifest: c.r2.manifest });
+  check("(controle) o daemon antigo está TRAVADO: o pid vive, mas o /health passa de 2 s", (await lifeOf(motor.engine)).state === "TRAVADO");
+  const plano = await ensureCommand(c.name, { ...c.r2.opts, dryRun: true });
+  check("o --dry-run avisa que derrubaria e religaria o daemon travado", plano.ok && plano.religaria === true, JSON.stringify(plano));
+  const r = await ensureCommand(c.name, { ...c.r2.opts, religarPrazoMs: 20000 });
+  guardar(r);
+  check("troca 1.0.0 → 1.1.0: o daemon lento caiu e o religado responde o /health na versão nova", r.ok && r.version === "1.1.0" && r.restarted?.ok === true && r.restarted.version === "1.1.0" && !vivo(c.pid1) && vivo(r.restarted.pid) && (await saude(c.home)) === 200, JSON.stringify(r));
 }
 
 console.log("\n== daemon que não estava no ar não é lançado ==");
@@ -203,6 +231,13 @@ console.log("\n== o fim do log do daemon que não sobe não vaza segredo ==");
   const h = await caso("vaza-hex", "vazaHex");
   check("sequência hexadecimal de 32+ caracteres sai da razão e vira [omitido]", h.r.restarted?.ok === false && h.razoes.every((x) => !/[0-9a-f]{32}/i.test(x) && x.includes("chave [omitido] fim")), JSON.stringify(h.razoes));
   check("as outras linhas do log seguem visíveis também no caso do hexadecimal", h.razoes.every((x) => x.includes("boom: motor novo quebrado")), JSON.stringify(h.razoes));
+  const b = await caso("vaza-base64", "vazaBase64");
+  check("token em base64 sai da razão e vira [omitido]; o texto em volta e as outras linhas ficam", b.r.restarted?.ok === false && b.razoes.every((x) => !x.includes(SEGREDO_B64) && x.includes("token [omitido] fim") && x.includes("boom: motor novo quebrado")), JSON.stringify(b.razoes));
+  const u = await caso("vaza-url", "vazaUrl");
+  check("token numa URL ?token=... sai da razão e vira [omitido]; o resto da linha fica", u.r.restarted?.ok === false && u.razoes.every((x) => !x.includes(SEGREDO_URL) && x.includes("cb?token=[omitido] falhou")), JSON.stringify(u.razoes));
+  const l = await caso("log-longo", "vazaLongo");
+  const trecho = (l.r.restarted?.reason ?? "").split("últimas linhas: ")[1] ?? "";
+  check("o trecho do log tem no máximo 5 linhas e 400 caracteres, e o fim (o erro) continua nele", l.r.restarted?.ok === false && trecho.length > 0 && trecho.length <= 400 && trecho.split(" | ").length <= 5 && trecho.includes("boom: motor novo quebrado"), `${trecho.length} ${trecho.split(" | ").length}`);
 }
 
 console.log("\n== a v2 sobe e nunca anuncia: o prazo corta ==");
@@ -240,9 +275,15 @@ console.log("\n== motor com runtime.updatePath não é trocado nem religado ==")
 console.log("\n== kind=cli que não é a casa nem o grafo: derrubado, não religado ==");
 {
   const c = await preparar("cli", { extraEngine: { kind: "cli" } });
-  const r = await ensureCommand(c.name, c.r2.opts);
+  const linhas = [];
+  const r = await ensureCommand(c.name, { ...c.r2.opts, log: (m) => linhas.push(m) });
   check("troca 1.0.0 → 1.1.0 com o daemon v1 derrubado", r.ok && r.version === "1.1.0" && !vivo(c.pid1), JSON.stringify(r));
   check("não foi religado: sem restarted, sem boot.log", r.restarted === undefined && !existsSync(c.bootLog), JSON.stringify(r.restarted));
+  check("o ensure avisa, numa linha só, que o daemon foi derrubado e NÃO religado por este comando", linhas.filter((l) => AVISO_NAO_RELIGADO.test(l)).length === 1 && r.ok === true, linhas.join(" | "));
+  const p = await preparar("cli-parado", { extraEngine: { kind: "cli" }, vivoAntes: false });
+  const linhasP = [];
+  await ensureCommand(p.name, { ...p.r2.opts, log: (m) => linhasP.push(m) });
+  check("motor não religável que não estava no ar não gera o aviso: nada foi derrubado", !linhasP.some((l) => AVISO_NAO_RELIGADO.test(l)), linhasP.join(" | "));
 }
 
 const motorDe = async (c) => (await resolverMotor(c.name, { manifest: c.r2.manifest })).engine;
@@ -352,6 +393,54 @@ if (WINDOWS) {
   lancados.add(daemonJson(c.home)?.pid);
   check("pin --version cuja troca falha não deixa o pin gravado, mesmo com o daemon antigo religado", r.ok === false && /pin não aplicado/.test(r.reason ?? "") && /o daemon anterior foi religado/.test(r.reason) && !pinOf(c.name), `${JSON.stringify(r)} pin=${pinOf(c.name)}`);
   matar(holder);
+}
+
+console.log("\n== a razão só diz 'o daemon anterior foi religado' se a instalação anterior existe e subiu ==");
+{
+  const c = await preparar("anterior-presente");
+  const rel = religar.religador(await motorDe(c), { prazoMs: 20000 });
+  await rel.antes();
+  const r = await rel.religar("1.0.0");
+  if (r?.pid) { lancados.add(r.pid); }
+  check("com a instalação anterior no disco o religar sobe a v1.0.0 e a razão diz que o daemon anterior foi religado", r?.ok === true && r.version === "1.0.0" && /; a troca falhou; o daemon anterior foi religado \(pid \d+, v1\.0\.0\)/.test(religar.aposReligar(r, false)), JSON.stringify(r));
+  const g = await preparar("anterior-ausente");
+  const relG = religar.religador(await motorDe(g), { prazoMs: 20000 });
+  await relG.antes();
+  rmSync(join(g.home, "bin"), { recursive: true, force: true });
+  const rg = await relG.religar("1.0.0");
+  const texto = religar.aposReligar(rg, false);
+  check("sem a instalação anterior nada é lançado: ok:false, sem boot.log", rg?.ok === false && !existsSync(g.bootLog), JSON.stringify(rg));
+  check("a razão diz que a troca falhou e a instalação anterior não existe mais: o daemon NÃO está no ar", texto.includes("a troca falhou e a instalação anterior não existe mais: o daemon NÃO está no ar") && !/foi religado|anuncia v/.test(texto), texto);
+  const e = await preparar("troca-apagou-anterior");
+  const incompleto = join(RUN, `incompleto-${e.name}`);
+  mkdirSync(incompleto, { recursive: true });
+  writeFileSync(join(incompleto, "package.json"), JSON.stringify({ name: e.name, version: "1.1.0" }));
+  execFileSync(tarBinary(), ["-czf", `${incompleto}.tgz`, "-C", incompleto, "."], { stdio: "ignore", windowsHide: true });
+  const tgz = readFileSync(`${incompleto}.tgz`), sig = signBlob(tgz, owner.privateKeyHex);
+  const sem = async (url) => (url.endsWith(".sha256") ? Buffer.from(`${createHash("sha256").update(tgz).digest("hex")}  ${e.name}.tgz\n`) : url.endsWith(".sig") ? sig : tgz);
+  const r2 = await ensureCommand(e.name, { ...e.r2.opts, fetcher: sem, religarPrazoMs: 5000 });
+  guardar(r2);
+  check("artefato novo sem o executável (a anterior já apagada): o ensure falha e a razão não promete um daemon", r2.ok === false && /extraído incompleto/.test(r2.reason ?? ""), r2.reason);
+  check("a razão diz que a instalação anterior não existe mais e que o daemon NÃO está no ar, sem 'religado' nem 'anuncia vX'", /a troca falhou e a instalação anterior não existe mais: o daemon NÃO está no ar/.test(r2.reason ?? "") && !/foi religado|anuncia v/.test(r2.reason ?? "") && !existsSync(e.bootLog), r2.reason);
+}
+
+console.log("\n== anúncio sem pid: ninguém é encerrado e a razão diz que o anúncio não traz pid ==");
+{
+  const c = await preparar("sem-pid", { v2: FILHO });
+  const rel = await derrubadoEInstalado(c, 4000);
+  const emVoo = rel.religar("1.1.0");
+  const arq = join(c.home, "filho.pid");
+  for (let i = 0; i < 100 && !existsSync(arq); i++) { await sleep(100); }
+  const pidFilho = Number(ler(arq));
+  lancados.add(pidFilho);
+  const outro = join(c.home, "bin", "outro-sem-pid.mjs");
+  writeFileSync(outro, SEM_PID.replace(/const version = (.*);/, "const version = '9.9.9';"));
+  const p = spawn(process.execPath, [outro], { cwd: join(c.home, "bin"), windowsHide: true, stdio: "ignore" });
+  lancados.add(p.pid);
+  for (let i = 0; i < 100 && daemonJson(c.home)?.version !== "9.9.9"; i++) { await sleep(100); }
+  const r = await emVoo;
+  check("ok:false, a razão diz que o anúncio não traz pid e não atribui um pid ao anunciante", r?.ok === false && /o anúncio não traz pid/.test(r.reason) && r.pid === undefined, JSON.stringify(r));
+  check("ninguém foi encerrado: o filho lançado e o outro daemon seguem vivos, e o /health do outro responde", vivo(pidFilho) && vivo(p.pid) && (await saude(c.home)) === 200, `${vivo(pidFilho)} ${vivo(p.pid)}`);
 }
 
 console.log("\n== caminhos do descritor fora do home: recusados sem apagar nem lançar ==");
@@ -520,8 +609,8 @@ console.log("\n== quem é religável ==");
 }
 
 console.log("\n== pelo CLI de verdade (exit code, texto, --json) ==");
-async function cli(nome, v2, args) {
-  const c = await preparar(nome, { v2 });
+async function cli(nome, v2, args, extra) {
+  const c = await preparar(nome, { v2, ...extra });
   const { cli: roda } = await criarCliOffline(RUN, { manifest: c.r2.manifest, artefatos: c.r2.artefatos, kitHome: process.env.ENGINE_KIT_HOME, env: { LOOPBACK_REAL: "1", ENGINE_KIT_NO_AUTO_UPDATE: "" } });
   const r = roda("ensure", c.name, ...args);
   const dj = daemonJson(c.home);
@@ -536,6 +625,10 @@ async function cli(nome, v2, args) {
 {
   const { c, r } = await cli("cli-texto", "sobe", []);
   check("texto: exit 0 e as duas linhas de log", r.status === 0 && r.stdout.includes(`[engine-kit] ${c.name}: religando o daemon que estava no ar...`) && r.stdout.includes(`[engine-kit] ${c.name}: daemon religado (pid `), `${r.status} ${r.stdout} ${r.stderr}`);
+}
+{
+  const { r } = await cli("cli-nao-religavel", "sobe", [], { extraEngine: { kind: "cli" } });
+  check("motor não religável derrubado: exit 0 e a linha de aviso na saída do CLI", r.status === 0 && AVISO_NAO_RELIGADO.test(r.stdout), `${r.status} ${r.stdout} ${r.stderr}`);
 }
 {
   const { c, r } = await cli("cli-falha", "quebra", []);

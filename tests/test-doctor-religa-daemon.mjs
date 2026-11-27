@@ -3,6 +3,7 @@
 // O que precisa ser verdade:
 //   • daemon vivo na v1, motor desatualizado: o --fix troca para a v2 e o daemon da v2 está no ar (pid novo, versão nova, /health responde), com o log de religar e a saída em run/boot.log;
 //   • daemon parado antes: nada é lançado (sem daemon.json, sem boot.log, sem linha de religar) e o --fix sai com 0;
+//   • motor não religável (kind=cli) cujo daemon o --fix derruba: uma linha "daemon derrubado e NÃO religado por este comando (quem o sobe é o consumidor)" e exit 0;
 //   • a v2 não sobe: o --fix conta a falha, sai com 1 e o texto traz a razão, a frase "NÃO está no ar" e o caminho do boot.log;
 //   • a troca que falha depois de o daemon cair religa a instalação ANTIGA e conta a falha (só no Windows, que trava o rename de uma pasta em uso).
 // Hermético: HOME e ENGINE_KIT_HOME isolados, registry e downloads de memória (o .tgz é real), o CLI roda numa cópia do kit sem rede, porta efêmera própria, sem janela.
@@ -45,9 +46,9 @@ const saude = async (home) => { try { return (await fetch(`http://127.0.0.1:${da
 const sumiu = async (pid, ms = 5000) => { for (let i = 0; i < ms / 100 && vivo(pid); i++) { await sleep(100); } return !vivo(pid); };
 
 /** Instala a v1 (com o daemon dela, se `vivoAntes`) e devolve o `doctor --fix` do motor contra um registry que oferece a v2 com a fonte `v2`. */
-async function preparar(nome, { v2 = SOBE, v1 = SOBE, vivoAntes = true } = {}) {
+async function preparar(nome, { v2 = SOBE, v1 = SOBE, vivoAntes = true, kind = "daemon" } = {}) {
   const name = `dr-${nome}`;
-  const r = registry({ [name]: "1.1.0" }, { extra: { [name]: { kind: "daemon", runtime: RUNTIME } }, fonte: () => v2 });
+  const r = registry({ [name]: "1.1.0" }, { extra: { [name]: { kind, runtime: RUNTIME } }, fonte: () => v2 });
   preinstalar(name, "1.0.0");
   const home = homeOf(name);
   writeFileSync(join(home, "bin", `${name}.mjs`), v1);
@@ -80,6 +81,18 @@ console.log("\n== daemon que não estava no ar não é lançado ==");
   const f = await c.fix();
   check("troca 1.0.0 → 1.1.0 e sai com 0", f.status === 0 && instalado(c.name) === "1.1.0", `${f.status} ${f.stdout} ${f.stderr}`);
   check("nada foi lançado: sem daemon.json nem boot.log, sem linha de religar", daemonJson(c.home) === null && !existsSync(c.bootLog) && !/religando/.test(f.stdout), f.stdout);
+}
+
+console.log("\n== motor não religável derrubado: uma linha de aviso, sem mudar o exit ==");
+{
+  const aviso = /daemon derrubado e NÃO religado por este comando \(quem o sobe é o consumidor\)/g;
+  const c = await preparar("cli", { kind: "cli" });
+  const f = await c.fix();
+  check("o --fix troca para a v2, sai com 0 e o daemon v1 caiu sem ser religado", f.status === 0 && instalado(c.name) === "1.1.0" && !vivo(c.pid1) && !existsSync(c.bootLog) && /== conciliado ==/.test(f.stdout), `${f.status} ${f.stdout} ${f.stderr}`);
+  check("o texto traz o aviso uma vez só", (f.stdout.match(aviso) ?? []).length === 1, f.stdout);
+  const p = await preparar("cli-parado", { kind: "cli", vivoAntes: false });
+  const fp = await p.fix();
+  check("sem daemon derrubado não há aviso", fp.status === 0 && !aviso.test(fp.stdout), fp.stdout);
 }
 
 console.log("\n== a v2 não consegue subir: falha visível ==");

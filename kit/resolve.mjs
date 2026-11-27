@@ -32,11 +32,7 @@ export const fill = (tpl, vars) => String(tpl).replace(/\{(\w+)\}/g, (m, k) => (
 const cacheFile = (url) => (url === DEFAULT_REGISTRY_URL ? CACHE : join(CACHE_DIR, `manifest-${sha256(url, "hex").slice(0, 12)}.json`));
 
 function readCache(file) {
-  try {
-    return { manifest: JSON.parse(readFileSync(file, "utf8")), stale: Date.now() - statSync(file).mtimeMs > CACHE_TTL_MS };
-  } catch {
-    return null;
-  }
+  try { return { manifest: JSON.parse(readFileSync(file, "utf8")), stale: Date.now() - statSync(file).mtimeMs > CACHE_TTL_MS }; } catch { return null; }
 }
 
 /**

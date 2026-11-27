@@ -39,11 +39,7 @@ export function readRuntime(engine) {
 export function readFreshRuntime(engine, { staleMs } = {}) {
   const hb = engine.runtime?.heartbeatMs;
   const limit = staleMs ?? (hb ? hb * 3 : DEFAULT_STALE_MS);
-  try {
-    return Date.now() - statSync(runtimeFile(engine)).mtimeMs > limit ? null : readRuntime(engine);
-  } catch {
-    return null;
-  }
+  try { return Date.now() - statSync(runtimeFile(engine)).mtimeMs > limit ? null : readRuntime(engine); } catch { return null; }
 }
 
 /**
@@ -107,9 +103,7 @@ export async function shutdown(engine, { log = () => {}, timeoutMs = 90000, wait
   const headers = field && header && rt[field] ? { [header]: rt[field] } : {};
 
   try {
-    const res = await fetch(`http://127.0.0.1:${rt.port}${path}`, {
-      method: "POST", headers, signal: AbortSignal.timeout(timeoutMs),
-    });
+    const res = await fetch(`http://127.0.0.1:${rt.port}${path}`, { method: "POST", headers, signal: AbortSignal.timeout(timeoutMs) });
     // 202 = aceito, mas o motor está ocupado e só fecha quando o trabalho em curso acabar (vxk com build rodando);
     // 503 = já está fechando. Nos dois o swap só é seguro depois que o processo sair.
     const adiado = res.status === 202 || res.status === 503;
@@ -117,9 +111,7 @@ export async function shutdown(engine, { log = () => {}, timeoutMs = 90000, wait
     say(log, engine, `shutdown pedido (pid ${rt.pid ?? "?"}, HTTP ${res.status})`);
     if (adiado) { say(log, engine, `ocupado, aguardando até ${waitBusyMs / 1000}s o trabalho em curso acabar`); }
     // O motor responde ANTES de sair. Sem esta espera, o swap ainda encontra o arquivo em uso.
-    if (!(await (rt.pid ? waitExit(rt.pid, adiado ? waitBusyMs : 15000) : portClosed(rt.port, adiado ? waitBusyMs : 15000)))) {
-      return refuse(engine, "ainda ocupado após o pedido; rode de novo depois");
-    }
+    if (!(await (rt.pid ? waitExit(rt.pid, adiado ? waitBusyMs : 15000) : portClosed(rt.port, adiado ? waitBusyMs : 15000)))) { return refuse(engine, "ainda ocupado após o pedido; rode de novo depois"); }
     return { ok: true, stopped: true };
   } catch (e) {
     return refuse(engine, `shutdown falhou (${e?.message || e})`);
@@ -146,13 +138,7 @@ export async function stopEngine(name, { registryUrl, manifest, log } = {}) {
 /** Sobe o motor destacado, com ambiente limpo (fora do fork do host). */
 function spawnEngine(nodePath, entryPath, log, extraEnv) {
   try {
-    const child = spawn(nodePath, [entryPath], {
-      detached: true,
-      stdio: "ignore",
-      windowsHide: true,
-      env: { ...process.env, NODE_OPTIONS: "", COPILOT_SDK_PATH: "", ...extraEnv },
-    });
-    child.unref();
+    spawn(nodePath, [entryPath], { detached: true, stdio: "ignore", windowsHide: true, env: { ...process.env, NODE_OPTIONS: "", COPILOT_SDK_PATH: "", ...extraEnv } }).unref();
     log(`[engine-kit] motor disparado: ${nodePath} ${entryPath}`);
     return true;
   } catch (e) {
@@ -177,18 +163,14 @@ export async function lifecycle(engine, entryPath, { healthCheck, log = () => {}
     return { available: true, kind: "cli", bin: entryPath, runtime: null, health: null };
   }
 
-  if (typeof healthCheck !== "function") {
-    return unavailable("healthCheck é obrigatório (o kit não adivinha o protocolo do motor)");
-  }
+  if (typeof healthCheck !== "function") { return unavailable("healthCheck é obrigatório (o kit não adivinha o protocolo do motor)"); }
 
   // 1) FAST PATH: já vivo? (runtime diz onde; o handshake do motor prova que sim)
   const alive = await findAlive(engine, healthCheck);
   if (alive) { say(log, engine, `fast-path (já vivo)`); return { available: true, ...alive }; }
 
   // 2) SOBE. A corrida por singleton é resolvida DENTRO do motor (port-lock/bind); quem perde sai.
-  if (!spawnEngine(nodePath, entryPath, log, env)) {
-    return unavailable(`${engine.name}: spawn falhou`);
-  }
+  if (!spawnEngine(nodePath, entryPath, log, env)) { return unavailable(`${engine.name}: spawn falhou`); }
 
   const deadline = Date.now() + bootTimeoutMs;
   while (Date.now() < deadline) {

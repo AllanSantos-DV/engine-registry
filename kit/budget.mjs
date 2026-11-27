@@ -206,10 +206,15 @@ const ROOT = resolvePath(KIT, "..");
 //   2026-11-27 tooling 140700 → 140800: quatro P2 da quarta revisão independente, +0.19 KB medidos, 140526 → 140717 (kit/religar.mjs +0.26, kit/doctor.mjs +0.20, kit/ensure.mjs -0.27).
 //   O `doctor --fix` usa o `religador` do `ensure` (religa só o daemon que derrubou, com prazo; a falha ao religar conta em `failures`; a troca que falha religa a instalação anterior) e `aposReligar` passou a montar o texto da razão nos dois verbos; o `subir` do religar encerra o filho lançado sempre que o anunciante é outro pid. Runtime 38974 → 38982 de 39000 (a cifra de 39 KB da vitrine segue):
 //   o `fetchArtifact` recusa `assetName` com separador de caminho ou `..` antes de gravar qualquer coisa (+0.16 KB), pagos compactando try/catch e ifs do mesmo fecho em `kit/provision.mjs`. Cliente 10685/10700 não mudou.
+//   2026-11-27 tooling 140800 → 141400: seis P2 da quinta revisão independente, +0.64 KB medidos, 140717 → 141358 (kit/religar.mjs +0.52, kit/fetch.mjs +0.13).
+//   O religar passa a religar também o daemon TRAVADO (pid e porta, `/health` lento) e avisa na saída quando o gancho derrubou o daemon de um motor que o kit não religa; a razão só diz "o daemon anterior foi religado" se o executável anterior existe, senão diz que a instalação anterior não existe mais e nada é lançado;
+//   anúncio sem pid não encerra ninguém e a razão diz isso; o fim do `boot.log` omite qualquer sequência de 24+ caracteres `[A-Za-z0-9_-]` e fica em 5 linhas e 400 caracteres. O `versaoDivergente` do fetch recusa versão que não é semver antes de extrair ou apagar.
+//   Runtime 38982 → 38941 de 39000 (a cifra de 39 KB da vitrine segue): o `fetchArtifact` passou a recusar `assetName` fora de /^[A-Za-z0-9][w.+-]*$/ ou com nome de dispositivo do Windows e `version` que não casa com `SEMVER` (+0.2 KB), antes de baixar, gravar ou apagar;
+//   pagos juntando em linha única blocos curtos de `kit/lifecycle.mjs`, `kit/trust.mjs`, `kit/index.mjs`, `kit/resolve.mjs` e `kit/provision.mjs`, sem mudar comportamento. Cliente 10685/10700 não mudou.
 const BUDGETS = {
   runtime: { codeBytes: 39000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10700, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 140800, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 141400, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 

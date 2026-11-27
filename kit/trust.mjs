@@ -93,24 +93,13 @@ const rotationSigned = (name, publicKey, rotation, anchor) =>
  */
 export function checkTrust(engineName, publicKey, { trustedKeys, rotation } = {}) {
   const pinned = trustedKeys?.[engineName];
-  if (pinned && pinned !== publicKey && !rotationSigned(engineName, publicKey, rotation, pinned)) {
-    return { ok: false, reason: `${engineName}: chave do registry ≠ chave FIXADA pelo consumidor → ABORT (registry pode estar comprometido)` };
-  }
+  if (pinned && pinned !== publicKey && !rotationSigned(engineName, publicKey, rotation, pinned)) { return { ok: false, reason: `${engineName}: chave do registry ≠ chave FIXADA pelo consumidor → ABORT (registry pode estar comprometido)` }; }
 
   const store = readTrust();
   const known = store[engineName]?.publicKey;
-  const mudou = () => ({
-    ok: false,
-    reason:
-      `${engineName}: a chave pública MUDOU desde a primeira instalação sem rotação assinada pela chave anterior → ABORT. ` +
-      `Rotação legítima exige que o registry publique a assinatura da chave antiga; ` +
-      `se você não rotacionou, ele pode estar comprometido (entrada em ${trustFile()}).`,
-  });
+  const mudou = () => ({ ok: false, reason: `${engineName}: a chave pública MUDOU desde a primeira instalação sem rotação assinada pela chave anterior → ABORT. Rotação legítima exige que o registry publique a assinatura da chave antiga; se você não rotacionou, ele pode estar comprometido (entrada em ${trustFile()}).` });
   // Não poder gravar a raiz não impede a instalação, mas vira `saved:false`: a próxima execução repete o TOFU.
-  const grava = (change, ok) => {
-    try { return updateEntry(engineName, change).publicKey === publicKey ? ok : mudou(); }
-    catch { return { ...ok, saved: false }; }
-  };
+  const grava = (change, ok) => { try { return updateEntry(engineName, change).publicKey === publicKey ? ok : mudou(); } catch { return { ...ok, saved: false }; } };
   if (known && known !== publicKey) {
     if (!rotationSigned(engineName, publicKey, rotation, known)) { return mudou(); }
     return grava((e) => (e?.publicKey === known ? { ...e, publicKey, rotatedFrom: known, rotatedAt: new Date().toISOString() } : e), { ok: true, tofu: false, rotated: true });
@@ -169,23 +158,14 @@ export function setPin(name, version) {
   try {
     if (!version && !pinOf(name)) { return { ok: true, was: null }; }
     let was = null;
-    updateEntry(name, (e) => {
-      const entry = { ...e };
-      was = entry.pin ?? null;
-      if (version) { entry.pin = version; } else { delete entry.pin; }
-      return entry;
-    });
+    updateEntry(name, (e) => { const entry = { ...e }; was = entry.pin ?? null; if (version) { entry.pin = version; } else { delete entry.pin; } return entry; });
     return { ok: true, was };
-  } catch (e) {
-    return { ok: false, reason: e.message };
-  }
+  } catch (e) { return { ok: false, reason: e.message }; }
 }
 
 /** Grava `version` como a maior vista do motor, se superar a registrada. */
 export function noteVersion(name, version) {
   const store = readTrust(), max = store[name]?.maxVersion;
   if (max && cmpVer(version, max) <= 0) return;
-  try {
-    updateEntry(name, (e) => (e?.maxVersion && cmpVer(version, e.maxVersion) <= 0 ? e : { ...e, maxVersion: version }));
-  } catch { /* sem gravar, a proteção vale a partir da próxima instalação */ }
+  try { updateEntry(name, (e) => (e?.maxVersion && cmpVer(version, e.maxVersion) <= 0 ? e : { ...e, maxVersion: version })); } catch { /* sem gravar, a proteção vale a partir da próxima instalação */ }
 }
