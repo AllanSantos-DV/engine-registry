@@ -94,10 +94,9 @@ async function subir(engine, versao, prazoMs, pisoMs) {
     const { code, signal, error } = boot.dead;
     return falha(`${entry} saiu ao subir (${error ?? (signal ? `sinal ${signal}` : `código ${code}`)}); últimas linhas: ${fimDoLog(bootLog, readRuntime(engine)?.[runtime.shutdownTokenField]) || "(vazio)"}`, boot.pid);
   };
-  if (boot.dead) { return morreu(); }
   const div = await divergiu();
   const outro = div?.pid && div.pid !== boot.pid;
-  if (boot.dead && !outro) { return morreu(); }
+  if (boot.dead && !(div?.ok && (outro || !div.pid))) { return morreu(); }
   if (div && !outro) { return div; }
   if (!boot.dead) { matar(); }
   return div ?? falha(`${entry} subiu mas não anunciou em ${Math.ceil((fimDoFilho - lancadoEm) / 100) * 100}ms (encerrei o pid ${boot.pid})`, boot.pid);

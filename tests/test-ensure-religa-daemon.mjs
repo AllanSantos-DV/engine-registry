@@ -569,7 +569,7 @@ await new Promise((r) => setTimeout(r, 60));
 `;
   const c = await preparar("filho-saiu", { v2: PAI });
   const rel = await derrubadoEInstalado(c, 6000);
-  writeFileSync(join(c.home, "bin", "outro.mjs"), SOBE.replace("res.writeHead(200).end('ok')", "setTimeout(() => res.writeHead(200).end('ok'), 800)"));
+  writeFileSync(join(c.home, "bin", "outro.mjs"), SOBE.replace("res.writeHead(200).end('ok')", "setTimeout(() => res.writeHead(200).end('ok'), 1500)"));
   const alvos = [];
   const killOriginal = process.kill;
   process.kill = (pid, sinal) => { if (sinal !== 0) { alvos.push(pid); } return killOriginal.call(process, pid, sinal); };
