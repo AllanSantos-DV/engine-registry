@@ -96,9 +96,10 @@ async function subir(engine, versao, prazoMs, pisoMs) {
   };
   if (boot.dead) { return morreu(); }
   const div = await divergiu();
-  if (boot.dead) { return morreu(); }
-  if (div && (!div.pid || div.pid === boot.pid)) { return div; }
-  matar();
+  const outro = div?.pid && div.pid !== boot.pid;
+  if (boot.dead && !outro) { return morreu(); }
+  if (div && !outro) { return div; }
+  if (!boot.dead) { matar(); }
   return div ?? falha(`${entry} subiu mas não anunciou em ${Math.ceil((fimDoFilho - lancadoEm) / 100) * 100}ms (encerrei o pid ${boot.pid})`, boot.pid);
 }
 
