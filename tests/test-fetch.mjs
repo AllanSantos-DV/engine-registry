@@ -101,6 +101,9 @@ console.log("== engine-kit fetch ==\n");
 }
 
 {
+  console.log("\n-- o README documenta os nomes de asset aceitos pelo fetchArtifact --");
+  const linhaAsset = readFileSync(join(ROOT, "README.md"), "utf8").split("\n").find((l) => /fetchArtifact/.test(l) && /começa por letra ou dígito/.test(l)) ?? "";
+  check("README diz, na linha do fetchArtifact, que o asset começa por letra ou dígito, aceita só letras, dígitos, _ . + - e vale para registry próprio", /_ \. \+ -/.test(linhaAsset.replace(/`/g, "")) && /registry próprio/.test(linhaAsset), linhaAsset.slice(0, 120));
   console.log("\n-- asset do descritor que não é um nome de arquivo recusa, sem gravar nada fora da pasta --");
   const permissivo = permissivoDe(ENGINE_BODY, engineSig);
   const hostil = (asset, home) => { const m = manifestWith(owner.publicKeyHex, home); m.engines[0].install.asset = asset; return m; };

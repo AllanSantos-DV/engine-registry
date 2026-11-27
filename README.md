@@ -409,6 +409,7 @@ if (!gw.available) { log(`gateway indisponível: ${gw.reason}`); return; }  // d
   esse digest. O prazo é `idleTimeoutMs` (60 s sem receber nenhum byte, `downloadTimeoutMs` é o nome
   antigo): um download lento que continua recebendo não expira. `engine-kit fetch` também confere o
   `.tgz` com hash em fluxo.
+- **Nome do asset** — o `fetchArtifact` e o `fetch` só aceitam, em `install.asset`, um nome que começa por letra ou dígito e tem só letras, dígitos, `_ . + -` (sem espaço, `@`, `~`, acento, nem `_ - .` na frente), e recusam nome de dispositivo do Windows. Vale para qualquer registry próprio (`registryUrl`); nenhum asset do `manifest.json` público é afetado.
 - **Reúso por semver same-major `>=`** — dois consumidores com pins diferentes convergem no maior,
   sem loop de download. Major diferente = incompatível (o protocolo é atado ao major).
 - **Troca atômica** — download em `.part` (apagado se qualquer passo falhar) → rename; extração em staging → swap. No Windows, o

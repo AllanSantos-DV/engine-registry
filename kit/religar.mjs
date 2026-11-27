@@ -30,11 +30,11 @@ export const religavel = (engine) => {
 /** O motor é religável e tem daemon no ar agora: pid existe e o `/health` responde (VIVO) ou passa do prazo (TRAVADO, que o `shutdown` ainda derruba). */
 export const vivoParaReligar = async (engine) => religavel(engine) && ["VIVO", "TRAVADO"].includes((await lifeOf(engine)).state);
 
-/** O fim do log (até 5 linhas e 400 caracteres), sem o `token` do anúncio do daemon nem sequência de 24+ caracteres `[A-Za-z0-9_-]` (hexadecimal, base64 e token de URL podem ser segredo). */
+/** O fim do log (até 5 linhas e 400 caracteres), sem o `token` do anúncio do daemon nem sequência de 24+ caracteres `[A-Za-z0-9+/=_-]` (hexadecimal, base64 e token de URL podem ser segredo). */
 const fimDoLog = (log, token) => {
   try {
     const fim = readFileSync(log, "utf8").trim().split("\n").slice(-5).join(" | ");
-    return (token ? fim.replaceAll(String(token), "[omitido]") : fim).replace(/[\w-]{24,}/g, "[omitido]").slice(-400);
+    return (token ? fim.replaceAll(String(token), "[omitido]") : fim).replace(/[A-Za-z0-9+/=_-]{24,}/g, "[omitido]").slice(-400);
   } catch { return ""; }
 };
 
@@ -85,17 +85,18 @@ async function subir(engine, versao, prazoMs, pisoMs) {
   let boot;
   try { boot = /\.[cm]?js$/.test(entry) ? launchDetached(process.execPath, bootLog, [entry], opts) : launchDetached(entry, bootLog, [], opts); }
   catch (e) { return falha(`não consegui subir ${entry} (${e?.message ?? e})`); }
+  const matar = () => { try { process.kill(boot.pid); } catch { /* já saiu */ } };
   const lancadoEm = Date.now();
   const fimDoFilho = Math.max(fim, lancadoEm + Math.min(pisoMs, prazoMs));
   const up = await esperar(() => !boot.dead, fimDoFilho);
-  if (up) { return up; }
+  if (up) { return up.pid && up.pid !== boot.pid ? (matar(), up) : up; }
   if (boot.dead) {
     const { code, signal, error } = boot.dead;
     return falha(`${entry} saiu ao subir (${error ?? (signal ? `sinal ${signal}` : `código ${code}`)}); últimas linhas: ${fimDoLog(bootLog, readRuntime(engine)?.[runtime.shutdownTokenField]) || "(vazio)"}`, boot.pid);
   }
   const div = await divergiu();
   if (div && (!div.pid || div.pid === boot.pid)) { return div; }
-  try { process.kill(boot.pid); } catch { /* já saiu */ }
+  matar();
   return div ?? falha(`${entry} subiu mas não anunciou em ${Math.ceil((fimDoFilho - lancadoEm) / 100) * 100}ms (encerrei o pid ${boot.pid})`, boot.pid);
 }
 

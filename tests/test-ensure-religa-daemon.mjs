@@ -20,6 +20,7 @@
 //   • só o entry .js, .mjs ou .cjs é lançado por node; o que apenas termina em "js" (bin/foo-js, bin/nodejs) é lançado direto, como executável;
 //   • o filho lançado que perde a corrida para outro daemon de versão diferente é encerrado e o outro segue vivo; o filho que é ele mesmo o divergente segue vivo;
 //   • o pid anterior que morre perto do fim do prazo não deixa o filho sem tempo: o filho recebe sempre um piso de espera, e o total não passa de prazo + piso;
+//   • o filho lançado que perde a corrida para outro daemon da MESMA versão certa, anunciado durante a espera, é encerrado (pid do anúncio diferente do filho) e o outro é o religado;
 //   • o daemon da versão certa que fica saudável só depois da última espera é o religado (ok com o pid dele), sem falha: o filho lançado que não anunciou é encerrado e o daemon segue vivo; o filho que é o próprio anunciante não é morto.
 // Hermético: registry e downloads de memória (o .tgz é real), HOME e ENGINE_KIT_HOME isolados, porta efêmera própria, sem janela, sem áudio, sem rede.
 // Todo processo lançado aqui é encerrado no fim, por PID.
@@ -127,9 +128,11 @@ process.exit(3);
 const SOBE_SAUDE_LENTA = SOBE.replace("if (req.url === '/health') { res.writeHead(200).end('ok'); return; }", "if (req.url === '/health') { setTimeout(() => res.writeHead(200).end('ok'), 3000); return; }");
 const SEM_PID = SOBE.replace("pid: process.pid, ", "");
 const SEGREDO_B64 = Buffer.from("segredo-do-daemon-que-nao-pode-vazar").toString("base64url");
+const SEGREDO_B64_PADRAO = "ab+/cd/+ef12+/gh34/+ij56==";
 const SEGREDO_URL = "AbCdEfGhIjKlMnOpQrStUvWx12";
 Object.assign(FONTES, {
   vazaBase64: VAZA(`console.error('token ${SEGREDO_B64} fim');`),
+  vazaBase64Padrao: VAZA(`console.error('token ${SEGREDO_B64_PADRAO} fim');`),
   vazaUrl: VAZA(`console.error('GET http://127.0.0.1:8080/cb?token=${SEGREDO_URL} falhou');`),
   vazaLongo: VAZA("for (let i = 0; i < 7; i++) { console.error('linha-' + i + ' ' + 'texto comum '.repeat(30)); }"),
   perde: PERDE,
@@ -233,8 +236,10 @@ console.log("\n== o fim do log do daemon que não sobe não vaza segredo ==");
   check("as outras linhas do log seguem visíveis também no caso do hexadecimal", h.razoes.every((x) => x.includes("boom: motor novo quebrado")), JSON.stringify(h.razoes));
   const b = await caso("vaza-base64", "vazaBase64");
   check("token em base64 sai da razão e vira [omitido]; o texto em volta e as outras linhas ficam", b.r.restarted?.ok === false && b.razoes.every((x) => !x.includes(SEGREDO_B64) && x.includes("token [omitido] fim") && x.includes("boom: motor novo quebrado")), JSON.stringify(b.razoes));
+  const bp = await caso("vaza-base64-padrao", "vazaBase64Padrao");
+  check("base64 padrão com + / = sai da razão inteiro e vira [omitido]", bp.r.restarted?.ok === false && bp.razoes.every((x) => !["ab+", "/+ef", "ij56", "=="].some((p) => x.includes(p)) && x.includes("token [omitido] fim") && x.includes("boom: motor novo quebrado")), JSON.stringify(bp.razoes));
   const u = await caso("vaza-url", "vazaUrl");
-  check("token numa URL ?token=... sai da razão e vira [omitido]; o resto da linha fica", u.r.restarted?.ok === false && u.razoes.every((x) => !x.includes(SEGREDO_URL) && x.includes("cb?token=[omitido] falhou")), JSON.stringify(u.razoes));
+  check("token numa URL ?token=... sai da razão e vira [omitido]; o resto da linha fica", u.r.restarted?.ok === false && u.razoes.every((x) => !x.includes(SEGREDO_URL) && x.includes("cb?[omitido] falhou")), JSON.stringify(u.razoes));
   const l = await caso("log-longo", "vazaLongo");
   const trecho = (l.r.restarted?.reason ?? "").split("últimas linhas: ")[1] ?? "";
   check("o trecho do log tem no máximo 5 linhas e 400 caracteres, e o fim (o erro) continua nele", l.r.restarted?.ok === false && trecho.length > 0 && trecho.length <= 400 && trecho.split(" | ").length <= 5 && trecho.includes("boom: motor novo quebrado"), `${trecho.length} ${trecho.split(" | ").length}`);
@@ -530,6 +535,24 @@ console.log("\n== o filho lançado que perde a corrida para outro daemon de outr
   const pidOutro = await subirComo(c, [outro], { cwd: join(c.home, "bin") });
   const r = await emVoo;
   check("o religar devolve ok:false dizendo a versão anunciada e o pid do outro daemon", r?.ok === false && /o daemon está no ar mas anuncia v9\.9\.9, esperado v1\.1\.0/.test(r.reason) && r.pid === pidOutro, JSON.stringify(r));
+  check("o filho lançado é encerrado", pidFilho > 0 && (await sumiu(pidFilho)), String(pidFilho));
+  check("o outro daemon segue vivo, anunciado e respondendo", vivo(pidOutro) && daemonJson(c.home)?.pid === pidOutro && (await saude(c.home)) === 200);
+}
+
+console.log("\n== o filho lançado que perde a corrida para outro daemon da mesma versão certa é encerrado e o outro é o religado ==");
+{
+  const c = await preparar("filho-perde-igual", { v2: FILHO });
+  const rel = await derrubadoEInstalado(c, 6000);
+  const emVoo = rel.religar("1.1.0");
+  const arq = join(c.home, "filho.pid");
+  for (let i = 0; i < 100 && !existsSync(arq); i++) { await sleep(100); }
+  const pidFilho = Number(ler(arq));
+  lancados.add(pidFilho);
+  const outro = join(c.home, "bin", "outro.mjs");
+  writeFileSync(outro, SOBE);
+  const pidOutro = await subirComo(c, [outro], { cwd: join(c.home, "bin") });
+  const r = await emVoo;
+  check("o religar devolve ok com o pid e a versão do outro daemon", r?.ok === true && r.pid === pidOutro && r.version === "1.1.0", JSON.stringify(r));
   check("o filho lançado é encerrado", pidFilho > 0 && (await sumiu(pidFilho)), String(pidFilho));
   check("o outro daemon segue vivo, anunciado e respondendo", vivo(pidOutro) && daemonJson(c.home)?.pid === pidOutro && (await saude(c.home)) === 200);
 }
