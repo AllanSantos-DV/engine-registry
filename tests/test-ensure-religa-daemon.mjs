@@ -103,7 +103,7 @@ import { join } from 'node:path';
 let ultimo = 0, seguidos = 0;
 const srv = http.createServer((req, res) => {
   const agora = Date.now();
-  seguidos = agora - ultimo < 200 ? seguidos + 1 : 0;
+  seguidos = agora - ultimo < 500 ? seguidos + 1 : 0;
   ultimo = agora;
   res.writeHead(req.url === '/health' && seguidos >= 2 ? 200 : 404).end();
 });
@@ -302,8 +302,8 @@ const subirComo = async (c, args, opts = {}) => {
   return p.pid;
 };
 /** Derruba o daemon v1 pelo gancho do religador, instala a v2 sem daemon no ar e devolve o religador já com "derrubou". */
-async function derrubadoEInstalado(c, prazoMs = 20000, pisoFilhoMs) {
-  const rel = religar.religador(await motorDe(c), { prazoMs, pisoFilhoMs });
+async function derrubadoEInstalado(c, prazoMs = 20000, pisoFilhoMs, sondaMs) {
+  const rel = religar.religador(await motorDe(c), { prazoMs, pisoFilhoMs, sondaMs });
   await rel.antes();
   const i = await ensureCommand(c.name, c.r2.opts);
   if (!i.ok || vivo(c.pid1)) { throw new Error("preparo da corrida falhou: " + JSON.stringify(i)); }
@@ -617,14 +617,14 @@ console.log("\n== o daemon da versão certa que fica saudável depois da última
   writeFileSync(soNoFim, SO_NO_FIM);
   const marcador = join(RUN, "marcador-so-no-fim");
   const a = await preparar("so-no-fim-anterior", { v2: FORA(marcador) });
-  const relA = await derrubadoEInstalado(a, 2000);
+  const relA = await derrubadoEInstalado(a, 2000, undefined, 1000);
   const pidA = await subirComo(a, [soNoFim, a.home]);
   const rA = await relA.religar("1.1.0");
   await sleep(300);
   check("com o pid anterior vivo: ok com o pid e a versão dele, não 'anuncia vX, esperado vX'", rA?.ok === true && rA.pid === pidA && rA.version === "1.1.0", JSON.stringify(rA));
   check("com o pid anterior vivo: nada foi lançado e o daemon segue vivo e anunciado", !existsSync(marcador) && !existsSync(a.bootLog) && vivo(pidA) && daemonJson(a.home)?.pid === pidA);
   const c = await preparar("so-no-fim-filho", { v2: FILHO });
-  const rel = await derrubadoEInstalado(c, 2500);
+  const rel = await derrubadoEInstalado(c, 2500, undefined, 1000);
   const emVoo = rel.religar("1.1.0");
   const arq = join(c.home, "filho.pid");
   for (let i = 0; i < 100 && !existsSync(arq); i++) { await sleep(100); }
@@ -636,7 +636,7 @@ console.log("\n== o daemon da versão certa que fica saudável depois da última
   check("com o filho lançado: ok com o pid e a versão do outro daemon, sem falha", r?.ok === true && r.pid === pidOutro && r.version === "1.1.0", JSON.stringify(r));
   check("o filho lançado que não anunciou é encerrado e o outro daemon segue vivo e anunciado", pidFilho > 0 && (await sumiu(pidFilho)) && vivo(pidOutro) && daemonJson(c.home)?.pid === pidOutro, `${pidFilho} ${pidOutro}`);
   const f = await preparar("so-no-fim-e-o-filho", { v2: SO_NO_FIM_DO_FILHO });
-  const relF = await derrubadoEInstalado(f, 2500);
+  const relF = await derrubadoEInstalado(f, 2500, undefined, 1000);
   const rF = await relF.religar("1.1.0");
   if (rF?.pid) { lancados.add(rF.pid); }
   await sleep(300);

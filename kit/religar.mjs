@@ -49,8 +49,9 @@ const foraDoHome = (home, p) => { const r = relative(home, resolve(home, p)); re
  * Sem o executável no disco (a troca apagou a instalação anterior) nada é lançado: `ausente:true`. Anúncio sem pid não permite saber quem é o filho: ninguém é encerrado e a razão diz isso.
  * A versão anunciada vale sem o sufixo `+metadata`; daemon saudável que anuncia outra versão devolve ok:false e continua vivo; o filho lançado que não é o anunciante (outro pid, de qualquer versão) é encerrado.
  * O prazo vale para a espera do pid anterior; o filho lançado espera ao menos `pisoMs`, de modo que o total fica em até prazo + piso.
+ * `sondaMs` é o intervalo entre as sondagens do anúncio.
  */
-async function subir(engine, versao, prazoMs, pisoMs) {
+async function subir(engine, versao, prazoMs, pisoMs, sondaMs) {
   const { homeDir, install, runtime } = engine;
   const entry = join(homeDir, install.entry);
   const bootLog = join(homeDir, "run", "boot.log");
@@ -66,7 +67,7 @@ async function subir(engine, versao, prazoMs, pisoMs) {
   const fim = Date.now() + prazoMs;
   const esperar = async (segue, limite) => {
     let up = await noAr();
-    for (; !up && segue() && Date.now() < limite; up = await noAr()) { await sleep(250); }
+    for (; !up && segue() && Date.now() < limite; up = await noAr()) { await sleep(sondaMs); }
     return up ?? noAr();
   };
   const divergiu = async () => { const o = await olhar(); return o && (semMeta(o.version) === semMeta(versao) ? o : falha(`o daemon está no ar mas anuncia v${o.version}, esperado v${versao}${o.pid ? "" : "; o anúncio não traz pid: não encerrei ninguém"}`, o.pid)); };
@@ -111,10 +112,10 @@ export const aposReligar = (r, instalada) => !r ? "" : r.ok
 /**
  * Par de ganchos do `ensure` e do `doctor --fix`: `antes` substitui o `derrubarAntes` e anota se derrubou um daemon no ar; `religar` sobe o novo, só nesse caso, e avisa na saída quando o gancho derrubou o daemon de um motor que o kit não religa.
  * @param {object} engine descritor resolvido.
- * @param {{log?:(m:string)=>void, prazoMs?:number, pisoFilhoMs?:number}} [opts]
+ * @param {{log?:(m:string)=>void, prazoMs?:number, pisoFilhoMs?:number, sondaMs?:number}} [opts]
  * @returns {{antes:()=>Promise<void>, religar:(versao:string)=>Promise<undefined|{ok:true, pid?:number, version:string, bootLog:string}|{ok:false, reason:string, bootLog:string, pid?:number, ausente?:true}>}}
  */
-export function religador(engine, { log = () => {}, prazoMs = PRAZO_RELIGAR_MS, pisoFilhoMs = PISO_FILHO_MS } = {}) {
+export function religador(engine, { log = () => {}, prazoMs = PRAZO_RELIGAR_MS, pisoFilhoMs = PISO_FILHO_MS, sondaMs = 250 } = {}) {
   let derrubou = false, orfao = false;
   return {
     async antes() {
@@ -127,7 +128,7 @@ export function religador(engine, { log = () => {}, prazoMs = PRAZO_RELIGAR_MS, 
       if (orfao) { say(log, engine, "daemon derrubado e NÃO religado por este comando (quem o sobe é o consumidor)"); }
       if (!derrubou) { return undefined; }
       say(log, engine, "religando o daemon que estava no ar...");
-      const r = await subir(engine, versao, prazoMs, pisoFilhoMs);
+      const r = await subir(engine, versao, prazoMs, pisoFilhoMs, sondaMs);
       say(log, engine, r.ok ? `daemon religado (pid ${r.pid ?? "?"}, v${r.version}); saída em ${r.bootLog}` : `daemon NÃO religado: ${r.reason}; saída em ${r.bootLog}`);
       return r;
     },
