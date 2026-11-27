@@ -557,6 +557,32 @@ console.log("\n== o filho lançado que perde a corrida para outro daemon da mesm
   check("o outro daemon segue vivo, anunciado e respondendo", vivo(pidOutro) && daemonJson(c.home)?.pid === pidOutro && (await saude(c.home)) === 200);
 }
 
+console.log("\n== o filho que já saiu não recebe kill quando outro daemon da versão certa anuncia ==");
+{
+  const PAI = `import { spawn } from 'node:child_process'; import { writeFileSync, existsSync } from 'node:fs'; import { join, dirname } from 'node:path'; import { fileURLToPath } from 'node:url';
+const bin = dirname(fileURLToPath(import.meta.url)), home = dirname(bin);
+writeFileSync(join(home, 'filho.pid'), String(process.pid));
+const neto = spawn(process.execPath, [join(bin, 'outro.mjs'), home], { detached: true, stdio: 'ignore', windowsHide: true });
+writeFileSync(join(home, 'neto.pid'), String(neto.pid)); neto.unref();
+while (!existsSync(join(home, 'run', 'daemon.json'))) { await new Promise((r) => setTimeout(r, 20)); }
+await new Promise((r) => setTimeout(r, 60));
+`;
+  const c = await preparar("filho-saiu", { v2: PAI });
+  const rel = await derrubadoEInstalado(c, 6000);
+  writeFileSync(join(c.home, "bin", "outro.mjs"), `await new Promise((r) => setTimeout(r, 450));
+${SOBE}`);
+  const alvos = [];
+  const killOriginal = process.kill;
+  process.kill = (pid, sinal) => { alvos.push(pid); return killOriginal.call(process, pid, sinal); };
+  let r;
+  try { r = await rel.religar("1.1.0"); } finally { process.kill = killOriginal; }
+  const pidFilho = Number(ler(join(c.home, "filho.pid")));
+  const pidNeto = Number(ler(join(c.home, "neto.pid")));
+  lancados.add(pidNeto);
+  check("o religar devolve ok com o pid do daemon que anunciou, não o do filho", r?.ok === true && r.pid === pidNeto && r.pid !== pidFilho, JSON.stringify(r));
+  check("nenhum kill foi para o pid do filho que já saiu", pidFilho > 0 && !alvos.includes(pidFilho), JSON.stringify(alvos));
+}
+
 const surdoDe = (nome) => { const f = join(RUN, `w-surdo-${nome}.mjs`); writeFileSync(f, LENTO.replace("1500", "600000")); return f; };
 
 console.log("\n== o pid anterior que morre perto do fim: o filho tem ao menos o piso, e o total não passa de prazo + piso ==");

@@ -208,6 +208,7 @@ const ROOT = resolvePath(KIT, "..");
 //   o `fetchArtifact` recusa `assetName` com separador de caminho ou `..` antes de gravar qualquer coisa (+0.16 KB), pagos compactando try/catch e ifs do mesmo fecho em `kit/provision.mjs`. Cliente 10685/10700 não mudou.
 //   2026-11-27 tooling 140800 → 141400: seis P2 da quinta revisão independente, +0.64 KB medidos, 140717 → 141358 (kit/religar.mjs +0.52, kit/fetch.mjs +0.13).
 //   2026-11-27 tooling 141400 → 141500: três P2 da revisão do delta, +0.1 KB medidos, 141358 → 141453 (kit/religar.mjs): a redação do boot.log cobre base64 padrão, o filho lançado é encerrado quando outro daemon da versão certa anuncia primeiro.
+//   2026-11-27 tooling 141500 → 141600: o filho lançado só é encerrado se ainda vive, antes e depois da espera do `divergiu`, e a morte do filho nessa janela volta a dizer "saiu ao subir" com o `boot.log`; +0.1 KB medidos, 141453 → 141550 (kit/religar.mjs).
 //   O religar passa a religar também o daemon TRAVADO (pid e porta, `/health` lento) e avisa na saída quando o gancho derrubou o daemon de um motor que o kit não religa; a razão só diz "o daemon anterior foi religado" se o executável anterior existe, senão diz que a instalação anterior não existe mais e nada é lançado;
 //   anúncio sem pid não encerra ninguém e a razão diz isso; o fim do `boot.log` omite qualquer sequência de 24+ caracteres `[A-Za-z0-9_-]` e fica em 5 linhas e 400 caracteres. O `versaoDivergente` do fetch recusa versão que não é semver antes de extrair ou apagar.
 //   Runtime 38982 → 38941 de 39000 (a cifra de 39 KB da vitrine segue): o `fetchArtifact` passou a recusar `assetName` fora de /^[A-Za-z0-9][w.+-]*$/ ou com nome de dispositivo do Windows e `version` que não casa com `SEMVER` (+0.2 KB), antes de baixar, gravar ou apagar;
@@ -215,7 +216,7 @@ const ROOT = resolvePath(KIT, "..");
 const BUDGETS = {
   runtime: { codeBytes: 39000, baseline: 24519, loc: 900 },
   client: { codeBytes: 10700, baseline: 8500, loc: 230 },
-  tooling: { codeBytes: 141500, baseline: 16420, loc: 1050 },
+  tooling: { codeBytes: 141600, baseline: 16420, loc: 1050 },
   adapter: { codeBytes: 7500, baseline: 1859, loc: 150 },
 };
 
