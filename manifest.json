@@ -1,0 +1,418 @@
+{
+  "$schema": "./schema.json",
+  "registry": "engine-registry",
+  "version": 1,
+  "owner": {
+    "name": "Allan Santos",
+    "url": "https://github.com/AllanSantos-DV"
+  },
+  "description": "Catálogo público de motores compartilhados e aplicativos distribuídos. engine-kit consome apenas engines; apps declara versões e downloads sem instalar aplicativos automaticamente.",
+  "apps": [
+    {
+      "name": "agent-launcher",
+      "version": "1.3.20",
+      "summary": "Abre Claude Code, Codex, Copilot CLI, VS Code e o Copilot app nos seus projetos por qualquer host de modelos. Leva só o launcher; cada ferramenta se instala pelo cartão dela. Windows.",
+      "homepage": "https://allansantos-dv.github.io/agent-launcher/",
+      "license": "MIT",
+      "platforms": [
+        "win32-x64"
+      ],
+      "release": {
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "agent-launcher-v{version}",
+        "assets": [
+          {
+            "name": "agent-launcher-{version}-win32-x64.tgz",
+            "platform": "win32-x64",
+            "checksum": "{asset}.sha256",
+            "signature": "{asset}.sig"
+          }
+        ],
+        "publicKey": "bbfc8c1a639872d4e5fc44ac4172443886153b4579b4f3e0466220c02d09407a",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true
+      }
+    },
+    {
+      "name": "smart-design",
+      "version": "0.3.5",
+      "summary": "Serviço local que o agente de código chama por MCP para desenhar telas com sistema de design, renderizá-las e conferi-las em pixels antes de entregar. Windows.",
+      "homepage": "https://allansantos-dv.github.io/smart-design/",
+      "license": "MIT",
+      "platforms": [
+        "win32-x64"
+      ],
+      "release": {
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "smart-design-v{version}",
+        "assets": [
+          {
+            "name": "smart_design-{version}-py3-none-any.whl",
+            "platform": "win32-x64",
+            "checksum": "{asset}.sha256",
+            "signature": "{asset}.sig"
+          }
+        ],
+        "publicKey": "03b4f450fe0ef68d249a6d3503e7577ae45f9dcd89c6301fb4232f0195ef3457",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true
+      }
+    }
+  ],
+  "engines": [
+    {
+      "name": "embed-house",
+      "version": "1.0.5",
+      "kind": "daemon",
+      "summary": "Casa de embeddings compartilhada (MiniLM-L6-v2, 384-dim): carrega o modelo UMA vez e serve vetores a N consumidores via 127.0.0.1, em vez de cada sessão carregar ~147 MB.",
+      "pagesPendente": "sem página de produto com vídeo; ela nasce do repositório do próprio motor e este registro só aponta para ela",
+      "home": "~/.embed-house",
+      "install": {
+        "type": "github-release",
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "embed-house-v{version}",
+        "asset": "embed-house-{platform}-{arch}.tgz",
+        "checksum": "{asset}.sha256",
+        "extractTo": "bin",
+        "entry": "bin/server.mjs",
+        "publicKey": "16cf4b3d73df3afca030d1281bae930897e290828df80e7354bc4dd527713699",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true
+      },
+      "runtime": {
+        "transport": "http",
+        "runtimeFile": "run/runtime.json",
+        "healthPath": "/health",
+        "shutdownPath": "/shutdown",
+        "heartbeatMs": 30000,
+        "shutdownTokenField": "shutdownToken",
+        "shutdownTokenHeader": "x-shutdown-token"
+      },
+      "platforms": [
+        "win32-x64",
+        "linux-x64",
+        "darwin-arm64"
+      ]
+    },
+    {
+      "name": "vox-engine",
+      "version": "0.33.4",
+      "kind": "daemon",
+      "status": "self-managed",
+      "summary": "Motor de voz (STT/TTS) compartilhado: transcreve e sintetiza para N consumidores a partir de uma única instância, com auto-unload quando ocioso.",
+      "pagesUrl": "https://allansantos-dv.github.io/vox-engine/",
+      "pagesPendente": "a página no ar não tem o vídeo de apresentação nem o botão Apresentar no cabeçalho",
+      "home": "~/.vox-engine",
+      "install": {
+        "type": "github-release",
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "vox-engine-v{version}",
+        "asset": "vox-engine-installer.zip",
+        "checksum": "{asset}.sha256",
+        "signature": "{asset}.sig",
+        "publicKey": "293263e73c4ba424a9ef3432d1ce55740fc0a68478f20235ca109c074ec83f52",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true,
+        "extractTo": "bin",
+        "entry": "bin/vox_engine",
+        "sdkFlats": {
+          "asset": "vox-sdk-flats.zip",
+          "checksum": "{asset}.sha256"
+        }
+      },
+      "runtime": {
+        "transport": "pipe",
+        "pipeName": "vox"
+      },
+      "notes": "self-managed: é um app Python com instalador e updater PRÓPRIOS (src/vox_engine/core/updater.py) — o engine-kit NÃO o provisiona; esta entrada é o descritor de registro (onde está a release, qual a chave, qual a versão). A chave pública é a MESMA de sempre: o instalador continua assinado pelo tools/sign_release.py em Python e foi verificado pelo kit em Node contra a release real, então a migração não exigiu reassinar nada. `sdkFlats` é o canônico público do gate anti-drift dos consumidores — publicar a release sem ele quebra o publish deles.",
+      "platforms": [
+        "win32-x64"
+      ]
+    },
+    {
+      "name": "mcp-gateway",
+      "version": "0.17.18",
+      "kind": "daemon",
+      "summary": "Agregador MCP: conecta UMA vez em cada servidor MCP e reexpõe todas as tools num endpoint Streamable HTTP único, com auth bearer, namespacing condicional, resiliência e auditoria. Mata a multiplicação de processos por sessão.",
+      "pagesPendente": "sem página de produto com vídeo; ela nasce do repositório do próprio motor e este registro só aponta para ela",
+      "home": "~/.mcp-gateway",
+      "install": {
+        "type": "github-release",
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "mcp-gateway-v{version}",
+        "asset": "mcp-gateway.tgz",
+        "checksum": "{asset}.sha256",
+        "extractTo": "bin",
+        "entry": "bin/mcp-gateway.mjs",
+        "agentInstructions": "docs/AGENT-INSTRUCTIONS.md",
+        "publicKey": "339557f0f3f26319e87ce7850a8eb49cd0aba2f6d164260bac10c33b75e246d8",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true
+      },
+      "runtime": {
+        "transport": "http",
+        "runtimeFile": "runtime.json",
+        "healthPath": "/health",
+        "defaultPort": 7337,
+        "authFile": "auth-token",
+        "shutdownPath": "/admin/shutdown",
+        "heartbeatMs": 30000,
+        "shutdownTokenField": "shutdownToken",
+        "shutdownTokenHeader": "x-shutdown-token"
+      },
+      "platforms": [
+        "any"
+      ],
+      "notes": "Artefato cross-platform (bundle JS puro, sem binario nativo) — um unico asset serve todas as plataformas. Codigo-fonte no repo proprio AllanSantos-DV/mcp-gateway (privado); a release publica mora aqui, na casa dos motores."
+    },
+    {
+      "name": "neural-link",
+      "version": "0.7.16",
+      "kind": "cli",
+      "summary": "Dispatcher adaptativo de hooks para agentes LLM: recebe o evento por stdin, pontua e executa os handlers registrados, e devolve UMA decisão composta. Não é daemon — é invocado a cada evento de hook, por qualquer host (Copilot CLI, VS Code, Claude Code).",
+      "pagesPendente": "sem página de produto com vídeo; ela nasce do repositório do próprio motor e este registro só aponta para ela",
+      "home": "~/.copilot/neural-link",
+      "install": {
+        "type": "github-release",
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "neural-link-v{version}",
+        "asset": "neural-link-any.tgz",
+        "checksum": "{asset}.sha256",
+        "extractTo": "runtimes/neural-link",
+        "entry": "runtimes/neural-link/src/index.js",
+        "publicKey": "c51ebf5169454163a8c0238d07bbaf62ea5e32926a639b04b8ea57ce2df4ae26",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true
+      },
+      "platforms": [
+        "any"
+      ],
+      "notes": "kind=cli: o lifecycle entrega o binário e NÃO sobe processo. `extractTo` é aninhado de propósito — o home guarda ESTADO que precisa sobreviver ao update (weights/, logs/, active.json), e só `runtimes/<motor>` é trocado. O home fica sob `~/.copilot/` por compatibilidade com os hooks já reescritos em produção; desacoplar do host é o passo do ciclo em que o Skill Manager passar a provisionar pelo kit. Contrato de invocação: CONTRATO-DISPATCHER.md no repo público neural-link-runtime."
+    },
+    {
+      "name": "vxk",
+      "version": "0.24.7",
+      "kind": "cli",
+      "summary": "VXK — explicações visuais animadas e narradas como servidor MCP (stdio): qualquer cliente MCP (Claude Code, Codex, Copilot) compõe a biblioteca de componentes, ícones e o controle único de reprodução e recebe UM HTML autocontido e offline, ou o vídeo MP4 da mesma explicação (por preset, do aplicativo real ou em Motion) e o PDF. A narração é assada pelo motor vox-engine.",
+      "pagesUrl": "https://allansantos-dv.github.io/visual-explainer/",
+      "pagesPendente": "a página no ar não oferece o caminho Ver o que o produto faz antes do vídeo",
+      "home": "~/.vxk",
+      "install": {
+        "type": "github-release",
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "vxk-v{version}",
+        "asset": "vxk.tgz",
+        "checksum": "{asset}.sha256",
+        "extractTo": "bin",
+        "entry": "bin/vxk-mcp.mjs",
+        "publicKey": "50fab11fdd668f14c1e7d4c5379959f8a168fd9283bf05c0ac9cd7c8f6aaa299",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true
+      },
+      "platforms": [
+        "any"
+      ],
+      "notes": "kind=cli: o host MCP sobe `node ~/.vxk/bin/vxk-mcp.mjs` por stdio (direto ou como backend do mcp-gateway); o build é job assíncrono porque o gateway corta chamadas em 30 s. Desde a 0.19.0 esse arquivo é um shim fino: quem trabalha é UM daemon por máquina e por usuário (bin/vxk-daemon.mjs, 127.0.0.1, porta derivada do usuário), que o shim sobe se não houver e compartilha entre os agentes; ele anuncia porta, pid e shutdownToken em ~/.vxk/run/daemon.json. O bloco `runtime` declara só o que o kit usa para trocar a instalação: o kit NÃO sobe nem espera esse daemon (o shim cuida disso), mas ao atualizar pede POST /shutdown com o x-shutdown-token antes do swap (ocupado, o daemon responde 202 e fecha quando o trabalho em curso termina: o kit espera o processo sair), porque no Windows o daemon vivo segura a pasta bin e a troca falharia com EPERM. O motor publica ~/.vxk/cli.json (mcp, builder, version) a cada arranque. Traz também o builder CLI (bin/build-artifact.mjs). Entrega HTML, MP4 (vxk_build target=mp4, vxk_video por preset, vxk_app_video do aplicativo real, vxk_motion) e PDF. Narração requer o vox-engine (Windows); sem ele o build falha alto em vez de gerar mudo.",
+      "runtime": {
+        "transport": "http",
+        "runtimeFile": "run/daemon.json",
+        "healthPath": "/health",
+        "shutdownPath": "/shutdown",
+        "heartbeatMs": 30000,
+        "shutdownTokenField": "shutdownToken",
+        "shutdownTokenHeader": "x-shutdown-token"
+      }
+    },
+    {
+      "name": "cerne",
+      "version": "0.4.14",
+      "kind": "daemon",
+      "status": "self-managed",
+      "summary": "Leitura ativa de vídeo por link ou arquivo: captura, seleção de quadros, transcrição, tradução e consolidação em memória, exposta via servidor MCP por um único daemon local (CerneEngine) compartilhado entre os consumidores.",
+      "pagesPendente": "sem página de produto com vídeo; ela nasce do repositório do próprio motor e este registro só aponta para ela",
+      "home": "~/AppData/Local/Programs/Cerne",
+      "install": {
+        "type": "github-release",
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "cerne-v{version}",
+        "asset": "cerne-setup-v{version}.exe",
+        "checksum": "{asset}.sha256",
+        "signature": "{asset}.sig",
+        "publicKey": "f4c1460df98fd6c9ea044df614e4a1a0cf5ad18e9320f9595aae36d8e270ec5c",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true,
+        "extractTo": ".",
+        "entry": "cerne-gui.exe"
+      },
+      "notes": "self-managed: o asset é o instalador Inno Setup por usuário (sem admin) e o Cerne cuida do próprio upgrade — o engine-kit NÃO o provisiona; esta entrada é o descritor de registro (release, chave, versão). `home` é a pasta de INSTALAÇÃO ({autopf} sem privilégio = %LOCALAPPDATA%\\Programs\\Cerne), onde mora `entry`. Os DADOS (catálogo, cofre, mídia, backups) ficam em outro lugar, %LOCALAPPDATA%\\Cerne, e a descoberta do daemon vivo é %LOCALAPPDATA%\\Cerne\\run\\engine.json — por isso não há bloco `runtime` aqui: o runtimeFile do kit é relativo ao home e apontaria para a pasta errada. Código-fonte no repo AllanSantos-DV/cerne; a release pública mora aqui.",
+      "platforms": [
+        "win32-x64"
+      ]
+    },
+    {
+      "name": "skill-engine",
+      "version": "0.4.1",
+      "kind": "cli",
+      "summary": "Skill Manager v2: motor portátil que gerencia skills de agentes fora de qualquer IDE — busca repositórios de skills em quarentena, varre com regras determinísticas e só ativa o que sai limpo, nas pastas que Claude Code, Codex, Copilot e OpenCode leem. CLI `skill-engine`, não é daemon.",
+      "pagesPendente": "sem página de produto com vídeo; ela nasce do repositório do próprio motor e este registro só aponta para ela (a sessão do skill-manager a constrói)",
+      "home": "~/.skill-engine",
+      "install": {
+        "type": "github-release",
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "skill-engine-v{version}",
+        "asset": "skill-engine-any.tgz",
+        "checksum": "{asset}.sha256",
+        "extractTo": "runtimes/skill-engine",
+        "entry": "runtimes/skill-engine/bin/skill-engine.mjs",
+        "publicKey": "c34697186f45e8e91d0f49fa34d1c2d0055213aac2cdbe1490ac51eb2e42f704",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true
+      },
+      "platforms": [
+        "any"
+      ],
+      "notes": "kind=cli: o lifecycle entrega o binário e NÃO sobe processo. `extractTo` é aninhado como no neural-link: o home guarda ESTADO que sobrevive ao update, e só `runtimes/skill-engine` é trocado. Código-fonte no repo privado AllanSantos-DV/skill-engine; a release pública mora aqui."
+    },
+    {
+      "name": "client-harness",
+      "version": "0.4.1",
+      "kind": "cli",
+      "summary": "Daemon local que faz o Claude Code e o Codex respeitarem os padrões de cada cliente: confere cada ação do agente (hooks) contra as regras do cliente da pasta e recusa antes de gravar, em cerca de 1 ms, com o motivo e o que usar no lugar.",
+      "pagesUrl": "https://allansantos-dv.github.io/harness-padroes-cliente/",
+      "home": "~/.client-harness",
+      "install": {
+        "type": "github-release",
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "client-harness-v{version}",
+        "asset": "client-harness-any.tgz",
+        "checksum": "{asset}.sha256",
+        "extractTo": "runtimes/client-harness",
+        "entry": "runtimes/client-harness/src/cli.mjs",
+        "publicKey": "b3624d289f9e026388ee0b2c1aba0b1e2328b546b607c7f283548e85972052c4",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true
+      },
+      "platforms": [
+        "any"
+      ],
+      "notes": "kind=cli: o lifecycle entrega o binário e NÃO sobe processo (`client-harness start` sobe o daemon, que os hooks dos agentes consultam; o hook de SessionStart gravado por `client-harness install` o sobe a cada sessão). `extractTo` é aninhado como no neural-link e no skill-engine: o home guarda ESTADO (token, eventos, run/) que sobrevive ao update, e só `runtimes/client-harness` é trocado. Daemon único por máquina e usuário: bind numa porta derivada do usuário (47000-47999, CLIENT_HARNESS_PORT troca), run/daemon.json com porta, pid e shutdownToken. O bloco `runtime` declara só o que o kit usa para trocar a instalação: POST /shutdown?relaunch=1 com x-shutdown-token antes do swap (no Windows o daemon vivo segura a pasta); com relaunch=1 o daemon deixa um runner que sobe o daemon novo depois da troca, então um update não deixa a máquina sem checagem. O motor publica ~/.client-harness/cli.json em toda invocação do CLI sem --data. Artefato cross-platform (Node puro, sem dependências). Código-fonte no repo AllanSantos-DV/harness-padroes-cliente; a release pública mora aqui.",
+      "runtime": {
+        "transport": "http",
+        "runtimeFile": "run/daemon.json",
+        "healthPath": "/health",
+        "shutdownPath": "/shutdown?relaunch=1",
+        "shutdownTokenField": "shutdownToken",
+        "shutdownTokenHeader": "x-shutdown-token"
+      }
+    },
+    {
+      "name": "casa-de-embeddings",
+      "version": "0.3.10",
+      "kind": "cli",
+      "summary": "Casa local de embeddings: um daemon por máquina que serve /embed, /similarity e /rerank, dono do modelo e da identidade do espaço vetorial (space_id). Nenhum produto carrega o próprio modelo.",
+      "pagesPendente": "a casa ainda não tem página de produto própria; a página nasce do repositório da casa, e a release assinada já está publicada",
+      "home": "~/.casa-de-embeddings",
+      "install": {
+        "type": "github-release",
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "casa-de-embeddings-v{version}",
+        "asset": "casa-de-embeddings.tgz",
+        "checksum": "{asset}.sha256",
+        "extractTo": "bin",
+        "entry": "bin/casa-de-embeddings.exe",
+        "publicKey": "1642fd48b1bfc6f812e76e23f612abdf94d4ade52536dab4f24867cc6785e3ac",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true
+      },
+      "platforms": [
+        "win32-x64"
+      ],
+      "notes": "kind=cli: o kit entrega o executável e desliga a casa antes de trocar a instalação; quem a sobe é o cliente compartilhado (kit/client.mjs, ensureCasa), que espera o anúncio run/daemon.json. O anúncio traz url, port, pid, version e shutdownToken.",
+      "runtime": {
+        "transport": "http",
+        "runtimeFile": "run/daemon.json",
+        "healthPath": "/health",
+        "shutdownPath": "/admin/shutdown",
+        "shutdownTokenField": "shutdownToken",
+        "shutdownTokenHeader": "x-casa-token",
+        "heartbeatMs": 30000,
+        "defaultPort": 8189
+      }
+    },
+    {
+      "name": "motor-de-grafo",
+      "version": "0.1.3",
+      "kind": "cli",
+      "summary": "Motor de grafos: indexa uma pasta e responde o grafo de código (símbolos, busca, chamadores, chamados, referências e o índice SCIP) e, no mesmo banco, o grafo de documentos e qualquer tipo de nó que um produto registrar, com busca por nome, texto, vetor e propriedade. Os vetores vêm da casa de embeddings anunciada. Atualiza pelo próprio updater.",
+      "pagesPendente": "o motor ainda não tem página de produto própria; a página nasce do repositório do motor, e a release assinada já está publicada",
+      "home": "~/.motor-de-grafo",
+      "install": {
+        "type": "github-release",
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "motor-de-grafo-v{version}",
+        "asset": "motor-de-grafo.tgz",
+        "checksum": "{asset}.sha256",
+        "extractTo": "bin",
+        "entry": "bin/motor-de-grafo.exe",
+        "byPlatform": {
+          "linux-x64": {
+            "asset": "motor-de-grafo-linux-x64.tgz",
+            "entry": "bin/motor-de-grafo"
+          }
+        },
+        "publicKey": "3ccde5f5f0f46f3f63c3a7d6c4196f3de1db1af6d61c1a4c9b7a99c2e9e86bac",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true
+      },
+      "platforms": [
+        "win32-x64",
+        "linux-x64"
+      ],
+      "notes": "kind=cli: o kit instala só o que está ausente; o motor atualiza por POST /api/v1/server/update (runtime.updatePath) e o kit não troca uma instalação presente. O anúncio run/daemon.json traz url, port, pid, version e shutdownToken (cabeçalho x-shutdown-token no desligamento).",
+      "runtime": {
+        "transport": "http",
+        "runtimeFile": "run/daemon.json",
+        "healthPath": "/health",
+        "shutdownPath": "/api/v1/server/shutdown",
+        "updatePath": "/api/v1/server/update",
+        "shutdownTokenField": "shutdownToken",
+        "shutdownTokenHeader": "x-shutdown-token",
+        "heartbeatMs": 30000
+      }
+    },
+    {
+      "name": "motor-de-grafo-linux-x64",
+      "version": "0.1.3",
+      "kind": "cli",
+      "summary": "Motor de grafos para Linux x64: indexa uma pasta e responde o grafo de código (símbolos, busca, chamadores, chamados, referências e o índice SCIP) e, no mesmo banco, o grafo de documentos e qualquer tipo de nó que um produto registrar, com busca por nome, texto, vetor e propriedade. Os vetores vêm da casa de embeddings anunciada. Atualiza pelo próprio updater e roda como unidade de usuário do systemd (motor-de-grafo systemd-unit).",
+      "pagesPendente": "o motor ainda não tem página de produto própria; a página nasce do repositório do motor, e a release assinada já está publicada",
+      "home": "~/.motor-de-grafo",
+      "install": {
+        "type": "github-release",
+        "repo": "AllanSantos-DV/engine-registry",
+        "tag": "motor-de-grafo-v{version}",
+        "asset": "motor-de-grafo-linux-x64.tgz",
+        "checksum": "{asset}.sha256",
+        "extractTo": "bin",
+        "entry": "bin/motor-de-grafo",
+        "publicKey": "3ccde5f5f0f46f3f63c3a7d6c4196f3de1db1af6d61c1a4c9b7a99c2e9e86bac",
+        "signatureAlgorithm": "ed25519-sha256-raw",
+        "signatureRequired": true
+      },
+      "platforms": [
+        "linux-x64"
+      ],
+      "notes": "kind=cli: o kit instala só o que está ausente; o motor atualiza por POST /api/v1/server/update (runtime.updatePath) e o kit não troca uma instalação presente. O anúncio run/daemon.json traz url, port, pid, version e shutdownToken (cabeçalho x-shutdown-token no desligamento). Pacote Linux: launcher sh na raiz, runtime jlink embutido; a unidade de usuário do systemd sai de `motor-de-grafo systemd-unit`. A release usa a mesma tag da entrada motor-de-grafo (Windows); o motor Linux lê esta entrada, a do Windows lê motor-de-grafo.",
+      "runtime": {
+        "transport": "http",
+        "runtimeFile": "run/daemon.json",
+        "healthPath": "/health",
+        "shutdownPath": "/api/v1/server/shutdown",
+        "updatePath": "/api/v1/server/update",
+        "shutdownTokenField": "shutdownToken",
+        "shutdownTokenHeader": "x-shutdown-token",
+        "heartbeatMs": 30000
+      }
+    }
+  ]
+}

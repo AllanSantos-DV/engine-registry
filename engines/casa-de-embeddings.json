@@ -1,0 +1,10 @@
+{
+  "name": "casa-de-embeddings",
+  "version": "0.3.10",
+  "kind": "cli",
+  "summary": "Casa local de embeddings: um daemon por máquina que serve /embed, /similarity e /rerank, dono do modelo e da identidade do espaço vetorial (space_id). Nenhum produto carrega o próprio modelo.",
+  "platforms": [
+    "win32-x64"
+  ],
+  "release": "https://github.com/AllanSantos-DV/engine-registry/releases/tag/casa-de-embeddings-v0.3.10"
+}

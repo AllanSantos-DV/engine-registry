@@ -1,0 +1,11 @@
+{
+  "name": "motor-de-grafo",
+  "version": "0.1.3",
+  "kind": "cli",
+  "summary": "Motor de grafos: indexa uma pasta e responde o grafo de código (símbolos, busca, chamadores, chamados, referências e o índice SCIP) e, no mesmo banco, o grafo de documentos e qualquer tipo de nó que um produto registrar, com busca por nome, texto, vetor e propriedade. Os vetores vêm da casa de embeddings anunciada. Atualiza pelo próprio updater.",
+  "platforms": [
+    "win32-x64",
+    "linux-x64"
+  ],
+  "release": "https://github.com/AllanSantos-DV/engine-registry/releases/tag/motor-de-grafo-v0.1.3"
+}

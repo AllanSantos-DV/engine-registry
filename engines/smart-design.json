@@ -1,0 +1,10 @@
+{
+  "name": "smart-design",
+  "version": "0.3.5",
+  "kind": "app",
+  "summary": "Serviço local que o agente de código chama por MCP para desenhar telas com sistema de design, renderizá-las e conferi-las em pixels antes de entregar. Windows.",
+  "platforms": [
+    "win32-x64"
+  ],
+  "release": "https://github.com/AllanSantos-DV/engine-registry/releases/tag/smart-design-v0.3.5"
+}

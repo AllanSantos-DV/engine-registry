@@ -1,0 +1,12 @@
+{
+  "name": "embed-house",
+  "version": "1.0.5",
+  "kind": "daemon",
+  "summary": "Casa de embeddings compartilhada (MiniLM-L6-v2, 384-dim): carrega o modelo UMA vez e serve vetores a N consumidores via 127.0.0.1, em vez de cada sessão carregar ~147 MB.",
+  "platforms": [
+    "win32-x64",
+    "linux-x64",
+    "darwin-arm64"
+  ],
+  "release": "https://github.com/AllanSantos-DV/engine-registry/releases/tag/embed-house-v1.0.5"
+}

@@ -1,0 +1,10 @@
+{
+  "name": "skill-engine",
+  "version": "0.4.1",
+  "kind": "cli",
+  "summary": "Skill Manager v2: motor portátil que gerencia skills de agentes fora de qualquer IDE — busca repositórios de skills em quarentena, varre com regras determinísticas e só ativa o que sai limpo, nas pastas que Claude Code, Codex, Copilot e OpenCode leem. CLI `skill-engine`, não é daemon.",
+  "platforms": [
+    "any"
+  ],
+  "release": "https://github.com/AllanSantos-DV/engine-registry/releases/tag/skill-engine-v0.4.1"
+}

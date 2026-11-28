@@ -1,0 +1,10 @@
+{
+  "name": "vox-engine",
+  "version": "0.33.4",
+  "kind": "daemon",
+  "summary": "Motor de voz (STT/TTS) compartilhado: transcreve e sintetiza para N consumidores a partir de uma única instância, com auto-unload quando ocioso.",
+  "platforms": [
+    "win32-x64"
+  ],
+  "release": "https://github.com/AllanSantos-DV/engine-registry/releases/tag/vox-engine-v0.33.4"
+}
